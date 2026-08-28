@@ -1,0 +1,16 @@
+{
+  "name": "widetechnos-ai-platform",
+  "version": "1.0.0",
+  "description": "Full MERN Stack AI Academy Platform with PayU Integration",
+  "scripts": {
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "install-all": "npm install && npm run install-backend && npm run install-frontend",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
