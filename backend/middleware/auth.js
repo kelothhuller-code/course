@@ -23,6 +23,23 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// Optional auth - doesn't require authentication but sets user if token exists
+export const optionalAuth = async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027');
+      req.user = await User.findById(decoded.id).select('-password');
+    } catch (error) {
+      // Token is invalid, but we don't care for optional auth
+      console.log('Optional auth: Invalid token');
+    }
+  }
+  next();
+};
+
 export const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();

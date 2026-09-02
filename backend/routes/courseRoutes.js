@@ -78,15 +78,19 @@ router.get('/:id/learn', protect, async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 router.post('/', protect, admin, async (req, res) => {
-  const { title, description, category, packageType, price, thumbnail, languages, content } = req.body;
+  const { title, description, type, category, isFree, outcomes, packageType, price, discountedPrice, thumbnail, languages, content } = req.body;
 
   try {
     const course = await Course.create({
       title,
       description,
+      type,
       category,
+      isFree,
+      outcomes,
       packageType,
       price,
+      discountedPrice,
       thumbnail,
       languages: languages || [],
       content: content || [],
@@ -95,6 +99,39 @@ router.post('/', protect, admin, async (req, res) => {
     res.status(201).json(course);
   } catch (error) {
     console.error('Create course error:', error);
+    res.status(400).json({ message: 'Invalid course data', error: error.message });
+  }
+});
+
+// @desc    Update a course
+// @route   PUT /api/courses/:id
+// @access  Private/Admin
+router.put('/:id', protect, admin, async (req, res) => {
+  const { title, description, type, category, isFree, outcomes, packageType, price, discountedPrice, thumbnail, languages, content } = req.body;
+
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    course.title = title || course.title;
+    course.description = description || course.description;
+    course.type = type || course.type;
+    course.category = category || course.category;
+    course.isFree = isFree !== undefined ? isFree : course.isFree;
+    course.outcomes = outcomes || course.outcomes;
+    course.packageType = packageType || course.packageType;
+    course.price = price !== undefined ? price : course.price;
+    course.discountedPrice = discountedPrice !== undefined ? discountedPrice : course.discountedPrice;
+    course.thumbnail = thumbnail || course.thumbnail;
+    course.languages = languages || course.languages;
+    course.content = content || course.content;
+
+    const updatedCourse = await course.save();
+    res.json(updatedCourse);
+  } catch (error) {
+    console.error('Update course error:', error);
     res.status(400).json({ message: 'Invalid course data', error: error.message });
   }
 });

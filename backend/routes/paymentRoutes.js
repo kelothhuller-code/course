@@ -5,6 +5,7 @@ import Transaction from '../models/Transaction.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import User from '../models/User.js';
+import ReferralLog from '../models/ReferralLog.js';
 import { sendPurchaseEmail } from '../utils/mailer.js';
 
 const router = express.Router();
@@ -159,6 +160,24 @@ router.post('/response', async (req, res) => {
       // Send purchase confirmation email
       sendPurchaseEmail(user.email, user.name, productinfo, txnid, amount);
 
+      // Process Referral Commission
+      if (txn.itemType === 'course' && user.referredBy) {
+        const course = await Course.findById(txn.itemId);
+        if (course && course.affiliateCommission > 0) {
+          const referrer = await User.findById(user.referredBy);
+          if (referrer) {
+            referrer.walletBalance += course.affiliateCommission;
+            await referrer.save();
+            await ReferralLog.create({
+              referrerId: referrer._id,
+              refereeId: user._id,
+              courseId: course._id,
+              commissionAmount: course.affiliateCommission
+            });
+          }
+        }
+      }
+
       // Redirect client to dashboard with success query param
       res.redirect(`${frontendUrl}/dashboard?payment=success&txnid=${txnid}`);
     } else {
@@ -241,6 +260,24 @@ router.post('/mock-callback', async (req, res) => {
 
       // Send purchase confirmation email
       sendPurchaseEmail(user.email, user.name, itemTitle, txnid, txn.amount);
+
+      // Process Referral Commission
+      if (txn.itemType === 'course' && user.referredBy) {
+        const course = await Course.findById(txn.itemId);
+        if (course && course.affiliateCommission > 0) {
+          const referrer = await User.findById(user.referredBy);
+          if (referrer) {
+            referrer.walletBalance += course.affiliateCommission;
+            await referrer.save();
+            await ReferralLog.create({
+              referrerId: referrer._id,
+              refereeId: user._id,
+              courseId: course._id,
+              commissionAmount: course.affiliateCommission
+            });
+          }
+        }
+      }
     }
 
     res.json({

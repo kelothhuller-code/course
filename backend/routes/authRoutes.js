@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { sendRegistrationEmail } from '../utils/mailer.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, referralCode } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -34,11 +35,23 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    let referredBy = null;
+    if (referralCode) {
+      const referrer = await User.findOne({ referralCode });
+      if (referrer) {
+        referredBy = referrer._id;
+      }
+    }
+
+    const newReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       role,
+      referralCode: newReferralCode,
+      referredBy
     });
 
     if (user) {
@@ -69,15 +82,18 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@admin.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
     // Check for special super admin credentials
-    if (email === 'midlaj' && password === 'midlaj@2000') {
-      let superAdmin = await User.findOne({ email: 'midlaj' });
+    if (email === adminEmail && password === adminPassword) {
+      let superAdmin = await User.findOne({ email: adminEmail });
       if (!superAdmin) {
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('midlaj@2000', salt);
+        const hashedPassword = await bcrypt.hash(adminPassword, salt);
         superAdmin = await User.create({
-          name: 'Super Admin Midlaj',
-          email: 'midlaj',
+          name: 'Super Admin',
+          email: adminEmail,
           password: hashedPassword,
           role: 'admin',
         });

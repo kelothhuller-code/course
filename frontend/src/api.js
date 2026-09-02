@@ -98,6 +98,14 @@ export const api = {
     return handleResponse(res);
   },
 
+  getEvent: async (id) => {
+    const res = await fetch(`${BASE_URL}/events/${id}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
   registerFreeEvent: async (eventId) => {
     const res = await fetch(`${BASE_URL}/events/${eventId}/register-free`, {
       method: 'POST',
@@ -125,11 +133,21 @@ export const api = {
     return handleResponse(res);
   },
 
-  submitMockCallback: async (txnid, status) => {
+  mockPaymentCallback: async (txnid, status) => {
     const res = await fetch(`${BASE_URL}/payment/mock-callback`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ txnid, status }),
+    });
+    return handleResponse(res);
+  },
+
+  // Enroll Free
+  enrollFree: async (itemId) => {
+    const res = await fetch(`${BASE_URL}/enroll/free`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ itemId }),
     });
     return handleResponse(res);
   },
@@ -194,5 +212,148 @@ export const api = {
       body: JSON.stringify({ userId, courseId }),
     });
     return handleResponse(res);
+  },
+
+  // ========== NEW LMS METHODS ==========
+
+  // Get user's learning overview
+  getMyLearning: async () => {
+    const response = await fetch(`${BASE_URL}/progress/my-learning`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch learning data');
+    return response.json();
+  },
+
+  // Get course progress
+  getCourseProgress: async (courseId) => {
+    const response = await fetch(`${BASE_URL}/progress/courses/${courseId}/progress`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch course progress');
+    return response.json();
+  },
+
+  // Update video progress
+  updateVideoProgress: async (courseId, lessonId, data) => {
+    const response = await fetch(`${BASE_URL}/progress/courses/${courseId}/lessons/${lessonId}/video-progress`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update video progress');
+    return response.json();
+  },
+
+  // Track material opened
+  trackMaterialOpen: async (courseId, lessonId) => {
+    const response = await fetch(`${BASE_URL}/progress/courses/${courseId}/lessons/${lessonId}/material-open`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to track material access');
+    return response.json();
+  },
+
+  // Get lesson comments
+  getComments: async (courseId, lessonId, page = 1, limit = 20) => {
+    const response = await fetch(
+      `${BASE_URL}/comments/courses/${courseId}/lessons/${lessonId}/comments?page=${page}&limit=${limit}`,
+      { headers: getHeaders() }
+    );
+    console.log(response)
+    if (!response.ok) throw new Error('Failed to fetch comments');
+    return response.json();
+  },
+
+  // Create comment
+  createComment: async (courseId, lessonId, data) => {
+    const response = await fetch(`${BASE_URL}/comments/courses/${courseId}/lessons/${lessonId}/comments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create comment');
+    return response.json();
+  },
+
+  // Update comment
+  updateComment: async (commentId, data) => {
+    const response = await fetch(`${BASE_URL}/comments/${commentId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update comment');
+    return response.json();
+  },
+
+  // Delete comment
+  deleteComment: async (commentId) => {
+    const response = await fetch(`${BASE_URL}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to delete comment');
+    return response.json();
+  },
+
+  // Toggle like on comment
+  toggleLike: async (commentId) => {
+    const response = await fetch(`${BASE_URL}/comments/${commentId}/like`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to toggle like');
+    return response.json();
+  },
+
+  // Mark question as resolved
+  markResolved: async (commentId) => {
+    const response = await fetch(`${BASE_URL}/comments/${commentId}/resolve`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to mark as resolved');
+    return response.json();
+  },
+
+  // Get all certificates
+  getCertificates: async () => {
+    const response = await fetch(`${BASE_URL}/certificates`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch certificates');
+    return response.json();
+  },
+
+  // Get certificate for a course
+  getCertificateByCourse: async (courseId) => {
+    const response = await fetch(`${BASE_URL}/certificates/courses/${courseId}`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch certificate');
+    return response.json();
+  },
+
+  // Verify certificate (public)
+  verifyCertificate: async (certificateId) => {
+    const response = await fetch(`${BASE_URL}/certificates/verify/${certificateId}`);
+    if (!response.ok) throw new Error('Failed to verify certificate');
+    return response.json();
+  },
+
+  // Get all courses (alias for getCourses)
+  getAllCourses: async () => {
+    const response = await fetch(`${BASE_URL}/courses`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch courses');
+    return response.json();
   }
 };
