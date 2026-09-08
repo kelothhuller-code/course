@@ -20,41 +20,104 @@ import FAQ from './Landing/FAQ';
 import FinalCTA from './Landing/FinalCTA';
 import Footer from './Landing/Footer';
 import VideoModal from './Landing/VideoModal';
+import AdvancedCourses from './Landing/AdvancedCourses';
+import CourseGrid from './Landing/CourseGrid';
 
 export default function LandingPage({ user, onOpenMockPayment }) {
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState([]); // Initialize as empty array
   const [events, setEvents] = useState([]);
   const [trials, setTrials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  const [showAllCourses, setShowAllCourses] = useState(false);
   const navigate = useNavigate();
 
-  // Find the featured ₹499 course
-  const featuredCourse = courses.find(c => 
-    c.price === 499 || 
-    c.title?.toLowerCase().includes('start coding') ||
-    c.title?.toLowerCase().includes('beginner')
-  ) || courses[0];
+  // Find the featured ₹499 course - with safety check
+  const featuredCourse = Array.isArray(courses) && courses.length > 0
+    ? courses.find(c =>
+      c.price === 499 ||
+      c.title?.toLowerCase().includes('start coding') ||
+      c.title?.toLowerCase().includes('beginner')
+    ) || courses[0]
+    : null;
+
+  // Fetch courses with pagination
+  const fetchCourses = async (page = 1, showAll = false) => {
+    try {
+      const data = await api.getCourses(page, 9, showAll);
+      // Ensure data.courses is an array
+      setCourses(Array.isArray(data.courses) ? data.courses : []);
+      setPagination(data.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      });
+      setShowAllCourses(data.showAll || false);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setCourses([]); // Set empty array on error
+    }
+  };
+
+  // Fetch all data
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const [coursesData, eventsData, trialsData] = await Promise.all([
+        api.getCourses(1, 9, false),
+        api.getEvents(),
+        api.getTrials(),
+      ]);
+
+      // Ensure courses is an array
+      setCourses(Array.isArray(coursesData.courses) ? coursesData.courses : []);
+      setPagination(coursesData.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      });
+      setShowAllCourses(coursesData.showAll || false);
+
+      // Ensure events and trials are arrays
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      setTrials(Array.isArray(trialsData) ? trialsData : []);
+    } catch (err) {
+      console.error('Error fetching landing page data:', err);
+      setCourses([]);
+      setEvents([]);
+      setTrials([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [coursesData, eventsData, trialsData] = await Promise.all([
-          api.getCourses(),
-          api.getEvents(),
-          api.getTrials(),
-        ]);
-        setCourses(coursesData);
-        setEvents(eventsData);
-        setTrials(trialsData);
-      } catch (err) {
-        console.error('Error fetching landing page data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchAllData();
   }, []);
+
+  const handlePageChange = (newPage) => {
+    fetchCourses(newPage, showAllCourses);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleShowAll = () => {
+    fetchCourses(1, true);
+  };
+
+  const handleShowPaginated = () => {
+    fetchCourses(1, false);
+  };
 
   const handleEnroll = async (item, type) => {
     if (!user) {
@@ -63,13 +126,17 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     }
 
     if (type === 'course') {
-      const isAlreadyEnrolled = user.enrolledCourses?.some(c => c.courseId?._id === item._id || c.courseId === item._id);
+      const isAlreadyEnrolled = user.enrolledCourses?.some(c =>
+        c.courseId?._id === item._id || c.courseId === item._id
+      );
       if (isAlreadyEnrolled) {
         navigate('/dashboard');
         return;
       }
     } else if (type === 'event') {
-      const isAlreadyEnrolled = user.enrolledEvents?.some(e => e.eventId?._id === item._id || e.eventId === item._id);
+      const isAlreadyEnrolled = user.enrolledEvents?.some(e =>
+        e.eventId?._id === item._id || e.eventId === item._id
+      );
       if (isAlreadyEnrolled) {
         navigate('/dashboard');
         return;
@@ -131,16 +198,16 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh', 
-        background: '#F8FAFC' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: 700, 
+        <div style={{
+          fontSize: '1.5rem',
+          fontWeight: 700,
           color: '#4F46E5',
           animation: 'pulse 1.5s infinite'
         }}>
@@ -156,45 +223,59 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         localStorage.removeItem('token');
         navigate('/');
       }} />
-      
+
       <main>
         <Hero user={user} handleEnroll={handleEnroll} featuredCourse={featuredCourse} />
         <TrustStrip />
-        <FeaturedCourse 
-          course={featuredCourse} 
-          user={user} 
-          handleEnroll={handleEnroll} 
+        <FeaturedCourse
+          course={featuredCourse}
+          user={user}
+          handleEnroll={handleEnroll}
         />
         <BuildJourney />
         <CourseCurriculum course={featuredCourse} />
         <WhyAI />
-        <TrialTutorials 
-          trials={trials} 
-          onPlayVideo={setActiveVideo} 
+        <TrialTutorials
+          trials={trials}
+          onPlayVideo={setActiveVideo}
         />
+
+        {/* Course Grid with Pagination */}
+        <CourseGrid
+          courses={courses}
+          user={user}
+          handleEnroll={handleEnroll}
+          pagination={pagination}
+          onPageChange={handlePageChange}
+          onShowAll={handleShowAll}
+          onShowPaginated={handleShowPaginated}
+          showAll={showAllCourses}
+        />
+
+        <AdvancedCourses user={user} />
         <LearningPaths />
-        <EventsSection 
-          events={events} 
-          user={user} 
-          handleEnroll={handleEnroll} 
+        <EventsSection
+          events={events}
+          user={user}
+          handleEnroll={handleEnroll}
         />
         <AudienceSection />
         <HowItWorks />
         <FounderSection />
         <FAQ />
-        <FinalCTA 
-          user={user} 
-          handleEnroll={handleEnroll} 
-          featuredCourse={featuredCourse} 
+        <FinalCTA
+          user={user}
+          handleEnroll={handleEnroll}
+          featuredCourse={featuredCourse}
         />
       </main>
 
       <Footer />
 
       {activeVideo && (
-        <VideoModal 
-          videoUrl={activeVideo} 
-          onClose={() => setActiveVideo(null)} 
+        <VideoModal
+          videoUrl={activeVideo}
+          onClose={() => setActiveVideo(null)}
         />
       )}
     </div>

@@ -74,7 +74,7 @@ export default function NavHeader({ user, onLogout }) {
                     Dashboard
                   </Link>
                   
-                  <Link to="/dashboard" className="nav-link" style={{ 
+                  {/* <Link to="/dashboard" className="nav-link" style={{ 
                     color: 'var(--text-secondary)',
                     textDecoration: 'none',
                     fontWeight: 500,
@@ -82,7 +82,7 @@ export default function NavHeader({ user, onLogout }) {
                     transition: 'color var(--transition)'
                   }}>
                     My Learning
-                  </Link>
+                  </Link> */}
 
                   <button 
                     className="btn btn-secondary btn-sm" 

@@ -8,13 +8,127 @@ const router = express.Router();
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
+// router.get('/', async (req, res) => {
+//   try {
+//     // Return all courses, hiding internal chapter videoUrls for safety
+//     const courses = await Course.find({}).select('-content.chapters.videoUrl');
+//     res.json(courses);
+//   } catch (error) {
+//     console.error('Fetch courses error:', error);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+// GET /api/courses - Get courses with pagination
 router.get('/', async (req, res) => {
   try {
-    // Return all courses, hiding internal chapter videoUrls for safety
-    const courses = await Course.find({}).select('-content.chapters.videoUrl');
-    res.json(courses);
+    console.log(req.query)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 9;
+    const skip = (page - 1) * limit;
+    const showAll = req.query.showAll === 'true';
+
+    // Build query - you can add filters here if needed
+    const query = {};
+
+    // Get total count for pagination
+    const total = await Course.countDocuments(query);
+    // If showAll is true, get all courses without pagination
+    let courses;
+    if (showAll) {
+      courses = await Course.find(query)
+        .select('-content.chapters.videoUrl')
+        .sort({ createdAt: -1 });
+    } else {
+      courses = await Course.find(query)
+        .select('-content.chapters.videoUrl')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+    }
+
+    res.json({
+      courses,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      },
+      showAll: showAll
+    });
   } catch (error) {
     console.error('Fetch courses error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+// In your courses route file
+router.get('/paginated', async (req, res) => {
+  try {
+    console.log('xxdsd')
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const search = req.query.search || '';
+    const category = req.query.category || 'All';
+    const skip = (page - 1) * limit;
+
+    // Build query
+    let query = {};
+    
+    // Search filter
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Category filter
+    if (category && category !== 'All') {
+      query.category = category;
+    }
+
+    // Get total count
+    const total = await Course.countDocuments(query);
+
+    // Get courses
+    const courses = await Course.find(query)
+      .select('-content.chapters.videoUrl')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      courses,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Fetch courses error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+// GET /api/courses/all - Get all courses (no pagination)
+router.get('/all', async (req, res) => {
+  try {
+    const courses = await Course.find({})
+      .select('-content.chapters.videoUrl')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      courses,
+      total: courses.length
+    });
+  } catch (error) {
+    console.error('Fetch all courses error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -28,7 +142,7 @@ router.get('/:id', async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     // Create an outline version (hide videoUrl)
     const outline = course.toObject();
     if (outline.content) {
@@ -170,14 +284,14 @@ router.post('/:id/progress', protect, async (req, res) => {
 
     // Calculate progress based on the selected language contents
     const languageContent = course.content.find((c) => c.language.toLowerCase() === language.toLowerCase());
-    
+
     let progress = 0;
     if (languageContent && languageContent.chapters.length > 0) {
       const totalChapters = languageContent.chapters.length;
       // Filter user's completed chapters to only those in the current language structure
       const languageChapterTitles = languageContent.chapters.map(ch => ch.title);
       const completedInLanguage = completedChapters.filter(title => languageChapterTitles.includes(title));
-      
+
       progress = Math.round((completedInLanguage.length / totalChapters) * 100);
     }
 

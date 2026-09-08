@@ -55,6 +55,56 @@ export const api = {
     });
     return handleResponse(res);
   },
+getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'All') => {
+    try {
+      console.log('bbbbb')
+      const queryParams = new URLSearchParams({
+        page,
+        limit,
+        search: search || '',
+        category: category || 'All'
+      });
+      
+      const response = await fetch(
+        `${BASE_URL}/courses/paginated?${queryParams}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch courses');
+      }
+      
+      const data = await response.json();
+      
+      return {
+        courses: Array.isArray(data.courses) ? data.courses : [],
+        pagination: data.pagination || {
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      };
+    } catch (error) {
+      console.error('Error in getAllCoursesPaginated:', error);
+      return {
+        courses: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      };
+    }
+  },
 
   getCourse: async (id) => {
     const res = await fetch(`${BASE_URL}/courses/${id}`, {
@@ -349,6 +399,7 @@ export const api = {
 
   // Get all courses (alias for getCourses)
   getAllCourses: async () => {
+    console.log('dfdf')
     const response = await fetch(`${BASE_URL}/courses`, {
       method: 'GET',
       headers: getHeaders()

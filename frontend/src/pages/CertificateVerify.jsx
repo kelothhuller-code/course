@@ -56,8 +56,8 @@ export default function CertificateVerify() {
           <p style={{ color: 'var(--text-muted)' }}>This certificate is valid and officially issued</p>
         </div>
 
-        <div className="certificate-card" style={{ 
-          padding: '2rem', 
+        <div className="certificate-card" style={{
+          padding: '2rem',
           background: 'linear-gradient(135deg, #1a1a2e, #2d1b4e)',
           borderRadius: 'var(--radius-lg)',
           color: '#fff',
