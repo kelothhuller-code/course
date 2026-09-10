@@ -16,6 +16,7 @@ import enrollRoutes from './routes/enrollRoutes.js';
 import progressRoutes from './routes/progressRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import certificateRoutes from './routes/certificateRoutes.js';
+import leadRoutes from './routes/leadRoutes.js';
 
 // Import models for seeding
 import Course from './models/Course.js';
@@ -54,6 +55,7 @@ app.use('/api/enroll', enrollRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/leads', leadRoutes);
 
 // Admin Frontend Route
 app.get('/admin*', (req, res) => {

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import './AllCoursesPage.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
   const [courses, setCourses] = useState([]);
@@ -31,7 +32,7 @@ export default function AllCoursesPage({ user, onLogout }) {
         hasNextPage: false,
         hasPrevPage: false
       });
-      
+
       // Extract unique categories
       if (data.courses) {
         const uniqueCategories = ['All', ...new Set(data.courses.map(c => c.category).filter(Boolean))];
@@ -71,10 +72,6 @@ export default function AllCoursesPage({ user, onLogout }) {
   const handleEnroll = async (course) => {
     // Check if user is logged in
     const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/auth');
-      return;
-    }
 
     const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
       (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
@@ -86,6 +83,7 @@ export default function AllCoursesPage({ user, onLogout }) {
     }
 
     if (course.isFree || course.price === 0) {
+      if (!token) { navigate('/auth'); return; }
       try {
         await api.enrollFree(course._id);
         alert('🎉 Successfully enrolled in free course!');
@@ -96,8 +94,8 @@ export default function AllCoursesPage({ user, onLogout }) {
       return;
     }
 
-    // Navigate to checkout for paid course
-    navigate(`/checkout/${course._id}`);
+    // Navigate to Sales Page first (funnel)
+    navigate(`/course/${course._id}/preview`);
   };
 
   // Clear search
@@ -115,7 +113,7 @@ export default function AllCoursesPage({ user, onLogout }) {
             <span className="logo-text">WIDETECHNOS</span>
             <span className="logo-tagline">ACADEMY</span>
           </Link>
-          
+
           <nav className="nav-links">
             <Link to="/" className="nav-link">Home</Link>
             {user && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
@@ -205,8 +203,8 @@ export default function AllCoursesPage({ user, onLogout }) {
                 {courses.map(course => (
                   <div key={course._id} className="course-card">
                     <div className="card-img">
-                      <img 
-                        src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'} 
+                      <img
+                        src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'}
                         alt={course.title}
                         loading="lazy"
                       />
@@ -238,8 +236,8 @@ export default function AllCoursesPage({ user, onLogout }) {
                             <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price}`}</span>
                           )}
                         </div>
-                        <button 
-                          className="btn btn-primary btn-sm" 
+                        <button
+                          className="btn btn-primary btn-sm"
                           onClick={() => handleEnroll(course)}
                         >
                           {user?.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === course._id.toString())
@@ -255,14 +253,14 @@ export default function AllCoursesPage({ user, onLogout }) {
               {/* Pagination */}
               {pagination.totalPages > 1 && (
                 <div className="pagination-controls">
-                  <button 
+                  <button
                     onClick={() => handlePageChange(pagination.currentPage - 1)}
                     disabled={!pagination.hasPrevPage}
                     className="pagination-btn"
                   >
                     ← Previous
                   </button>
-                  
+
                   <div className="pagination-pages">
                     {[...Array(pagination.totalPages)].map((_, i) => {
                       const pageNum = i + 1;
@@ -291,7 +289,7 @@ export default function AllCoursesPage({ user, onLogout }) {
                     })}
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => handlePageChange(pagination.currentPage + 1)}
                     disabled={!pagination.hasNextPage}
                     className="pagination-btn"
@@ -312,7 +310,7 @@ export default function AllCoursesPage({ user, onLogout }) {
             <div className="footer-brand">
               <h3>WIDETECHNOS</h3>
               <p>
-                Making AI education accessible to everyone — from kids to seniors, 
+                Making AI education accessible to everyone — from kids to seniors,
                 beginners to professionals.
               </p>
               <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>

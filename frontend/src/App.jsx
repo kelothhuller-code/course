@@ -10,6 +10,7 @@ import CourseViewer from './pages/CourseViewer';
 import Checkout from './pages/Checkout';
 import CertificateVerify from './pages/CertificateVerify';
 import AllCoursesPage from './pages/AllCoursesPage';
+import CoursePreview from './pages/CoursePreview';
 
 
 function AppContent() {
@@ -94,11 +95,12 @@ function AppContent() {
             path="/checkout/:id" 
             element={<Checkout user={user} onRefreshUser={refreshUser} />} 
           />
+          <Route path="/course/:id/preview" element={<CoursePreview user={user} />} />
           <Route 
             path="/course/:id" 
             element={<CourseViewer user={user} onRefreshUser={refreshUser} />} 
           />
-                    <Route path="/all-courses" element={<AllCoursesPage user={user} onLogout={handleLogout} />} />
+          <Route path="/all-courses" element={<AllCoursesPage user={user} onLogout={handleLogout} />} />
 
         </Routes>
       </main>

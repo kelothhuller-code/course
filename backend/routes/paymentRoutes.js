@@ -6,6 +6,7 @@ import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import User from '../models/User.js';
 import ReferralLog from '../models/ReferralLog.js';
+import Coupon from '../models/Coupon.js';
 import { sendPurchaseEmail } from '../utils/mailer.js';
 
 const router = express.Router();
@@ -25,11 +26,51 @@ const verifyResponseHash = (key, txnid, amount, productinfo, firstname, email, s
   return calculatedHash === responseHash;
 };
 
+// @desc    Validate a coupon code
+// @route   POST /api/payment/validate-coupon
+// @access  Private
+router.post('/validate-coupon', protect, async (req, res) => {
+  const { code, courseId } = req.body;
+  if (!code) return res.status(400).json({ message: 'Coupon code is required.' });
+
+  try {
+    const coupon = await Coupon.findOne({ code: code.toUpperCase().trim(), isActive: true });
+
+    if (!coupon) return res.status(404).json({ message: 'Invalid or expired coupon code.' });
+
+    // Check expiry
+    if (coupon.expiryDate && new Date() > new Date(coupon.expiryDate)) {
+      return res.status(400).json({ message: 'This coupon has expired.' });
+    }
+
+    // Check usage limit
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+      return res.status(400).json({ message: 'This coupon has reached its usage limit.' });
+    }
+
+    // Check if restricted to specific courses
+    if (coupon.applicableCourses.length > 0 && courseId) {
+      const isApplicable = coupon.applicableCourses.some(c => c.toString() === courseId);
+      if (!isApplicable) return res.status(400).json({ message: 'This coupon is not valid for this course.' });
+    }
+
+    res.json({
+      valid: true,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      message: `Coupon applied! ${coupon.discountType === 'percentage' ? coupon.discountValue + '% off' : '₹' + coupon.discountValue + ' off'}`,
+    });
+  } catch (error) {
+    console.error('Coupon validation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @desc    Initiate a payment transaction
 // @route   POST /api/payment/pay
 // @access  Private
 router.post('/pay', protect, async (req, res) => {
-  const { itemId, itemType } = req.body; // itemType: 'course' or 'event'
+  const { itemId, itemType, couponCode } = req.body; // itemType: 'course' or 'event'
 
   try {
     let item;
@@ -44,12 +85,32 @@ router.post('/pay', protect, async (req, res) => {
     }
 
     // Use discountedPrice if available and lower than original price
-    const price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
+    let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
       ? item.discountedPrice 
       : item.price;
 
+    // Apply coupon discount server-side
+    let appliedCoupon = null;
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
+      if (coupon) {
+        const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
+        const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
+        const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
+
+        if (!isExpired && !isLimitReached && isApplicable) {
+          if (coupon.discountType === 'percentage') {
+            price = Math.round(price * (1 - coupon.discountValue / 100));
+          } else {
+            price = Math.max(0, price - coupon.discountValue);
+          }
+          appliedCoupon = coupon;
+        }
+      }
+    }
+
     if (price === 0) {
-      return res.status(400).json({ message: 'Item is free. No payment required. Use /api/enroll/free' });
+      return res.status(400).json({ message: 'Item is free (after coupon). No payment required. Use /api/enroll/free' });
     }
 
     // Generate unique txn ID
@@ -63,7 +124,13 @@ router.post('/pay', protect, async (req, res) => {
       itemId: item._id,
       amount: price,
       status: 'pending',
+      couponCode: appliedCoupon ? appliedCoupon.code : null,
     });
+
+    // Increment coupon usage count
+    if (appliedCoupon) {
+      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usedCount: 1 } });
+    }
 
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';

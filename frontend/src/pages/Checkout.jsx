@@ -12,6 +12,11 @@ export default function Checkout({ user, onRefreshUser }) {
   const [paymentData, setPaymentData] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discountType, discountValue, message }
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export default function Checkout({ user, onRefreshUser }) {
   const handlePayment = async () => {
     setProcessing(true);
     try {
-      const data = await api.initiatePayment(id, itemType);
+      const data = await api.initiatePayment(id, itemType, appliedCoupon?.code || null);
       setPaymentData(data);
       
       if (data.isMock) {
@@ -129,6 +134,38 @@ const handleMockPayment = async (status) => {
     if (onRefreshUser) onRefreshUser();
     navigate('/');
   };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    setAppliedCoupon(null);
+    try {
+      const result = await api.validateCoupon(couponInput.trim(), id);
+      setAppliedCoupon({ code: couponInput.trim().toUpperCase(), ...result });
+    } catch (err) {
+      setCouponError(err.message || 'Invalid coupon code');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError('');
+  };
+
+  // Compute final price
+  const basePrice = item?.discountedPrice && item.discountedPrice < item.price
+    ? item.discountedPrice
+    : item?.price;
+
+  const finalPrice = appliedCoupon
+    ? appliedCoupon.discountType === 'percentage'
+      ? Math.round(basePrice * (1 - appliedCoupon.discountValue / 100))
+      : Math.max(0, basePrice - appliedCoupon.discountValue)
+    : basePrice;
 
   if (loading) {
     return (
@@ -246,10 +283,64 @@ const handleMockPayment = async (status) => {
                 </div>
                 {item.discountedPrice && item.discountedPrice < item.price && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#10b981' }}>
-                    <span>Discount</span>
+                    <span>Course Discount</span>
                     <span>-₹{item.price - item.discountedPrice}</span>
                   </div>
                 )}
+
+                {/* ── Coupon Code Section ── */}
+                <div style={{ margin: '1rem 0', padding: '1rem', background: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>🏷️ Have a coupon?</p>
+                  {appliedCoupon ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ flex: 1, fontSize: '0.85rem', color: '#10b981', fontWeight: 600 }}>✅ {appliedCoupon.code} applied!</span>
+                      <button
+                        onClick={removeCoupon}
+                        style={{ background: 'none', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '6px', color: 'var(--danger, #ef4444)', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.78rem' }}
+                      >Remove</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Enter coupon code"
+                        value={couponInput}
+                        onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem 0.75rem',
+                          background: 'var(--background-white)',
+                          border: `1px solid ${couponError ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
+                          borderRadius: '8px',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      />
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        className="btn btn-secondary btn-sm"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {couponLoading ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                  )}
+                  {couponError && <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: '#ef4444' }}>{couponError}</p>}
+                  {appliedCoupon && <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: '#10b981' }}>{appliedCoupon.message}</p>}
+                </div>
+
+                {appliedCoupon && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#10b981' }}>
+                    <span>Coupon Discount</span>
+                    <span>-₹{basePrice - finalPrice}</span>
+                  </div>
+                )}
+
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
@@ -260,7 +351,7 @@ const handleMockPayment = async (status) => {
                   fontSize: '1.2rem'
                 }}>
                   <span>Total</span>
-                  <span>₹{item.discountedPrice || item.price}</span>
+                  <span>₹{finalPrice}</span>
                 </div>
               </div>
 
@@ -274,7 +365,7 @@ const handleMockPayment = async (status) => {
                   opacity: processing ? 0.7 : 1
                 }}
               >
-                {processing ? 'Processing...' : `Pay ₹${item.discountedPrice || item.price}`}
+                {processing ? 'Processing...' : `Pay ₹${finalPrice}`}
               </button>
 
               <p style={{ 

@@ -22,6 +22,7 @@ import Footer from './Landing/Footer';
 import VideoModal from './Landing/VideoModal';
 import AdvancedCourses from './Landing/AdvancedCourses';
 import CourseGrid from './Landing/CourseGrid';
+import LeadMagnet from './Landing/LeadMagnet';
 
 export default function LandingPage({ user, onOpenMockPayment }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
@@ -147,8 +148,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         return;
       }
 
-      // Paid course -> navigate to checkout
-      navigate(`/checkout/${item._id}`);
+      // Paid course -> navigate to Sales Page (funnel)
+      navigate(`/course/${item._id}/preview`);
       return;
     } else if (type === 'event') {
       const isAlreadyEnrolled = user.enrolledEvents?.some(e =>
@@ -233,7 +234,6 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           showAll={showAllCourses}
         />
 
-        <AdvancedCourses user={user} />
         <LearningPaths />
         <EventsSection
           events={events}
@@ -249,6 +249,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           handleEnroll={handleEnroll}
           featuredCourse={featuredCourse}
         />
+        <LeadMagnet />
       </main>
 
       <Footer />

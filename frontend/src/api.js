@@ -48,7 +48,7 @@ export const api = {
   },
 
   // Courses
-  getCourses: async (page = 1, limit = 3, showAll = false) => {
+  getCourses: async (page = 1, limit = 9, showAll = false) => {
     const res = await fetch(`${BASE_URL}/courses?page=${page}&limit=${limit}&showAll=${showAll}`, {
       method: 'GET',
       headers: getHeaders(),
@@ -182,11 +182,20 @@ export const api = {
   },
 
   // Payments
-  initiatePayment: async (itemId, itemType) => {
+  initiatePayment: async (itemId, itemType, couponCode = null) => {
     const res = await fetch(`${BASE_URL}/payment/pay`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ itemId, itemType }),
+      body: JSON.stringify({ itemId, itemType, couponCode }),
+    });
+    return handleResponse(res);
+  },
+
+  validateCoupon: async (code, courseId) => {
+    const res = await fetch(`${BASE_URL}/payment/validate-coupon`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ code, courseId }),
     });
     return handleResponse(res);
   },
@@ -407,5 +416,15 @@ export const api = {
     const response = await fetch(`${BASE_URL}/certificates/verify/${certificateId}`);
     if (!response.ok) throw new Error('Failed to verify certificate');
     return response.json();
-  }
+  },
+
+  // Submit lead / email capture
+  submitLead: async (email, name = '', source = 'landing_page') => {
+    const res = await fetch(`${BASE_URL}/leads`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email, name, source }),
+    });
+    return handleResponse(res);
+  },
 };
