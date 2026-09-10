@@ -1,5 +1,7 @@
 import express from 'express';
 import Course from '../models/Course.js';
+import Event from '../models/Event.js';
+import TrialTutorial from '../models/TrialTutorial.js';
 import User from '../models/User.js';
 import { protect, admin } from '../middleware/auth.js';
 
@@ -121,7 +123,7 @@ router.get('/all', async (req, res) => {
   try {
     const courses = await Course.find({})
       .select('-content.chapters.videoUrl')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 }).limit(3);
 
     res.json({
       courses,
@@ -192,30 +194,51 @@ router.get('/:id/learn', protect, async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 router.post('/', protect, admin, async (req, res) => {
-  const { title, description, type, category, isFree, outcomes, packageType, price, discountedPrice, thumbnail, languages, content } = req.body;
+  const { 
+    title, description, type, category, isFree, outcomes, 
+    packageType, price, discountedPrice, affiliateCommission,
+    thumbnail, languages, content 
+  } = req.body;
 
   try {
+    // Validate required fields
+    if (!title || !description || !category) {
+      return res.status(400).json({ 
+        message: 'Title, description, and category are required fields' 
+      });
+    }
+
     const course = await Course.create({
       title,
       description,
-      type,
+      type: type || 'Course',
       category,
-      isFree,
-      outcomes,
-      packageType,
-      price,
-      discountedPrice,
-      thumbnail,
+      isFree: isFree || false,
+      outcomes: outcomes || [],
+      packageType: packageType || 'Starter',
+      price: isFree ? 0 : (price || 0),
+      discountedPrice: isFree ? 0 : (discountedPrice || 0),
+      affiliateCommission: affiliateCommission || 0,
+      thumbnail: thumbnail || '',
       languages: languages || [],
       content: content || [],
     });
 
-    res.status(201).json(course);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Course created successfully', 
+      course 
+    });
   } catch (error) {
     console.error('Create course error:', error);
-    res.status(400).json({ message: 'Invalid course data', error: error.message });
+    res.status(400).json({ 
+      message: 'Invalid course data', 
+      error: error.message 
+    });
   }
 });
+
+
 
 // @desc    Update a course
 // @route   PUT /api/courses/:id
@@ -347,7 +370,7 @@ router.get('/:id/certificate', protect, async (req, res) => {
       userName: user.name,
       courseTitle: course.title,
       completedAt: enrollment.completedAt,
-      instructor: 'WIDETECHNOS Academy (Vision by @videdreamer)',
+      instructor: 'WIDETECHNOS Academy (Vision by @widetechai)',
       verificationUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-cert/${course._id}-${user._id}`,
     });
   } catch (error) {

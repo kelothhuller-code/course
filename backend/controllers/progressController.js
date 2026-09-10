@@ -1,4 +1,4 @@
-import Progress from '../models/Progress.js';
+import Progress from '../models/progress.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Certificate from '../models/Certificate.js';

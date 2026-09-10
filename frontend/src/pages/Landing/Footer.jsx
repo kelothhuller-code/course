@@ -13,7 +13,7 @@ export default function Footer() {
               beginners to professionals.
             </p>
             <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-              Directed by @videdreamer
+              Directed by @widetechai
             </p>
           </div>
           <div className="footer-links">
@@ -28,7 +28,7 @@ export default function Footer() {
             <h4>Company</h4>
             <ul>
               <li><a href="#about">About</a></li>
-              <li><a href="https://instagram.com/videdreamer" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+              <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
               <li><Link to="/auth">Login</Link></li>
             </ul>
           </div>
@@ -36,7 +36,7 @@ export default function Footer() {
             <h4>Connect</h4>
             <ul>
               <li><a href="mailto:hello@widetechnos.com">Email Us</a></li>
-              <li><a href="https://instagram.com/videdreamer" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+              <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
             </ul>
           </div>
         </div>

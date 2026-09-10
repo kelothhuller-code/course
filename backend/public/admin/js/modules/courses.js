@@ -1,433 +1,868 @@
-// Courses Module
+// Courses Module - Full CRUD + Content Editor
 window.CoursesModule = {
     state: {
-        currentCourseId: null,
-        courseContent: null,
-        currentLang: 0
+        currentCourse: null,
+        currentLangIndex: 0
     },
 
-  // In courses.js - Update the render method
-async render() {
-    try {
-        const data = await API.getCourses();
-        const courses = Helpers.extractCourses(data);
-
-        if (courses.length === 0) {
-            return `
-                <div class="flex justify-between items-center" style="margin-bottom:24px">
-                    <h2>All Courses &amp; Content</h2>
-                    <button class="btn btn-primary" onclick="App.navigateTo('course-form')">+ Create Course</button>
-                </div>
-                ${Renderers.emptyState('No courses found. Create your first course!')}
-            `;
+    // ==================== FORM RENDER ====================
+    async renderForm(courseId = null) {
+        let course = null;
+        if (courseId) {
+            try {
+                const data = await API.get(`/api/courses/${courseId}`);
+                course = data.course || data;
+            } catch (error) {
+                return Renderers.errorMessage('Failed to load course: ' + error.message);
+            }
         }
 
-        const coursesHtml = courses.map(c => Renderers.courseCard(c)).join('');
+        const isEdit = !!course;
 
         return `
-            <div class="flex justify-between items-center" style="margin-bottom:24px">
-                <h2>All Courses &amp; Content</h2>
-                <button class="btn btn-primary" onclick="App.navigateTo('course-form')">+ Create Course</button>
+            <div class="panel">
+                <div class="panel-header flex justify-between items-center">
+                    <h3>${isEdit ? 'Edit Course' : 'Create New Course'}</h3>
+                    <button class="btn btn-secondary" onclick="App.navigateTo('content')">← Back</button>
+                </div>
+                
+                <form id="course-form">
+                    <div class="course-form-grid">
+                        <!-- Basic Info -->
+                        <div class="form-group full-width">
+                            <label class="form-label">Course Title *</label>
+                            <input type="text" id="course-title" class="form-control" 
+                                   value="${course?.title || ''}" required>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label class="form-label">Description *</label>
+                            <textarea id="course-description" class="form-control" rows="3" required>${course?.description || ''}</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Type</label>
+                            <select id="course-type" class="form-control">
+                                <option value="Course" ${course?.type === 'Course' ? 'selected' : ''}>Course</option>
+                                <option value="Tutorial" ${course?.type === 'Tutorial' ? 'selected' : ''}>Tutorial</option>
+                                <option value="Workshop" ${course?.type === 'Workshop' ? 'selected' : ''}>Workshop</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Category *</label>
+                            <input type="text" id="course-category" class="form-control" 
+                                   value="${course?.category || ''}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Package Type</label>
+                            <select id="course-package" class="form-control">
+                                <option value="Starter" ${course?.packageType === 'Starter' ? 'selected' : ''}>Starter</option>
+                                <option value="Professional" ${course?.packageType === 'Professional' ? 'selected' : ''}>Professional</option>
+                                <option value="Master" ${course?.packageType === 'Master' ? 'selected' : ''}>Master</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Thumbnail URL</label>
+                            <input type="url" id="course-thumbnail" class="form-control" 
+                                   value="${course?.thumbnail || ''}">
+                        </div>
+                        
+                        <!-- Pricing -->
+                        <div class="form-group">
+                            <label class="form-label">Is Free?</label>
+                            <select id="course-free" class="form-control" onchange="CoursesModule.togglePricing(this.value)">
+                                <option value="false" ${!course?.isFree ? 'selected' : ''}>No (Paid)</option>
+                                <option value="true" ${course?.isFree ? 'selected' : ''}>Yes (Free)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Price (INR)</label>
+                            <input type="number" id="course-price" class="form-control" 
+                                   value="${course?.price || 0}" min="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Discounted Price (INR)</label>
+                            <input type="number" id="course-discount" class="form-control" 
+                                   value="${course?.discountedPrice || 0}" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Affiliate Commission (INR)</label>
+                            <input type="number" id="course-commission" class="form-control" 
+                                   value="${course?.affiliateCommission || 0}" min="0">
+                        </div>
+                    </div>
+
+                    <!-- Outcomes (Dynamic List) -->
+                    <div class="form-group full-width" style="margin-top:24px;">
+                        <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                            <label class="form-label" style="margin-bottom:0;">Course Outcomes / Benefits</label>
+                            <button type="button" class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" 
+                                    onclick="CoursesModule.addOutcome()">+ Add Outcome</button>
+                        </div>
+                        <div id="outcomes-list" style="display:flex;flex-direction:column;gap:8px;">
+                            ${(course?.outcomes || ['']).map(o => this.renderOutcomeRow(o)).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Languages (Dynamic List) -->
+                    <div class="form-group full-width" style="margin-top:24px;">
+                        <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                            <label class="form-label" style="margin-bottom:0;">Available Languages</label>
+                            <button type="button" class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" 
+                                    onclick="CoursesModule.addLanguage()">+ Add Language</button>
+                        </div>
+                        <div id="languages-list" style="display:flex;flex-direction:column;gap:8px;">
+                            ${(course?.languages || ['']).map(l => this.renderLanguageRow(l)).join('')}
+                        </div>
+                    </div>
+
+                    <div style="margin-top:32px;display:flex;justify-content:flex-end;gap:12px;">
+                        <button type="button" class="btn btn-secondary" onclick="App.navigateTo('content')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">${isEdit ? 'Update Course' : 'Create Course'}</button>
+                    </div>
+                </form>
             </div>
-            <div style="display:flex;flex-direction:column;gap:16px">${coursesHtml}</div>
+        `;
+    },
+
+    renderOutcomeRow(value = '') {
+        return `
+            <div class="flex gap-4 items-center outcome-row">
+                <input type="text" class="form-control outcome-input" value="${value}" 
+                       placeholder="e.g. Master React from scratch">
+                <button type="button" class="btn btn-danger" style="padding:10px 14px;" 
+                        onclick="this.parentElement.remove()">✕</button>
+            </div>
+        `;
+    },
+
+    renderLanguageRow(value = '') {
+        return `
+            <div class="flex gap-4 items-center language-row">
+                <input type="text" class="form-control language-input" value="${value}" 
+                       placeholder="e.g. English, Hindi, Tamil">
+                <button type="button" class="btn btn-danger" style="padding:10px 14px;" 
+                        onclick="this.parentElement.remove()">✕</button>
+            </div>
+        `;
+    },
+
+    addOutcome() {
+        const list = document.getElementById('outcomes-list');
+        list.insertAdjacentHTML('beforeend', this.renderOutcomeRow());
+    },
+
+    addLanguage() {
+        const list = document.getElementById('languages-list');
+        list.insertAdjacentHTML('beforeend', this.renderLanguageRow());
+    },
+
+    togglePricing(value) {
+        const isFree = value === 'true';
+        const priceEl = document.getElementById('course-price');
+        const discountEl = document.getElementById('course-discount');
+        if (priceEl) priceEl.disabled = isFree;
+        if (discountEl) discountEl.disabled = isFree;
+    },
+
+    setupForm(courseId) {
+        const form = document.getElementById('course-form');
+        if (!form) return;
+
+        // Initialize pricing state
+        const freeSelect = document.getElementById('course-free');
+        if (freeSelect) this.togglePricing(freeSelect.value);
+
+        form.onsubmit = (e) => this.handleSubmit(e, courseId);
+    },
+
+    async handleSubmit(event, courseId) {
+        event.preventDefault();
+
+        const outcomes = Array.from(document.querySelectorAll('.outcome-input'))
+            .map(i => i.value.trim()).filter(Boolean);
+        const languages = Array.from(document.querySelectorAll('.language-input'))
+            .map(i => i.value.trim()).filter(Boolean);
+
+        const courseData = {
+            title: document.getElementById('course-title').value.trim(),
+            description: document.getElementById('course-description').value.trim(),
+            type: document.getElementById('course-type').value,
+            category: document.getElementById('course-category').value.trim(),
+            packageType: document.getElementById('course-package').value,
+            thumbnail: document.getElementById('course-thumbnail').value.trim(),
+            isFree: document.getElementById('course-free').value === 'true',
+            price: parseFloat(document.getElementById('course-price').value) || 0,
+            discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
+            affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
+            outcomes,
+            languages
+        };
+
+        // Validation
+        if (!courseData.title || !courseData.description || !courseData.category) {
+            return alert('Title, description, and category are required');
+        }
+
+        try {
+            let result;
+            if (courseId) {
+                result = await API.put(`/api/courses/${courseId}`, courseData);
+            } else {
+                result = await API.post('/api/courses', courseData);
+            }
+
+            if (result.success || result._id) {
+                alert(courseId ? 'Course updated!' : 'Course created!');
+                App.navigateTo('content');
+            } else {
+                alert('Error: ' + (result.message || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error saving course: ' + error.message);
+        }
+    },
+
+    // ==================== CONTENT EDITOR ====================
+    async renderContentEditor(courseId) {
+        if (!courseId) return Renderers.errorMessage('No course ID provided');
+
+        let course;
+        try {
+            const data = await API.get(`/api/courses/${courseId}`);
+            course = data.course || data;
+        } catch (error) {
+            return Renderers.errorMessage('Failed to load course: ' + error.message);
+        }
+
+        this.state.currentCourse = course;
+        const content = course.content || [];
+
+        return `
+            <div class="panel">
+                <div class="panel-header flex justify-between items-center">
+                    <div>
+                        <h3>Content Editor: ${course.title}</h3>
+                        <small class="text-muted">Manage chapters and materials per language</small>
+                    </div>
+                    <button class="btn btn-secondary" onclick="App.navigateTo('content')">← Back</button>
+                </div>
+
+                <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+                    ${course.languages?.map(lang => `
+                        <button class="btn ${this.state.currentLangIndex === course.languages.indexOf(lang) ? 'btn-primary' : 'btn-secondary'}"
+                                onclick="CoursesModule.switchLanguage('${lang}')">
+                            ${lang}
+                        </button>
+                    `).join('') || '<p class="text-muted">No languages defined. Edit the course first to add languages.</p>'}
+                </div>
+
+                <div id="chapters-container">
+                    ${this.renderChaptersForLanguage(content[this.state.currentLangIndex])}
+                </div>
+
+                <div style="margin-top:24px;display:flex;gap:12px;">
+                    <button class="btn btn-primary" onclick="CoursesModule.addChapter()">+ Add Chapter</button>
+                    <button class="btn btn-success" onclick="CoursesModule.saveContent('${courseId}')">💾 Save All Content</button>
+                </div>
+            </div>
+        `;
+    },
+
+    renderChaptersForLanguage(langContent) {
+        const chapters = langContent?.chapters || [];
+        
+        if (chapters.length === 0) {
+            return '<p class="text-muted" style="padding:20px;text-align:center;">No chapters yet. Click "Add Chapter" to start.</p>';
+        }
+
+        return chapters.map((ch, idx) => `
+            <div class="panel" style="margin-bottom:16px;padding:16px;background:var(--bg-secondary);" data-chapter-index="${idx}">
+                <div class="flex justify-between items-center" style="margin-bottom:12px;">
+                    <h4>Chapter ${idx + 1}</h4>
+                    <button class="btn btn-danger" style="padding:6px 12px;" 
+                            onclick="this.closest('.panel').remove()">✕ Remove</button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Chapter Title *</label>
+                    <input type="text" class="form-control chapter-title" value="${ch.title || ''}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control chapter-description" rows="2">${ch.description || ''}</textarea>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Video URL</label>
+                        <input type="url" class="form-control chapter-video" value="${ch.videoUrl || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration</label>
+                        <input type="text" class="form-control chapter-duration" value="${ch.duration || ''}" placeholder="e.g. 12:45">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Drive Link</label>
+                    <input type="url" class="form-control chapter-drive" value="${ch.driveLink || ''}">
+                </div>
+
+                <!-- Materials -->
+                <div style="margin-top:12px;">
+                    <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                        <label class="form-label" style="margin-bottom:0;">Materials</label>
+                        <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;" 
+                                onclick="CoursesModule.addMaterial(this)">+ Add Material</button>
+                    </div>
+                    <div class="materials-list" style="display:flex;flex-direction:column;gap:8px;">
+                        ${(ch.materials || []).map(m => this.renderMaterialRow(m)).join('')}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    renderMaterialRow(material = {}) {
+        return `
+            <div class="flex gap-2 items-center material-row" style="background:var(--bg-primary);padding:8px;border-radius:6px;">
+                <select class="form-control material-type" style="width:120px;">
+                    <option value="video" ${material.type === 'video' ? 'selected' : ''}>Video</option>
+                    <option value="pdf" ${material.type === 'pdf' ? 'selected' : ''}>PDF</option>
+                    <option value="notes" ${material.type === 'notes' ? 'selected' : ''}>Notes</option>
+                    <option value="slides" ${material.type === 'slides' ? 'selected' : ''}>Slides</option>
+                    <option value="other" ${material.type === 'other' ? 'selected' : ''}>Other</option>
+                </select>
+                <input type="text" class="form-control material-title" placeholder="Title" value="${material.title || ''}" style="flex:1;">
+                <input type="url" class="form-control material-link" placeholder="Drive link" value="${material.link || ''}" style="flex:2;">
+                <button type="button" class="btn btn-danger" style="padding:8px;" 
+                        onclick="this.parentElement.remove()">✕</button>
+            </div>
+        `;
+    },
+
+    addChapter() {
+        const container = document.getElementById('chapters-container');
+        const idx = container.querySelectorAll('.panel').length;
+        
+        const html = `
+            <div class="panel" style="margin-bottom:16px;padding:16px;background:var(--bg-secondary);" data-chapter-index="${idx}">
+                <div class="flex justify-between items-center" style="margin-bottom:12px;">
+                    <h4>Chapter ${idx + 1}</h4>
+                    <button class="btn btn-danger" style="padding:6px 12px;" 
+                            onclick="this.closest('.panel').remove()">✕ Remove</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chapter Title *</label>
+                    <input type="text" class="form-control chapter-title" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control chapter-description" rows="2"></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Video URL</label>
+                        <input type="url" class="form-control chapter-video">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration</label>
+                        <input type="text" class="form-control chapter-duration" placeholder="e.g. 12:45">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Drive Link</label>
+                    <input type="url" class="form-control chapter-drive">
+                </div>
+                <div style="margin-top:12px;">
+                    <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                        <label class="form-label" style="margin-bottom:0;">Materials</label>
+                        <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;" 
+                                onclick="CoursesModule.addMaterial(this)">+ Add Material</button>
+                    </div>
+                    <div class="materials-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', html);
+    },
+
+    addMaterial(btn) {
+        const list = btn.closest('.panel').querySelector('.materials-list');
+        list.insertAdjacentHTML('beforeend', this.renderMaterialRow());
+    },
+
+    switchLanguage(lang) {
+        const course = this.state.currentCourse;
+        const idx = course.languages.indexOf(lang);
+        this.state.currentLangIndex = idx;
+        App.navigateTo('course-content', course._id);
+    },
+
+    async saveContent(courseId) {
+        const container = document.getElementById('chapters-container');
+        const chapterPanels = container.querySelectorAll('.panel');
+        
+        const chapters = Array.from(chapterPanels).map(panel => {
+            const materials = Array.from(panel.querySelectorAll('.material-row')).map(row => ({
+                type: row.querySelector('.material-type').value,
+                title: row.querySelector('.material-title').value.trim(),
+                link: row.querySelector('.material-link').value.trim()
+            })).filter(m => m.link);
+
+            return {
+                title: panel.querySelector('.chapter-title').value.trim(),
+                description: panel.querySelector('.chapter-description').value.trim(),
+                videoUrl: panel.querySelector('.chapter-video').value.trim(),
+                duration: panel.querySelector('.chapter-duration').value.trim(),
+                driveLink: panel.querySelector('.chapter-drive').value.trim(),
+                materials
+            };
+        }).filter(ch => ch.title);
+
+        const course = this.state.currentCourse;
+        const updatedContent = [...(course.content || [])];
+        
+        // Update or add current language content
+        const langName = course.languages[this.state.currentLangIndex];
+        const existingIdx = updatedContent.findIndex(c => c.language === langName);
+        
+        if (existingIdx >= 0) {
+            updatedContent[existingIdx].chapters = chapters;
+        } else {
+            updatedContent.push({ language: langName, chapters });
+        }
+
+        try {
+            const result = await API.put(`/api/courses/${courseId}`, {
+                ...course,
+                content: updatedContent
+            });
+
+            if (result.success || result._id) {
+                alert('Content saved successfully!');
+                // Reload course
+                const data = await API.get(`/api/courses/${courseId}`);
+                this.state.currentCourse = data.course || data;
+                App.navigateTo('course-content', courseId);
+            } else {
+                alert('Error: ' + (result.message || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error saving content: ' + error.message);
+        }
+    },
+
+    // ==================== COURSE DETAILS ====================
+   // ==================== COURSE DETAILS DASHBOARD ====================
+async renderDetails(courseId) {
+    if (!courseId) return Renderers.errorMessage('No course ID provided');
+
+    try {
+        const data = await API.getCourseAnalytics(courseId);
+        const { course, stats, students, referrals, languageStats } = data;
+
+        return `
+            <div class="panel">
+                <div class="panel-header flex justify-between items-center">
+                    <div>
+                        <h3>📊 ${course.title}</h3>
+                        <small class="text-muted">${course.category} • ${course.type} • ${course.packageType}</small>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary" onclick="App.navigateTo('course-content', '${courseId}')">📝 Edit Content</button>
+                        <button class="btn btn-secondary" onclick="App.navigateTo('course-form', '${courseId}')">✏️ Edit Info</button>
+                        <button class="btn btn-secondary" onclick="App.navigateTo('content')">← Back</button>
+                    </div>
+                </div>
+
+                <!-- ============ STAT CARDS ============ -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+                    ${Renderers.statCard('👥 Enrollments', stats.totalEnrollments, 'var(--primary)')}
+                    ${Renderers.statCard('✅ Completions', stats.completions, 'var(--success)')}
+                    ${Renderers.statCard('📈 Avg Progress', stats.avgProgress + '%')}
+                    ${Renderers.statCard('💰 Total Revenue', '₹' + stats.totalRevenue, 'var(--success)')}
+                    ${Renderers.statCard('🤝 Affiliate Payouts', '₹' + stats.totalCommission, 'var(--warning)')}
+                    ${Renderers.statCard('💬 Comments', stats.totalComments)}
+                </div>
+
+                <!-- ============ TABS ============ -->
+                <div class="detail-tabs" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">
+                    ${this.renderDetailTab('students', '👥 Students (' + stats.totalEnrollments + ')', true)}
+                    ${this.renderDetailTab('revenue', '💰 Revenue & Affiliates')}
+                    ${this.renderDetailTab('content', '📚 Content Progress')}
+                    ${this.renderDetailTab('comments', '💬 Discussions (' + stats.totalComments + ')')}
+                </div>
+
+                <!-- Tab Panels -->
+                <div id="detail-tab-students" class="detail-tab-panel">
+                    ${this.renderStudentsTab(students)}
+                </div>
+                <div id="detail-tab-revenue" class="detail-tab-panel" style="display:none;">
+                    ${this.renderRevenueTab(referrals, stats)}
+                </div>
+                <div id="detail-tab-content" class="detail-tab-panel" style="display:none;">
+                    ${this.renderContentProgressTab(languageStats)}
+                </div>
+                <div id="detail-tab-comments" class="detail-tab-panel" style="display:none;">
+                    <div id="comments-panel" data-course-id="${courseId}">
+                        <div class="loading">Loading comments...</div>
+                    </div>
+                </div>
+            </div>
         `;
     } catch (error) {
-        console.error('Error loading courses:', error);
-        return Renderers.errorMessage(error.message);
+        console.error('Course details error:', error);
+        return Renderers.errorMessage('Failed to load details: ' + error.message);
     }
 },
 
-    async renderContent(courseId) {
-        App.setBreadcrumb('Course Content Player');
-        App.showLoading();
-
-        try {
-            const course = await API.getCourseContent(courseId);
-            this.state.courseContent = course;
-            this.state.currentLang = 0;
-
-            const firstLang = course.content?.[0];
-            const firstChapter = firstLang?.chapters?.[0];
-            const defaultVideoUrl = firstChapter?.videoUrl || firstChapter?.driveLink || firstChapter?.materials?.[0]?.link;
-
-            const langTabsHtml = (course.content || []).map((lang, li) =>
-                `<button class="btn ${li === 0 ? 'btn-primary' : 'btn-secondary'}" 
-                        id="lang-tab-${li}" 
-                        onclick="CoursesModule.switchLanguage(${li})" 
-                        style="padding:6px 14px;font-size:0.85rem">${lang.language}</button>`
-            ).join('');
-
-            const chapterListsHtml = (course.content || []).map((lang, li) => `
-                <div id="lang-content-${li}" style="display:${li === 0 ? 'block' : 'none'}">
-                    ${(lang.chapters || []).length === 0 
-                        ? '<p style="color:var(--text-muted);padding:12px">No chapters yet.</p>'
-                        : lang.chapters.map((ch, ci) => {
-                            const vidUrl = ch.videoUrl || ch.driveLink || ch.materials?.[0]?.link;
-                            return `
-                            <div class="chapter-item" id="chapter-${li}-${ci}"
-                                style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;cursor:pointer;transition:background 0.2s"
-                                onclick="CoursesModule.playChapter(${li}, ${ci}, '${vidUrl || ''}')"
-                                onmouseover="this.style.background='var(--bg-hover)'" 
-                                onmouseout="this.style.background='transparent'">
-                                <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);opacity:0.7;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;font-weight:700">${ci + 1}</div>
-                                <div style="flex:1;min-width:0">
-                                    <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ch.title}</div>
-                                    ${ch.duration ? `<small style="color:var(--text-muted)">${ch.duration}</small>` : ''}
-                                </div>
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--primary)" style="flex-shrink:0"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            </div>`;
-                        }).join('')}
-                </div>`
-            ).join('');
-
-            return `
-                <div class="flex justify-between items-center" style="margin-bottom:20px">
-                    <div>
-                        <h2>${course.title}</h2>
-                        <div style="color:var(--text-muted);font-size:0.9rem;margin-top:2px">${course.category} &bull; ${course.type} &bull; ₹${course.price}</div>
-                    </div>
-                    <button class="btn btn-secondary" onclick="App.navigateTo('courses')">← Back</button>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start">
-                    <div>
-                        <div id="course-player" style="background:#000;border-radius:16px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
-                            ${defaultVideoUrl 
-                                ? `<iframe id="player-iframe" src="${Helpers.getEmbedUrl(defaultVideoUrl)}" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`
-                                : `<div style="color:var(--text-muted);text-align:center"><svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/></svg><br>Select a chapter to play</div>`
-                            }
-                        </div>
-                        <div id="playing-title" style="margin-top:12px;font-weight:600;font-size:1.1rem">${firstChapter?.title || 'Select a chapter'}</div>
-                        ${firstChapter?.description ? `<div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px">${firstChapter.description}</div>` : ''}
-
-                        ${(course.outcomes && course.outcomes.length > 0) ? `
-                        <div class="panel" style="margin-top:20px">
-                            <div class="panel-header"><h3>Course Benefits</h3></div>
-                            <ul style="list-style:none;display:flex;flex-direction:column;gap:10px">
-                                ${course.outcomes.map(o => `
-                                    <li style="display:flex;align-items:center;gap:10px">
-                                        <span style="width:20px;height:20px;background:var(--primary);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
-                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="white"><polyline points="20 6 9 17 4 12" stroke="white" stroke-width="2" fill="none"/></svg>
-                                        </span>
-                                        ${o}
-                                    </li>`).join('')}
-                            </ul>
-                        </div>` : ''}
-                    </div>
-
-                    <div class="panel" style="padding:16px;max-height:600px;overflow-y:auto">
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">${langTabsHtml || '<span style="color:var(--text-muted)">No languages</span>'}</div>
-                        <div id="chapters-container">${chapterListsHtml || '<p style="color:var(--text-muted)">No content available.</p>'}</div>
-                    </div>
-                </div>
-            `;
-        } catch (err) {
-            return Renderers.errorMessage(err.message);
-        }
-    },
-
-    switchLanguage(langIndex) {
-        const course = this.state.courseContent;
-        if (!course) return;
-
-        course.content.forEach((_, i) => {
-            const el = document.getElementById(`lang-content-${i}`);
-            const btn = document.getElementById(`lang-tab-${i}`);
-            if (el) el.style.display = 'none';
-            if (btn) {
-                btn.className = 'btn btn-secondary';
-                btn.style.padding = '6px 14px';
-                btn.style.fontSize = '0.85rem';
-            }
-        });
-
-        const target = document.getElementById(`lang-content-${langIndex}`);
-        const activeBtn = document.getElementById(`lang-tab-${langIndex}`);
-        if (target) target.style.display = 'block';
-        if (activeBtn) {
-            activeBtn.className = 'btn btn-primary';
-        }
-        this.state.currentLang = langIndex;
-    },
-
-    playChapter(langIndex, chIndex, videoUrl) {
-        const player = document.getElementById('course-player');
-        const titleEl = document.getElementById('playing-title');
-        const course = this.state.courseContent;
-        const chapter = course?.content?.[langIndex]?.chapters?.[chIndex];
-
-        if (titleEl && chapter) titleEl.textContent = chapter.title;
-
-        if (player) {
-            if (videoUrl) {
-                const embed = Helpers.getEmbedUrl(videoUrl);
-                player.innerHTML = `<iframe src="${embed}" style="width:100%;height:100%;border:none" allowfullscreen allow="autoplay"></iframe>`;
-            } else {
-                player.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:40px">No video for this chapter.</div>`;
-            }
-        }
-
-        document.querySelectorAll('.chapter-item').forEach(el => el.style.background = 'transparent');
-        const activeItem = document.getElementById(`chapter-${langIndex}-${chIndex}`);
-        if (activeItem) activeItem.style.background = 'rgba(59,130,246,0.15)';
-    },
-
-  // In courses.js - Update renderForm
-renderForm(courseId = null) {
-    const isEdit = !!courseId;
-    const title = isEdit ? 'Edit Course Details' : 'Course Information';
-    const buttonText = isEdit ? 'Update Course' : 'Create Course';
-    
+renderDetailTab(tabId, label, active = false) {
     return `
-        <div class="panel">
-            <div class="panel-header flex justify-between items-center">
-                <h3>${title}</h3>
-                <button class="btn btn-secondary" onclick="App.navigateTo('courses')">← Back to Courses</button>
-            </div>
-            
-            <form id="course-form" onsubmit="CoursesModule.handleSubmit(event, '${courseId || ''}')">
-                <div class="course-form-grid">
-                    <div class="form-group full-width">
-                        <label class="form-label">Course Title *</label>
-                        <input type="text" id="course-title" class="form-control" placeholder="e.g. Complete Web Development" required>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label class="form-label">Description</label>
-                        <textarea id="course-description" class="form-control" rows="3" placeholder="Detailed description..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Type</label>
-                        <select id="course-type" class="form-control">
-                            <option value="Course">Course</option>
-                            <option value="Tutorial">Tutorial</option>
-                            <option value="Workshop">Workshop</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <input type="text" id="course-category" class="form-control" placeholder="e.g. AI, Web, Design">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Price (INR)</label>
-                        <input type="number" id="course-price" class="form-control" placeholder="0" value="0">
-                    </div>
+        <button class="detail-tab-btn" data-tab="${tabId}" 
+                onclick="CoursesModule.switchDetailTab('${tabId}')"
+                style="padding:12px 20px;background:transparent;border:none;
+                       border-bottom:3px solid ${active ? 'var(--primary)' : 'transparent'};
+                       font-weight:600;cursor:pointer;
+                       color:${active ? 'var(--primary)' : 'var(--text-muted)'};">
+            ${label}
+        </button>
+    `;
+},
 
-                    <div class="form-group">
-                        <label class="form-label">Discounted Price (INR)</label>
-                        <input type="number" id="course-discount" class="form-control" placeholder="0" value="0">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Is Free?</label>
-                        <select id="course-free" class="form-control">
-                            <option value="false">No (Paid)</option>
-                            <option value="true">Yes (Free)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label class="form-label">Affiliate Commission (INR)</label>
-                        <input type="number" id="course-commission" class="form-control" placeholder="0" value="0">
-                        <small class="text-muted">Amount to credit to the referring user's wallet when this course is purchased.</small>
-                    </div>
-                    
-                    <div class="form-group full-width" id="outcomes-container">
-                        <div class="flex justify-between items-center" style="margin-bottom:8px;">
-                            <label class="form-label" style="margin-bottom:0;">Course Benefits (Outcomes)</label>
-                            <button type="button" class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" onclick="CoursesModule.addOutcomeInput()">+ Add Benefit</button>
-                        </div>
-                        <div id="outcomes-list" style="display:flex;flex-direction:column;gap:8px;">
-                            <div class="flex gap-4 items-center">
-                                <input type="text" class="form-control outcome-input" placeholder="e.g. Master React from scratch">
-                                <button type="button" class="btn btn-secondary text-danger" onclick="this.parentElement.remove()" style="padding:10px;">X</button>
-                            </div>
-                        </div>
-                    </div>
+switchDetailTab(tab) {
+    document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.style.borderBottomColor = isActive ? 'var(--primary)' : 'transparent';
+        btn.style.color = isActive ? 'var(--primary)' : 'var(--text-muted)';
+    });
+    document.querySelectorAll('.detail-tab-panel').forEach(p => p.style.display = 'none');
+    const panel = document.getElementById('detail-tab-' + tab);
+    if (panel) panel.style.display = 'block';
 
-                    <div class="form-group full-width" style="margin-top:24px;border-top:1px solid var(--border);padding-top:24px;">
-                        <h4 style="margin-bottom:16px;">Add Course Material (Video / Document)</h4>
-                        <label class="form-label">Paste Media/Drive Link here to preview</label>
-                        <input type="text" id="media-link-input" class="form-control" placeholder="https://youtube.com/... or https://drive.google.com/...">
-                        
-                        <div class="preview-pane" id="preview-pane">
-                            <div class="preview-placeholder">
-                                <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1" fill="none" style="opacity:0.5;margin-bottom:8px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg><br>
-                                Media Preview Area<br>
-                                <small>Paste a valid link above to view it instantly on this screen.</small>
-                            </div>
-                        </div>
+    // Lazy-load comments when tab is opened
+    if (tab === 'comments') {
+        const commentsPanel = document.getElementById('comments-panel');
+        if (commentsPanel && commentsPanel.querySelector('.loading')) {
+            CoursesModule.loadComments(commentsPanel.dataset.courseId);
+        }
+    }
+},
+
+// ==================== STUDENTS TAB ====================
+renderStudentsTab(students) {
+    if (!students || students.length === 0) {
+        return Renderers.emptyState('No students enrolled yet.');
+    }
+
+    const rows = students.map(s => `
+        <tr>
+            <td>
+                <a href="#" onclick="App.navigateTo('student-details', '${s.userId}');return false;"
+                   style="color:var(--primary);font-weight:500;">
+                    ${Helpers.safeString(s.name)}
+                </a>
+                <div style="font-size:0.8rem;color:var(--text-muted);">${s.email}</div>
+            </td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="flex:1;background:var(--bg-secondary);height:8px;border-radius:4px;overflow:hidden;min-width:80px;">
+                        <div style="width:${s.progress}%;height:100%;background:${s.completed ? 'var(--success)' : 'var(--primary)'};"></div>
                     </div>
+                    <span style="font-size:0.85rem;font-weight:600;">${s.progress}%</span>
                 </div>
+            </td>
+            <td>
+                ${s.completed
+                    ? `<span class="badge" style="background:var(--success);">✓ Completed</span>`
+                    : `<span class="badge" style="background:var(--text-muted);">In Progress</span>`}
+            </td>
+            <td style="font-weight:600;color:${s.amountPaid > 0 ? 'var(--success)' : 'var(--text-muted)'};">
+                ${s.amountPaid > 0 ? '₹' + s.amountPaid : 'Free'}
+                ${s.txnId ? `<div style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">${s.txnId.substring(0, 12)}...</div>` : ''}
+            </td>
+            <td>
+                ${s.commissionEarned > 0
+                    ? `<span style="color:var(--warning);font-weight:600;">₹${s.commissionEarned}</span>`
+                    : '<span class="text-muted">—</span>'}
+            </td>
+            <td style="color:var(--text-muted);font-size:0.85rem;">
+                ${s.completedAt ? Helpers.formatDate(s.completedAt) : '—'}
+            </td>
+        </tr>
+    `).join('');
 
-                <div style="margin-top:32px;display:flex;justify-content:flex-end;gap:12px;">
-                    <button type="button" class="btn btn-secondary" onclick="App.navigateTo('courses')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">${buttonText}</button>
-                </div>
-            </form>
+    return `
+        <div style="overflow-x:auto;">
+            <table class="data-table" style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);text-align:left;">
+                        <th style="padding:12px;">Student</th>
+                        <th style="padding:12px;">Progress</th>
+                        <th style="padding:12px;">Status</th>
+                        <th style="padding:12px;">Amount Paid</th>
+                        <th style="padding:12px;">Commission Generated</th>
+                        <th style="padding:12px;">Completed On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
         </div>
     `;
 },
 
-// Add this method to handle form submission
-async handleSubmit(event, courseId) {
-    event.preventDefault();
-    
-    // Get form data
-    const title = document.getElementById('course-title').value.trim();
-    const description = document.getElementById('course-description').value.trim();
-    const type = document.getElementById('course-type').value;
-    const category = document.getElementById('course-category').value.trim();
-    const price = parseFloat(document.getElementById('course-price').value) || 0;
-    const discount = parseFloat(document.getElementById('course-discount').value) || 0;
-    const isFree = document.getElementById('course-free').value === 'true';
-    const commission = parseFloat(document.getElementById('course-commission').value) || 0;
-    
-    // Get outcomes
-    const outcomeInputs = document.querySelectorAll('.outcome-input');
-    const outcomes = Array.from(outcomeInputs).map(input => input.value.trim()).filter(Boolean);
-    
-    // Validate
-    if (!title) {
-        alert('Please enter a course title');
-        return;
+// ==================== REVENUE TAB ====================
+renderRevenueTab(referrals, stats) {
+    return `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+            <div class="panel" style="background:var(--bg-secondary);">
+                <h4>💰 Revenue Summary</h4>
+                <div style="font-size:2rem;font-weight:700;color:var(--success);">₹${stats.totalRevenue}</div>
+                <div style="color:var(--text-muted);margin-top:4px;">Total collected from this course</div>
+            </div>
+            <div class="panel" style="background:var(--bg-secondary);">
+                <h4>🤝 Affiliate Payouts</h4>
+                <div style="font-size:2rem;font-weight:700;color:var(--warning);">₹${stats.totalCommission}</div>
+                <div style="color:var(--text-muted);margin-top:4px;">Commission paid to referrers</div>
+            </div>
+        </div>
+
+        <h4 style="margin-bottom:12px;">Referral Transactions (${referrals.length})</h4>
+        ${referrals.length === 0
+            ? Renderers.emptyState('No affiliate sales yet for this course.')
+            : `<div style="overflow-x:auto;">
+                <table class="data-table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);text-align:left;">
+                            <th style="padding:12px;">Referrer</th>
+                            <th style="padding:12px;">Buyer</th>
+                            <th style="padding:12px;">Commission</th>
+                            <th style="padding:12px;">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${referrals.map(r => `
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:12px;">
+                                    ${r.referrer
+                                        ? `<a href="#" onclick="App.navigateTo('student-details','${r.referrer._id}');return false;" style="color:var(--primary);">${r.referrer.name}</a>
+                                           <div style="font-size:0.75rem;color:var(--text-muted);">${r.referrer.email}</div>`
+                                        : '<span class="text-muted">Deleted user</span>'}
+                                </td>
+                                <td style="padding:12px;">
+                                    ${r.referee
+                                        ? `<a href="#" onclick="App.navigateTo('student-details','${r.referee._id}');return false;" style="color:var(--primary);">${r.referee.name}</a>
+                                           <div style="font-size:0.75rem;color:var(--text-muted);">${r.referee.email}</div>`
+                                        : '<span class="text-muted">Deleted user</span>'}
+                                </td>
+                                <td style="padding:12px;font-weight:600;color:var(--warning);">₹${r.commissionAmount}</td>
+                                <td style="padding:12px;color:var(--text-muted);">${Helpers.formatDate(r.createdAt)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`}
+    `;
+},
+
+// ==================== CONTENT PROGRESS TAB ====================
+renderContentProgressTab(languageStats) {
+    if (!languageStats || languageStats.length === 0) {
+        return Renderers.emptyState('No content chapters defined yet.');
     }
-    
-    const courseData = {
-        title,
-        description,
-        type,
-        category,
-        price: isFree ? 0 : price,
-        discountedPrice: isFree ? 0 : discount,
-        isFree,
-        affiliateCommission: commission,
-        outcomes
-    };
-    
+
+    return languageStats.map(lang => `
+        <div class="panel" style="margin-bottom:16px;background:var(--bg-secondary);">
+            <h4 style="margin-bottom:12px;">🌐 ${lang.language} — ${lang.totalChapters} chapters</h4>
+            ${lang.chapters.map(ch => `
+                <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+                    <div style="flex:1;font-weight:500;">${ch.title}</div>
+                    <div style="flex:0 0 200px;background:var(--bg-primary);height:8px;border-radius:4px;overflow:hidden;">
+                        <div style="width:${ch.completionRate}%;height:100%;background:var(--primary);"></div>
+                    </div>
+                    <div style="flex:0 0 120px;text-align:right;font-size:0.85rem;color:var(--text-muted);">
+                        ${ch.completedCount} students (${ch.completionRate}%)
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `).join('');
+},
+
+// ==================== COMMENTS TAB ====================
+async loadComments(courseId, filter = 'all', sortBy = 'newest') {
+    const panel = document.getElementById('comments-panel');
+    if (!panel) return;
+
+    panel.innerHTML = '<div class="loading">Loading comments...</div>';
+
     try {
-        let result;
-        if (courseId) {
-            // Update existing course
-            result = await API.put(`/api/admin/courses/${courseId}`, courseData);
-        } else {
-            // Create new course
-            result = await API.post('/api/admin/courses', courseData);
-        }
-        
-        alert(courseId ? 'Course updated successfully!' : 'Course created successfully!');
-        App.navigateTo('courses');
+        const data = await API.getCourseComments(courseId, { filter, sortBy, page: 1, limit: 20 });
+        panel.innerHTML = this.renderCommentsPanel(courseId, data, filter, sortBy);
     } catch (error) {
-        alert('Error saving course: ' + error.message);
+        panel.innerHTML = Renderers.errorMessage('Failed to load comments: ' + error.message);
     }
 },
 
-    addOutcomeInput() {
-        const list = document.getElementById('outcomes-list');
-        const div = document.createElement('div');
-        div.className = 'flex gap-4 items-center';
-        div.innerHTML = `
-            <input type="text" class="form-control outcome-input" placeholder="e.g. Master React from scratch">
-            <button type="button" class="btn btn-secondary text-danger" onclick="this.parentElement.remove()" style="padding:10px;">X</button>
-        `;
-        list.appendChild(div);
-    },
+renderCommentsPanel(courseId, data, activeFilter, activeSort) {
+    const { comments, counts } = data;
 
-    async renderDetails(courseId) {
-        this.state.currentCourseId = courseId;
-        App.setBreadcrumb('Course Overview & Moderation');
-        App.showLoading();
+    const filterTabs = [
+        { id: 'all', label: 'All', count: counts.all },
+        { id: 'unreplied', label: '⏳ Unreplied', count: counts.unreplied },
+        { id: 'questions', label: '❓ Questions', count: counts.questions },
+        { id: 'unresolved', label: '🔴 Unresolved', count: counts.unresolved },
+        { id: 'resolved', label: '✅ Resolved', count: counts.resolved },
+        { id: 'liked', label: '❤️ Most Liked', count: counts.liked }
+    ];
 
-        try {
-            const data = await API.getCourseStats(courseId);
-            const students = data.students || [];
-            const comments = data.comments || [];
+    const sortOptions = [
+        { id: 'newest', label: '🕐 Newest First' },
+        { id: 'oldest', label: '📜 Oldest First' },
+        { id: 'mostLiked', label: '❤️ Most Liked' },
+        { id: 'mostReplies', label: '💬 Most Replies' }
+    ];
 
-            const studentsHtml = students.length > 0
-                ? students.map(s => `
-                    <tr>
-                        <td>${Helpers.safeString(s.name)}</td>
-                        <td>${s.email}</td>
-                        <td>${Renderers.progressBar(s.progress, s.completed)}</td>
-                    </tr>
-                `).join('')
-                : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No students enrolled yet.</td></tr>';
-
-            return `
-                <div class="flex justify-between items-center" style="margin-bottom:24px;">
-                    <h2>Course Intelligence</h2>
-                    <button class="btn btn-secondary" onclick="App.navigateTo('courses')">Back to Courses</button>
-                </div>
-                
-                <div class="grid-cards" style="margin-bottom:24px;">
-                    ${Renderers.statCard('Total Revenue Generated', `₹${data.revenue || 0}`, 'var(--success)')}
-                    ${Renderers.statCard('Enrolled Students', students.length)}
-                </div>
-
-                <div class="tab-navigation" style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);">
-                    <button class="tab-btn active" data-tab="students" onclick="CoursesModule.switchTab('students')" 
-                            style="padding:12px 24px;background:transparent;border:none;border-bottom:3px solid var(--primary);font-weight:600;cursor:pointer;color:var(--primary);">
-                        📊 Student Progress
+    return `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${filterTabs.map(f => `
+                    <button class="btn ${activeFilter === f.id ? 'btn-primary' : 'btn-secondary'}"
+                            style="padding:6px 14px;font-size:0.85rem;"
+                            onclick="CoursesModule.loadComments('${courseId}', '${f.id}', '${activeSort}')">
+                        ${f.label} <span style="opacity:0.7;">(${f.count})</span>
                     </button>
-                    <button class="tab-btn" data-tab="discussion" onclick="CoursesModule.switchTab('discussion')" 
-                            style="padding:12px 24px;background:transparent;border:none;border-bottom:3px solid transparent;font-weight:600;cursor:pointer;color:var(--text-muted);">
-                        💬 Discussion & Moderation
+                `).join('')}
+            </div>
+            <select class="form-control" style="width:auto;" 
+                    onchange="CoursesModule.loadComments('${courseId}', '${activeFilter}', this.value)">
+                ${sortOptions.map(o => `
+                    <option value="${o.id}" ${activeSort === o.id ? 'selected' : ''}>${o.label}</option>
+                `).join('')}
+            </select>
+        </div>
+
+        ${comments.length === 0
+            ? Renderers.emptyState('No comments match this filter.')
+            : comments.map(c => this.renderCommentCard(courseId, c)).join('')}
+    `;
+},
+
+renderCommentCard(courseId, c) {
+    const user = c.userId || {};
+    const isAdmin = user.role === 'admin';
+
+    return `
+        <div class="panel" style="margin-bottom:12px;padding:16px;background:var(--bg-secondary);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div>
+                    <strong>${Helpers.safeString(user.name, 'Unknown')}</strong>
+                    ${isAdmin ? '<span class="badge" style="background:var(--primary);margin-left:6px;">ADMIN</span>' : ''}
+                    ${c.isPinned ? '<span class="badge" style="background:var(--warning);margin-left:6px;">📌 PINNED</span>' : ''}
+                    ${c.isQuestion ? '<span class="badge" style="background:#8b5cf6;margin-left:6px;">❓ QUESTION</span>' : ''}
+                    ${c.isResolved ? '<span class="badge" style="background:var(--success);margin-left:6px;">✅ RESOLVED</span>' : ''}
+                    <div style="font-size:0.75rem;color:var(--text-muted);">${user.email || ''} • ${Helpers.formatDate(c.createdAt)}</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;"
+                            onclick="CoursesModule.togglePin('${c._id}', '${courseId}')">
+                        ${c.isPinned ? '📌 Unpin' : '📌 Pin'}
+                    </button>
+                    ${c.isQuestion ? `
+                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;"
+                                onclick="CoursesModule.toggleResolve('${c._id}', '${courseId}')">
+                            ${c.isResolved ? '↩️ Reopen' : '✅ Resolve'}
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-danger" style="padding:4px 10px;font-size:0.75rem;"
+                            onclick="CoursesModule.deleteComment('${c._id}', '${courseId}')">🗑️</button>
+                </div>
+            </div>
+
+            <div style="margin:8px 0;font-size:0.95rem;">${this.escapeHtml(c.text)}</div>
+
+            <div style="display:flex;gap:12px;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">
+                <span>❤️ ${c.likes?.length || 0} likes</span>
+                <span>💬 ${c.replyCount || 0} replies</span>
+            </div>
+
+            ${c.replies && c.replies.length > 0 ? `
+                <div style="border-left:3px solid var(--primary);padding-left:12px;margin-top:8px;">
+                    ${c.replies.map(r => `
+                        <div style="margin-bottom:8px;">
+                            <strong style="font-size:0.85rem;">${Helpers.safeString(r.userId?.name, 'Unknown')}</strong>
+                            ${r.userId?.role === 'admin' ? '<span class="badge" style="background:var(--primary);margin-left:4px;font-size:0.65rem;">ADMIN</span>' : ''}
+                            <div style="font-size:0.85rem;color:var(--text-muted);">${this.escapeHtml(r.text)}</div>
+                        </div>
+                    `).join('')}
+                    ${c.replyCount > 3 ? `<div style="font-size:0.8rem;color:var(--text-muted);">+ ${c.replyCount - 3} more replies</div>` : ''}
+                </div>
+            ` : ''}
+
+            <!-- Reply as Admin -->
+            <div style="margin-top:12px;">
+                <div style="display:flex;gap:8px;">
+                    <input type="text" class="form-control comment-reply-input-${c._id}" 
+                           placeholder="Reply as admin..." style="flex:1;">
+                    <button class="btn btn-primary" style="padding:8px 16px;"
+                            onclick="CoursesModule.replyToComment('${courseId}', '${c._id}')">
+                        Reply
                     </button>
                 </div>
+            </div>
+        </div>
+    `;
+},
 
-                <div id="tab-students" class="tab-content" style="display:block;">
-                    <div class="panel">
-                        <div class="panel-header"><h3>Student Progress Tracking</h3></div>
-                        <div class="table-wrapper">
-                            <table class="table">
-                                <thead><tr><th>Student Name</th><th>Email</th><th>Course Progress</th></tr></thead>
-                                <tbody>${studentsHtml}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+},
 
-                <div id="tab-discussion" class="tab-content" style="display:none;">
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h3>Discussion & Moderation</h3>
-                            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                                <button class="btn btn-primary" style="padding:4px 12px;font-size:0.8rem;" onclick="CommentsModule.filter('all')">All</button>
-                                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" onclick="CommentsModule.filter('unreplied')">Unreplied</button>
-                                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" onclick="CommentsModule.filter('open')">Open</button>
-                                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" onclick="CommentsModule.filter('closed')">Closed</button>
-                                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;" onclick="CommentsModule.filter('latest')">Latest First</button>
-                            </div>
-                        </div>
-                        <div id="course-comments-container">
-                            ${CommentsModule.buildHtml(comments)}
-                        </div>
-                    </div>
-                </div>
-            `;
-        } catch (err) {
-            return Renderers.errorMessage(err.message);
-        }
-    },
+// ==================== COMMENT ACTIONS ====================
+async togglePin(commentId, courseId) {
+    try {
+        await API.pinComment(commentId);
+        this.loadComments(courseId);
+    } catch (e) { alert('Error: ' + e.message); }
+},
 
-    switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-            btn.style.color = 'var(--text-muted)';
-            btn.style.borderBottomColor = 'transparent';
-        });
+async toggleResolve(commentId, courseId) {
+    try {
+        await API.resolveComment(commentId);
+        this.loadComments(courseId);
+    } catch (e) { alert('Error: ' + e.message); }
+},
 
-        const activeBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-            activeBtn.style.color = 'var(--primary)';
-            activeBtn.style.borderBottomColor = 'var(--primary)';
-        }
+async deleteComment(commentId, courseId) {
+    if (!confirm('Delete this comment and all its replies?')) return;
+    try {
+        await API.deleteCommentAdmin(commentId);
+        this.loadComments(courseId);
+    } catch (e) { alert('Error: ' + e.message); }
+},
 
-        document.getElementById('tab-students').style.display = tab === 'students' ? 'block' : 'none';
-        document.getElementById('tab-discussion').style.display = tab === 'discussion' ? 'block' : 'none';
-    }
+async replyToComment(courseId, commentId) {
+    const input = document.querySelector(`.comment-reply-input-${commentId}`);
+    const text = input?.value?.trim();
+    if (!text) return alert('Please enter a reply');
+
+    try {
+        await API.replyAsAdmin(courseId, commentId, text);
+        input.value = '';
+        this.loadComments(courseId);
+    } catch (e) { alert('Error: ' + e.message); }
+}
 };

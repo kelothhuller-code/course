@@ -24,21 +24,36 @@ router.post('/', protect, admin, async (req, res) => {
   const { title, description, videoUrl, category, duration, thumbnail } = req.body;
 
   try {
-    const trial = await TrialTutorial.create({
+    // Validate required fields
+    if (!title || !description || !videoUrl) {
+      return res.status(400).json({ 
+        message: 'Title, description, and video URL are required fields' 
+      });
+    }
+
+    const tutorial = await TrialTutorial.create({
       title,
       description,
       videoUrl,
-      category,
-      duration,
-      thumbnail,
+      category: category || 'General',
+      duration: duration || '',
+      thumbnail: thumbnail || '',
     });
 
-    res.status(201).json(trial);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Trial tutorial created successfully', 
+      tutorial 
+    });
   } catch (error) {
-    console.error('Create trial error:', error);
-    res.status(400).json({ message: 'Invalid trial data', error: error.message });
+    console.error('Create tutorial error:', error);
+    res.status(400).json({ 
+      message: 'Invalid tutorial data', 
+      error: error.message 
+    });
   }
 });
+
 
 // @desc    Delete a trial tutorial
 // @route   DELETE /api/trials/:id

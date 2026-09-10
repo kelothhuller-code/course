@@ -19,12 +19,12 @@ export default function FounderSection() {
                 or previous experience.
               </p>
               <a 
-                href="https://instagram.com/videdreamer" 
+                href="https://instagram.com/widetechai" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="founder-social"
               >
-                📸 Follow @videdreamer
+                📸 Follow @widetechai
               </a>
             </div>
             <div style={{ textAlign: 'center' }}>
@@ -42,7 +42,7 @@ export default function FounderSection() {
               }}>
                 🚀
               </div>
-              <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>@videdreamer</p>
+              <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>@widetechai</p>
               <p style={{ color: 'var(--text-muted)' }}>Founder, WIDETECHNOS</p>
             </div>
           </div>

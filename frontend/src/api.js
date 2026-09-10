@@ -49,7 +49,7 @@ export const api = {
 
   // Courses
   getCourses: async () => {
-    const res = await fetch(`${BASE_URL}/courses`, {
+    const res = await fetch(`${BASE_URL}/courses/all`, {
       method: 'GET',
       headers: getHeaders(),
     });

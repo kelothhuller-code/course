@@ -416,3 +416,42 @@ select.form-control {
 .text-muted { color: var(--text-muted); }
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
+/* Course Details Tabs */
+.detail-tab-btn:hover {
+    color: var(--primary) !important;
+}
+
+/* Data Tables */
+.data-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.data-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+/* Comment cards */
+.comment-card {
+    transition: all 0.2s;
+}
+.comment-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .detail-tabs {
+        flex-wrap: wrap;
+    }
+    .data-table {
+        font-size: 0.85rem;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 8px !important;
+    }
+}

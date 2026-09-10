@@ -130,7 +130,7 @@ export const seedDatabase = async () => {
       await Event.create([
         {
           title: 'Unlocking 1000 Job Opportunities in AI by 2027',
-          description: 'A special roadmapping session by @videdreamer outlining the technical skills and portfolio projects needed to secure remote jobs, freelancing, and build AI startups.',
+          description: 'A special roadmapping session by @widetechai outlining the technical skills and portfolio projects needed to secure remote jobs, freelancing, and build AI startups.',
           type: 'webinar',
           isPaid: false,
           price: 0,

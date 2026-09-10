@@ -81,28 +81,47 @@ router.get('/:id', async (req, res) => {
 // @desc    Create a new webinar / workshop
 // @route   POST /api/events
 // @access  Private/Admin
+// ==================== EVENT ROUTES ====================
 router.post('/', protect, admin, async (req, res) => {
-  const { title, description, type, isPaid, price, dateTime, meetingLink, duration, thumbnail } = req.body;
+  const { 
+    title, description, type, isPaid, price, 
+    dateTime, meetingLink, duration, thumbnail 
+  } = req.body;
 
   try {
+    // Validate required fields
+    if (!title || !description || !type || !dateTime || !meetingLink) {
+      return res.status(400).json({ 
+        message: 'Title, description, type, date/time, and meeting link are required fields' 
+      });
+    }
+
     const event = await Event.create({
       title,
       description,
       type,
       isPaid: isPaid || false,
-      price: isPaid ? price : 0,
-      dateTime,
+      price: isPaid ? (price || 0) : 0,
+      dateTime: new Date(dateTime),
       meetingLink,
-      duration,
-      thumbnail,
+      duration: duration || '',
+      thumbnail: thumbnail || '',
     });
 
-    res.status(201).json(event);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Event created successfully', 
+      event 
+    });
   } catch (error) {
     console.error('Create event error:', error);
-    res.status(400).json({ message: 'Invalid event data', error: error.message });
+    res.status(400).json({ 
+      message: 'Invalid event data', 
+      error: error.message 
+    });
   }
 });
+
 
 // @desc    Free register for free webinars/workshops
 // @route   POST /api/events/:id/register-free

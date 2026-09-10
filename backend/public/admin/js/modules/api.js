@@ -66,7 +66,49 @@ window.API = {
         });
         return response.json();
     },
+    // Add these to your API module
+getCourseStats(courseId) {
+    return this.get(`/api/admin/courses/${courseId}/stats`);
+},
 
+getEventStats(eventId) {
+    return this.get(`/api/admin/events/${eventId}/stats`);
+},
+
+getTutorialStats(tutorialId) {
+    return this.get(`/api/admin/trials/${tutorialId}/stats`);
+},
+// Add these to your API module
+getCourseAnalytics(courseId) {
+    return this.get(`/api/admin/courses/${courseId}/analytics`);
+},
+
+getCourseComments(courseId, filters = {}) {
+    const params = new URLSearchParams(filters).toString();
+    return this.get(`/api/admin/courses/${courseId}/comments?${params}`);
+},
+
+getEventAnalytics(eventId) {
+    return this.get(`/api/admin/events/${eventId}/analytics`);
+},
+
+pinComment(commentId) {
+    return this.patch(`/api/admin/comments/${commentId}/pin`, {});
+},
+
+resolveComment(commentId) {
+    return this.patch(`/api/admin/comments/${commentId}/resolve`, {});
+},
+
+deleteCommentAdmin(commentId) {
+    return this.delete(`/api/admin/comments/${commentId}`);
+},
+
+replyAsAdmin(courseId, commentId, text) {
+    return this.post(`/api/admin/courses/${courseId}/comments/${commentId}/reply`, { text });
+},broadcastEventEmail(eventId, payload) {
+    return this.post(`/api/admin/events/${eventId}/broadcast`, payload);
+},
     // Specific endpoints
     login(email, password) {
         return this.post('/api/auth/login', { email, password });

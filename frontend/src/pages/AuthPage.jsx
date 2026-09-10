@@ -220,10 +220,10 @@ export default function AuthPage({ onLoginSuccess }) {
       {/* Simple Footer */}
       <footer className="auth-footer">
         <div className="container">
-          <p>© {new Date().getFullYear()} WIDETECHNOS Academy. Made with ❤️ by @videdreamer</p>
+          <p>© {new Date().getFullYear()} WIDETECHNOS Academy. Made with ❤️ by @widetechai</p>
           <div className="auth-footer-links">
             <Link to="/">Home</Link>
-            <a href="https://instagram.com/videdreamer" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a>
           </div>
         </div>
       </footer>

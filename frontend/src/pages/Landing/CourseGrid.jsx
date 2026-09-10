@@ -90,14 +90,14 @@ export default function CourseGrid({
           })}
         </div>
 
-        <div className="course-grid-footer">
-          <span className="course-count">
+        {/* <div className="course-grid-footer">
+          {/* <span className="course-count">
             Showing {Math.min(courseList.length, 6)} of {pagination?.totalItems || courseList.length} courses
-          </span>
-          <button onClick={handleViewAllClick} className="btn btn-secondary">
+          </span> */}
+          {/* <button onClick={handleViewAllClick} className="btn btn-secondary">
             View All {pagination?.totalItems || courseList.length} Courses →
-          </button>
-        </div>
+          </button> *
+        </div> */}
       </div>
     </section>
   );

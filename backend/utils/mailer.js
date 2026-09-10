@@ -36,7 +36,7 @@ export const sendRegistrationEmail = async (email, name) => {
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #8b5cf6;">Welcome to WIDETECHNOS, ${name}!</h2>
         <p>Thank you for registering at our AI Academy. We are thrilled to guide you on your journey to mastering Generative AI!</p>
-        <p>Our vision is to build <strong>1,000 job opportunities by the end of 2027</strong> under the direction of Instagram founder <strong>@videdreamer</strong>. We want to empower everyone from age 10 to older adults to build websites, mobile apps, software, and games with AI.</p>
+        <p>Our vision is to build <strong>1,000 job opportunities by the end of 2027</strong> under the direction of Instagram founder <strong>@widetechai</strong>. We want to empower everyone from age 10 to older adults to build websites, mobile apps, software, and games with AI.</p>
         <p>Log in to your Dashboard to browse courses, webinars, and start learning!</p>
         <br />
         <p>Best regards,</p>
@@ -90,7 +90,7 @@ export const sendPurchaseEmail = async (email, name, itemTitle, txnid, amount) =
         <p>Please head over to your Dashboard to begin studying or join the live event meeting room.</p>
         <br />
         <p>Let's build the future together,</p>
-        <p><strong>The WIDETECHNOS Academy Team (Vision by @videdreamer)</strong></p>
+        <p><strong>The WIDETECHNOS Academy Team (Vision by @widetechai)</strong></p>
       </div>
     `
   };

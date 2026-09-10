@@ -23,7 +23,6 @@ const LanguageContentSchema = new mongoose.Schema({
 const CourseSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  type: { type: String, enum: ['Course', 'Tutorial', 'Workshop'], default: 'Course' },
   category: { type: String, required: true }, // e.g., "AI Development", "AI in Daily Life"
   isFree: { type: Boolean, default: false },
   outcomes: [{ type: String }], // Deliverables / Benefits
