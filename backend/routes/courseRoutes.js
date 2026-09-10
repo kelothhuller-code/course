@@ -77,7 +77,7 @@ router.get('/paginated', async (req, res) => {
 
     // Build query
     let query = {};
-    
+
     // Search filter
     if (search) {
       query.$or = [
@@ -86,7 +86,7 @@ router.get('/paginated', async (req, res) => {
         { category: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     // Category filter
     if (category && category !== 'All') {
       query.category = category;
@@ -194,17 +194,17 @@ router.get('/:id/learn', protect, async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 router.post('/', protect, admin, async (req, res) => {
-  const { 
-    title, description, type, category, isFree, outcomes, 
+  const {
+    title, description, type, category, isFree, outcomes,
     packageType, price, discountedPrice, affiliateCommission,
-    thumbnail, languages, content 
+    thumbnail, languages, content
   } = req.body;
 
   try {
     // Validate required fields
     if (!title || !description || !category) {
-      return res.status(400).json({ 
-        message: 'Title, description, and category are required fields' 
+      return res.status(400).json({
+        message: 'Title, description, and category are required fields'
       });
     }
 
@@ -224,16 +224,16 @@ router.post('/', protect, admin, async (req, res) => {
       content: content || [],
     });
 
-    res.status(201).json({ 
-      success: true, 
-      message: 'Course created successfully', 
-      course 
+    res.status(201).json({
+      success: true,
+      message: 'Course created successfully',
+      course
     });
   } catch (error) {
     console.error('Create course error:', error);
-    res.status(400).json({ 
-      message: 'Invalid course data', 
-      error: error.message 
+    res.status(400).json({
+      message: 'Invalid course data',
+      error: error.message
     });
   }
 });

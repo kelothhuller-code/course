@@ -71,47 +71,58 @@ export const verifyCertificate = async (req, res) => {
   }
 };
 
+// Core certificate creation helper that can be called by controller or progress completion
+export const createCertificateForUser = async (userId, courseId, courseTitle) => {
+  const user = await User.findById(userId);
+  const course = await Course.findById(courseId);
+
+  if (!user || !course) {
+    throw new Error('User or course not found');
+  }
+
+  // Check if certificate already exists
+  const existing = await Certificate.findOne({ userId, courseId });
+  if (existing) {
+    return existing;
+  }
+
+  const certificateId = `WTA-${new Date().getFullYear()}-AI-${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`;
+
+  const certificate = new Certificate({
+    userId,
+    courseId,
+    certificateId,
+    courseTitle: courseTitle || course.title,
+    userName: user.name,
+    userEmail: user.email,
+    issuedAt: new Date()
+  });
+
+  await certificate.save();
+
+  // Add to user's certificates
+  user.certificates = user.certificates || [];
+  user.certificates.push({
+    courseId,
+    certificateId,
+    issuedAt: new Date(),
+    courseTitle: courseTitle || course.title
+  });
+  await user.save();
+
+  return certificate;
+};
+
 // Generate certificate (admin/instructor only)
 export const generateCertificate = async (req, res) => {
   try {
     const { userId, courseId } = req.body;
 
-    const user = await User.findById(userId);
-    const course = await Course.findById(courseId);
-
-    if (!user || !course) {
-      return res.status(404).json({ error: 'User or course not found' });
+    if (!userId || !courseId) {
+      return res.status(400).json({ error: 'userId and courseId are required' });
     }
 
-    // Check if certificate already exists
-    const existing = await Certificate.findOne({ userId, courseId });
-    if (existing) {
-      return res.status(400).json({ error: 'Certificate already exists' });
-    }
-
-    const certificateId = `WTA-${new Date().getFullYear()}-AI-${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`;
-
-    const certificate = new Certificate({
-      userId,
-      courseId,
-      certificateId,
-      courseTitle: course.title,
-      userName: user.name,
-      userEmail: user.email,
-      issuedAt: new Date()
-    });
-
-    await certificate.save();
-
-    // Add to user's certificates
-    user.certificates = user.certificates || [];
-    user.certificates.push({
-      courseId,
-      certificateId,
-      issuedAt: new Date(),
-      courseTitle: course.title
-    });
-    await user.save();
+    const certificate = await createCertificateForUser(userId, courseId);
 
     res.status(201).json({
       message: 'Certificate generated successfully',
@@ -120,6 +131,6 @@ export const generateCertificate = async (req, res) => {
 
   } catch (error) {
     console.error('Generate certificate error:', error);
-    res.status(500).json({ error: 'Failed to generate certificate' });
+    res.status(500).json({ error: error.message || 'Failed to generate certificate' });
   }
 };

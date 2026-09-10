@@ -43,9 +43,13 @@ router.post('/pay', protect, async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    const price = item.price;
+    // Use discountedPrice if available and lower than original price
+    const price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
+      ? item.discountedPrice 
+      : item.price;
+
     if (price === 0) {
-      return res.status(400).json({ message: 'Item is free. No payment required.' });
+      return res.status(400).json({ message: 'Item is free. No payment required. Use /api/enroll/free' });
     }
 
     // Generate unique txn ID

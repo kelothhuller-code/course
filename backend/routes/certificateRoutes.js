@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, optionalAuth } from '../middleware/auth.js';
+import { protect, optionalAuth, admin } from '../middleware/auth.js';
 import {
   getCertificates,
   getCertificateByCourse,
@@ -19,6 +19,6 @@ router.get('/courses/:courseId', protect, getCertificateByCourse);
 router.get('/verify/:certificateId', verifyCertificate);
 
 // Generate certificate (admin/instructor only)
-router.post('/generate', protect, generateCertificate);
+router.post('/generate', protect, admin, generateCertificate);
 
 export default router;

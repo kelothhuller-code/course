@@ -2,7 +2,7 @@ import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
 import ReferralLog from '../models/ReferralLog.js';
-import Progress from '../models/progress.js';
+import Progress from '../models/Progress.js';
 import Comment from '../models/Comment.js';
 import Event from '../models/Event.js';
 // ==================== COURSE ANALYTICS ====================

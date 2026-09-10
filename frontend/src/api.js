@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const getHeaders = () => {
   const headers = {
@@ -48,14 +48,22 @@ export const api = {
   },
 
   // Courses
-  getCourses: async () => {
+  getCourses: async (page = 1, limit = 3, showAll = false) => {
+    const res = await fetch(`${BASE_URL}/courses?page=${page}&limit=${limit}&showAll=${showAll}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  getAllCourses: async () => {
     const res = await fetch(`${BASE_URL}/courses/all`, {
       method: 'GET',
       headers: getHeaders(),
     });
     return handleResponse(res);
   },
-getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'All') => {
+  getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'All') => {
     try {
       console.log('bbbbb')
       const queryParams = new URLSearchParams({
@@ -64,7 +72,7 @@ getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'Al
         search: search || '',
         category: category || 'All'
       });
-      
+
       const response = await fetch(
         `${BASE_URL}/courses/paginated?${queryParams}`,
         {
@@ -74,13 +82,13 @@ getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'Al
           },
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch courses');
       }
-      
+
       const data = await response.json();
-      
+
       return {
         courses: Array.isArray(data.courses) ? data.courses : [],
         pagination: data.pagination || {
@@ -190,6 +198,10 @@ getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'Al
       body: JSON.stringify({ txnid, status }),
     });
     return handleResponse(res);
+  },
+
+  submitMockCallback: async (txnid, status) => {
+    return api.mockPaymentCallback(txnid, status);
   },
 
   // Enroll Free
@@ -394,17 +406,6 @@ getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'Al
   verifyCertificate: async (certificateId) => {
     const response = await fetch(`${BASE_URL}/certificates/verify/${certificateId}`);
     if (!response.ok) throw new Error('Failed to verify certificate');
-    return response.json();
-  },
-
-  // Get all courses (alias for getCourses)
-  getAllCourses: async () => {
-    console.log('dfdf')
-    const response = await fetch(`${BASE_URL}/courses`, {
-      method: 'GET',
-      headers: getHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch courses');
     return response.json();
   }
 };

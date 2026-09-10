@@ -10,9 +10,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const [activeLanguage, setActiveLanguage] = useState('');
   const [activeChapter, setActiveChapter] = useState(null);
   const [activeLesson, setActiveLesson] = useState(null);
-  const [completedChapters, setCompletedChapters] = useState([]);
   const [progressPercent, setProgressPercent] = useState(0);
-  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [courseProgress, setCourseProgress] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -56,7 +54,6 @@ export default function CourseViewer({ user, onRefreshUser }) {
           
           setCourseProgress(progressData);
           setProgressPercent(progressData?.progress || 0);
-          setCompletedChapters(progressData?.completedChapters || []);
           
           if (progressData?.activeLanguage) {
             defaultLang = progressData.activeLanguage;
@@ -116,24 +113,14 @@ export default function CourseViewer({ user, onRefreshUser }) {
     fetchData();
   }, [id, navigate]);
 
-  // Load comments when lesson changes
-  useEffect(() => {
-    if (activeLesson && course) {
-      console.log('Loading comments for lesson:', activeLesson._id);
-      loadComments();
-      loadUserComments();
-    }
-  }, [activeLesson, course]);
-
-  const loadComments = async (page = 1) => {
+  const loadComments = useCallback(async (page = 1) => {
     if (!activeLesson) return;
     setCommentsLoading(true);
     try {
       const data = await api.getComments(id, activeLesson._id, page);
-      console.log('Comments data received:', data);
       
       // Process comments to ensure replies are properly structured
-      const processedComments = data.comments.map(comment => ({
+      const processedComments = (data.comments || []).map(comment => ({
         ...comment,
         replies: Array.isArray(comment.replies) ? comment.replies : [],
         replyCount: comment.replyCount || (Array.isArray(comment.replies) ? comment.replies.length : 0)
@@ -151,31 +138,26 @@ export default function CourseViewer({ user, onRefreshUser }) {
     } finally {
       setCommentsLoading(false);
     }
-  };
+  }, [activeLesson, id]);
 
-  const loadUserComments = async () => {
+  const loadUserComments = useCallback(async () => {
     if (!activeLesson || !user) return;
     try {
-      // Get all comments and filter by user
       const data = await api.getComments(id, activeLesson._id, 1);
       const allComments = data.comments || [];
       
-      // Find user's comments and their replies
       const userCommentsList = allComments.filter(comment => 
         comment.userId?._id === user.id
       );
       
-      // Also find replies to user's comments
       const userCommentIds = userCommentsList.map(c => c._id);
       const repliesToUser = allComments.filter(comment => 
         comment.parentCommentId && userCommentIds.includes(comment.parentCommentId)
       );
       
-      // Combine and sort by date
       const allUserRelated = [...userCommentsList, ...repliesToUser];
       allUserRelated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
-      // Process to include replies
       const processedUserComments = allUserRelated.map(comment => ({
         ...comment,
         replies: Array.isArray(comment.replies) ? comment.replies : [],
@@ -185,6 +167,48 @@ export default function CourseViewer({ user, onRefreshUser }) {
       setUserComments(processedUserComments);
     } catch (err) {
       console.error('Error loading user comments:', err);
+    }
+  }, [activeLesson, id, user]);
+
+  // Load comments when lesson changes
+  useEffect(() => {
+    if (activeLesson && course) {
+      loadComments(1);
+      loadUserComments();
+    }
+  }, [activeLesson, course, loadComments, loadUserComments]);
+
+  // Handle manual lesson completion
+  const handleToggleComplete = async () => {
+    if (!activeLesson || !course) return;
+    try {
+      const isCurrentlyCompleted = isLessonCompleted(activeLesson._id);
+      const targetLessonId = activeLesson._id;
+
+      const res = await api.updateVideoProgress(id, targetLessonId, {
+        completed: !isCurrentlyCompleted,
+        videoProgressPercent: !isCurrentlyCompleted ? 100 : 0,
+        chapterId: activeChapter?._id
+      });
+
+      // Refresh progress from server
+      const progress = await api.getCourseProgress(id);
+      if (progress) {
+        progress.completedLessons = Array.isArray(progress.completedLessons)
+          ? progress.completedLessons
+          : [];
+        setCourseProgress(progress);
+        setProgressPercent(progress?.progress || 0);
+      }
+
+      if (onRefreshUser) onRefreshUser();
+
+      if (!isCurrentlyCompleted && (progress?.progress === 100 || res?.progress === 100)) {
+        alert('🎉 Congratulations! You have completed all lessons in this course! Your certificate has been issued.');
+      }
+    } catch (err) {
+      console.error('Error toggling lesson completion:', err);
+      alert('Failed to update lesson completion: ' + (err.message || 'Error'));
     }
   };
 
@@ -494,14 +518,32 @@ export default function CourseViewer({ user, onRefreshUser }) {
                   <div className="learn-details" style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <h1 className="learn-title" style={{ fontSize: '1.5rem', fontWeight: '700' }}>{activeLesson.title}</h1>
-                      <span className="badge" style={{ 
-                        background: 'var(--primary)',
-                        color: '#fff',
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '40px',
-                        fontSize: '0.75rem',
-                        fontWeight: '600'
-                      }}>{activeLesson.duration || 'Video'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span className="badge" style={{ 
+                          background: 'var(--primary)',
+                          color: '#fff',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '40px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}>{activeLesson.duration || 'Video'}</span>
+                        <button
+                          onClick={handleToggleComplete}
+                          className={`btn btn-sm ${isLessonCompleted(activeLesson._id) ? 'btn-secondary' : 'btn-primary'}`}
+                          style={{
+                            fontSize: '0.8rem',
+                            padding: '0.35rem 0.85rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            borderColor: isLessonCompleted(activeLesson._id) ? '#10b981' : undefined,
+                            color: isLessonCompleted(activeLesson._id) ? '#10b981' : undefined,
+                            fontWeight: '600'
+                          }}
+                        >
+                          {isLessonCompleted(activeLesson._id) ? '✓ Completed' : 'Mark as Complete'}
+                        </button>
+                      </div>
                     </div>
                     <p className="learn-desc" style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.7' }}>
                       {activeLesson.description || 'No description available.'}

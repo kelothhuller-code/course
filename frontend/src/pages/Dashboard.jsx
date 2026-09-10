@@ -96,10 +96,50 @@ export default function Dashboard({ user, onRefreshUser }) {
   const handlePrintCert = () => {
     const printContent = document.getElementById('cert-print-area');
     if (!printContent) return;
-    const originalContent = document.body.innerHTML;
-    document.body.innerHTML = printContent.innerHTML;
-    window.print();
-    window.location.reload();
+
+    // Use an isolated hidden iframe so React virtual DOM is never destroyed
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Certificate - WIDETECHNOS Academy</title>
+          <style>
+            body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+            * { box-sizing: border-box; }
+            @media print {
+              @page { size: landscape; margin: 10mm; }
+              body { padding: 0; }
+            }
+          </style>
+          ${Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('')}
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 1000);
+    }, 500);
   };
 
   const handleContinueLearning = (courseId) => {
@@ -117,7 +157,7 @@ export default function Dashboard({ user, onRefreshUser }) {
         alert(err.message);
       }
     } else {
-      navigate(`/course/${courseId}`);
+      navigate(`/checkout/${courseId}`);
     }
   };
 

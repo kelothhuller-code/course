@@ -3,13 +3,10 @@ import mongoose from 'mongoose';
 const lessonProgressSchema = new mongoose.Schema({
   lessonId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lesson',
     required: true
   },
   chapterId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Chapter',
-    required: true
+    type: mongoose.Schema.Types.ObjectId
   },
   videoProgressSeconds: {
     type: Number,
@@ -82,23 +79,19 @@ const progressSchema = new mongoose.Schema({
     type: Date
   },
   currentChapterId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Chapter'
+    type: mongoose.Schema.Types.ObjectId
   },
   currentLessonId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lesson'
+    type: mongoose.Schema.Types.ObjectId
   },
   lastWatchedLessonId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lesson'
+    type: mongoose.Schema.Types.ObjectId
   },
   lastWatchedAt: {
     type: Date
   },
   completedLessons: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lesson'
+    type: mongoose.Schema.Types.ObjectId
   }],
   lessonProgress: [lessonProgressSchema],
   completedChapters: [{

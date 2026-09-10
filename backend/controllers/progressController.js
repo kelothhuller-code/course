@@ -1,7 +1,8 @@
-import Progress from '../models/progress.js';
+import Progress from '../models/Progress.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Certificate from '../models/Certificate.js';
+import { createCertificateForUser } from './certificateController.js';
 
 // Helper function to find a lesson by ID in course content
 const findLessonById = (course, lessonId) => {
@@ -9,7 +10,15 @@ const findLessonById = (course, lessonId) => {
   
   for (const langContent of course.content) {
     for (const chapter of langContent.chapters || []) {
-      // Check if chapter has lessons (embedded)
+      // Direct match (chapters themselves act as lessons in this schema)
+      if (chapter._id && chapter._id.toString() === lessonId.toString()) {
+        return {
+          lesson: chapter,
+          chapter,
+          language: langContent.language
+        };
+      }
+      // Check if chapter has nested lessons
       for (const lesson of chapter.lessons || []) {
         if (lesson._id && lesson._id.toString() === lessonId.toString()) {
           return {
@@ -24,14 +33,23 @@ const findLessonById = (course, lessonId) => {
   return null;
 };
 
-// Helper function to get total lessons count
-const getTotalLessons = (course) => {
-  let count = 0;
-  if (!course || !course.content) return count;
+// Helper function to get total lessons count for course
+const getTotalLessons = (course, language) => {
+  if (!course || !course.content || course.content.length === 0) return 0;
   
-  for (const langContent of course.content) {
-    for (const chapter of langContent.chapters || []) {
-      count += (chapter.lessons || []).length;
+  // Pick the specified language content, or the first language content available
+  const langContent = (language 
+    ? course.content.find(c => c.language === language) 
+    : null) || course.content[0];
+
+  if (!langContent || !langContent.chapters) return 0;
+
+  let count = 0;
+  for (const chapter of langContent.chapters) {
+    if (Array.isArray(chapter.lessons) && chapter.lessons.length > 0) {
+      count += chapter.lessons.length;
+    } else {
+      count += 1;
     }
   }
   return count;
@@ -124,7 +142,8 @@ export const updateVideoProgress = async (req, res) => {
       videoProgressSeconds,
       videoDurationSeconds,
       videoProgressPercent,
-      chapterId
+      chapterId,
+      completed
     } = req.body;
 
     // Validate enrollment
@@ -144,7 +163,7 @@ export const updateVideoProgress = async (req, res) => {
 
     // Find or create lesson progress
     let lessonProgress = progress.lessonProgress.find(
-      lp => lp.lessonId.toString() === lessonId
+      lp => lp.lessonId && lp.lessonId.toString() === lessonId.toString()
     );
 
     if (!lessonProgress) {
@@ -162,19 +181,23 @@ export const updateVideoProgress = async (req, res) => {
     lessonProgress.lastAccessedAt = new Date();
     lessonProgress.timesOpened = (lessonProgress.timesOpened || 0) + 1;
 
-    // Check if video is complete (90% threshold)
+    // Check if video or lesson is complete
     const completionThreshold = 90;
-    if (videoProgressPercent >= completionThreshold && !lessonProgress.videoCompleted) {
+    const isMarkedCompleted = completed === true;
+    if (isMarkedCompleted || (videoProgressPercent >= completionThreshold && !lessonProgress.videoCompleted)) {
       lessonProgress.videoCompleted = true;
     }
 
-    // Mark lesson as completed if video is complete
-    if (lessonProgress.videoCompleted && !lessonProgress.completed) {
+    // Mark lesson as completed if video is complete or explicitly marked completed
+    if (isMarkedCompleted || (lessonProgress.videoCompleted && !lessonProgress.completed)) {
       lessonProgress.completed = true;
       lessonProgress.completedAt = new Date();
 
       // Add to completed lessons if not already there
-      if (!progress.completedLessons.includes(lessonId)) {
+      const isAlreadyCompleted = progress.completedLessons.some(
+        l => l && l.toString() === lessonId.toString()
+      );
+      if (!isAlreadyCompleted) {
         progress.completedLessons.push(lessonId);
       }
     }
@@ -187,9 +210,22 @@ export const updateVideoProgress = async (req, res) => {
 
     // Calculate overall progress
     const course = await Course.findById(courseId);
-    const totalLessons = getTotalLessons(course);
+    const totalLessons = getTotalLessons(course, progress.activeLanguage);
 
     progress.calculateProgress(totalLessons);
+
+    // Sync progress back to user.enrolledCourses for backward compatibility
+    const userEnrollment = user.enrolledCourses?.find(
+      c => c.courseId?.toString() === courseId.toString()
+    );
+    if (userEnrollment) {
+      userEnrollment.progress = progress.progress;
+      if (progress.progress >= 100) {
+        userEnrollment.completed = true;
+        userEnrollment.completedAt = new Date();
+      }
+      await user.save();
+    }
 
     // Check if course is completed
     if (progress.progress === 100 && !progress.completed) {
@@ -197,7 +233,11 @@ export const updateVideoProgress = async (req, res) => {
       progress.completedAt = new Date();
 
       // Generate certificate
-      await generateCertificate(userId, courseId, course.title);
+      try {
+        await createCertificateForUser(userId, courseId, course.title);
+      } catch (certErr) {
+        console.error('Auto certificate generation error:', certErr);
+      }
     }
 
     await progress.save();

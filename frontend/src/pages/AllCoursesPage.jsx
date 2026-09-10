@@ -75,8 +75,29 @@ export default function AllCoursesPage({ user, onLogout }) {
       navigate('/auth');
       return;
     }
-    // Navigate to course viewer or dashboard
-    navigate(`/course/${course._id}`);
+
+    const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
+      (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
+    );
+
+    if (isAlreadyEnrolled) {
+      navigate(`/course/${course._id}`);
+      return;
+    }
+
+    if (course.isFree || course.price === 0) {
+      try {
+        await api.enrollFree(course._id);
+        alert('🎉 Successfully enrolled in free course!');
+        navigate(`/course/${course._id}`);
+      } catch (err) {
+        alert(err.message || 'Enrollment failed');
+      }
+      return;
+    }
+
+    // Navigate to checkout for paid course
+    navigate(`/checkout/${course._id}`);
   };
 
   // Clear search
@@ -205,12 +226,25 @@ export default function AllCoursesPage({ user, onLogout }) {
                         ))}
                       </div>
                       <div className="card-meta">
-                        <div className="card-price">₹{course.price}</div>
+                        <div className="card-price">
+                          {course.discountedPrice && course.discountedPrice < course.price ? (
+                            <span>
+                              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.35rem' }}>
+                                ₹{course.price}
+                              </span>
+                              ₹{course.discountedPrice}
+                            </span>
+                          ) : (
+                            <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price}`}</span>
+                          )}
+                        </div>
                         <button 
                           className="btn btn-primary btn-sm" 
                           onClick={() => handleEnroll(course)}
                         >
-                          View Course
+                          {user?.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === course._id.toString())
+                            ? '📖 Continue'
+                            : (course.isFree || course.price === 0 ? '🎯 Enroll Free' : '🛒 Enroll Now')}
                         </button>
                       </div>
                     </div>

@@ -61,7 +61,9 @@ function AppContent() {
       const response = await api.submitMockCallback(mockPaymentData.txnid, status);
       setMockPaymentData(null);
       await refreshUser();
-      const redirectPath = response.redirectUrl.replace('http://localhost:5173', '');
+      const redirectPath = response.redirectUrl 
+        ? response.redirectUrl.replace(/^https?:\/\/[^\/]+/, '') 
+        : '/dashboard';
       navigate(redirectPath);
     } catch (err) {
       alert('Mock payment simulation error: ' + err.message);

@@ -73,7 +73,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     try {
       setLoading(true);
       const [coursesData, eventsData, trialsData] = await Promise.all([
-        api.getCourses(1, 9, false),
+        api.getCourses(1, 3, false),
         api.getEvents(),
         api.getTrials(),
       ]);
@@ -119,7 +119,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     fetchCourses(1, false);
   };
 
-  const handleEnroll = async (item, type) => {
+  const handleEnroll = async (item, type = 'course') => {
     if (!user) {
       navigate('/auth');
       return;
@@ -127,72 +127,53 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
     if (type === 'course') {
       const isAlreadyEnrolled = user.enrolledCourses?.some(c =>
-        c.courseId?._id === item._id || c.courseId === item._id
+        (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
       );
       if (isAlreadyEnrolled) {
-        navigate('/dashboard');
+        navigate(`/course/${item._id}`);
         return;
       }
+
+      // Check if course is free
+      const isFreeCourse = Boolean(item.isFree || item.price === 0);
+      if (isFreeCourse) {
+        try {
+          await api.enrollFree(item._id);
+          alert('🎉 Successfully enrolled in free course!');
+          navigate(`/course/${item._id}`);
+        } catch (err) {
+          alert(err.message || 'Enrollment failed');
+        }
+        return;
+      }
+
+      // Paid course -> navigate to checkout
+      navigate(`/checkout/${item._id}`);
+      return;
     } else if (type === 'event') {
       const isAlreadyEnrolled = user.enrolledEvents?.some(e =>
-        e.eventId?._id === item._id || e.eventId === item._id
+        (e.eventId?._id || e.eventId)?.toString() === item._id.toString()
       );
       if (isAlreadyEnrolled) {
         navigate('/dashboard');
         return;
       }
-    }
 
-    if (item.price === 0 || !item.isPaid) {
-      try {
-        if (type === 'event') {
+      const isFreeEvent = !item.isPaid || item.price === 0;
+      if (isFreeEvent) {
+        try {
           await api.registerFreeEvent(item._id);
           alert('🎉 Successfully registered for this free event!');
           navigate('/dashboard');
-        } else {
-          alert('🎉 Course registration success!');
-          navigate('/dashboard');
+        } catch (err) {
+          alert(err.message || 'Registration failed');
         }
-      } catch (err) {
-        alert(err.message || 'Registration failed');
+        return;
       }
+
+      // Paid event -> navigate to checkout
+      navigate(`/checkout/${item._id}`);
       return;
-    }
-
-    try {
-      const paymentData = await api.initiatePayment(item._id, type);
-      if (paymentData.isMock) {
-        onOpenMockPayment({
-          txnid: paymentData.txnid,
-          amount: paymentData.amount,
-          productinfo: paymentData.productinfo,
-          firstname: paymentData.firstname,
-          email: paymentData.email,
-        });
-      } else {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = paymentData.action;
-
-        const fields = [
-          'key', 'txnid', 'amount', 'productinfo',
-          'firstname', 'email', 'phone', 'surl', 'furl',
-          'hash', 'service_provider'
-        ];
-
-        fields.forEach(field => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = field;
-          input.value = paymentData[field];
-          form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-      }
-    } catch (err) {
-      alert(err.message || 'Payment initiation failed');
     }
   };
 
