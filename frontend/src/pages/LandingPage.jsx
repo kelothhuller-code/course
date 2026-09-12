@@ -121,13 +121,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   };
 
   const handleEnroll = async (item, type = 'course') => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-
     if (type === 'course') {
-      const isAlreadyEnrolled = user.enrolledCourses?.some(c =>
+      const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
         (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
       );
       if (isAlreadyEnrolled) {
@@ -135,23 +130,14 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         return;
       }
 
-      // Check if course is free
-      const isFreeCourse = Boolean(item.isFree || item.price === 0);
-      if (isFreeCourse) {
-        try {
-          await api.enrollFree(item._id);
-          alert('🎉 Successfully enrolled in free course!');
-          navigate(`/course/${item._id}`);
-        } catch (err) {
-          alert(err.message || 'Enrollment failed');
-        }
-        return;
-      }
-
-      // Paid course -> navigate to Sales Page (funnel)
-      navigate(`/course/${item._id}/preview`);
+      // Always navigate to the Dedicated Sales Page funnel for all non-enrolled courses (Free & Paid)
+      navigate(`/sale/${item._id}`);
       return;
     } else if (type === 'event') {
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
       const isAlreadyEnrolled = user.enrolledEvents?.some(e =>
         (e.eventId?._id || e.eventId)?.toString() === item._id.toString()
       );

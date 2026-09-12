@@ -70,9 +70,6 @@ export default function AllCoursesPage({ user, onLogout }) {
 
   // Handle enroll
   const handleEnroll = async (course) => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-
     const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
       (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
     );
@@ -82,20 +79,8 @@ export default function AllCoursesPage({ user, onLogout }) {
       return;
     }
 
-    if (course.isFree || course.price === 0) {
-      if (!token) { navigate('/auth'); return; }
-      try {
-        await api.enrollFree(course._id);
-        alert('🎉 Successfully enrolled in free course!');
-        navigate(`/course/${course._id}`);
-      } catch (err) {
-        alert(err.message || 'Enrollment failed');
-      }
-      return;
-    }
-
-    // Navigate to Sales Page first (funnel)
-    navigate(`/course/${course._id}/preview`);
+    // Always navigate to the Dedicated Sales Page funnel for all non-enrolled courses (Free & Paid)
+    navigate(`/sale/${course._id}`);
   };
 
   // Clear search

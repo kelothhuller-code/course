@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api';
 import './authpage.css'
 export default function AuthPage({ onLoginSuccess }) {
@@ -10,6 +10,17 @@ export default function AuthPage({ onLoginSuccess }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const rawRedirect = searchParams.get('redirect');
+  const getSafeRedirect = (url) => {
+    if (url && typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\')) {
+      return url;
+    }
+    return '/dashboard';
+  };
+  const redirectTarget = getSafeRedirect(rawRedirect);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +40,7 @@ export default function AuthPage({ onLoginSuccess }) {
       
       localStorage.setItem('token', data.token);
       onLoginSuccess(data);
-      navigate('/dashboard');
+      navigate(redirectTarget);
     } catch (err) {
       setError(err.message || 'Authentication failed. Please try again.');
     } finally {

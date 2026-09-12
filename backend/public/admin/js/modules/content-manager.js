@@ -90,15 +90,22 @@ window.ContentManager = {
         `;
     },
 
+    copySalesLink(courseId) {
+        const url = `${window.location.origin.includes('5000') || window.location.origin.includes('5001') ? 'http://localhost:5173' : window.location.origin}/sale/${courseId}`;
+        navigator.clipboard.writeText(url);
+        alert('🔗 Dedicated Sales Page link copied to clipboard!\n\n' + url);
+    },
+
     renderCourseCard(course) {
         const chapterCount = (course.content || []).reduce((n, lang) => n + (lang.chapters?.length || 0), 0);
         const languages = (course.languages || []).join(', ') || 'None';
+        const salesUrl = `${window.location.origin.includes('5000') || window.location.origin.includes('5001') ? 'http://localhost:5173' : window.location.origin}/sale/${course._id}`;
         
         return `
-            <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;">
+            <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;flex-wrap:wrap;">
                 ${course.thumbnail ? `<img src="${course.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${course.title}">` : 
-                  `<div style="width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;">📚</div>`}
-                <div style="flex:1;min-width:0;">
+                  `<div style="width:120px;height:80px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;">📚</div>`}
+                <div style="flex:1;min-width:240px;">
                     <h4 style="margin-bottom:4px;">
                         ${Helpers.safeString(course.title, 'Untitled')}
                         <span class="badge" style="background:${course.isFree ? 'var(--success)' : 'var(--primary)'};margin-left:8px;">
@@ -113,11 +120,13 @@ window.ContentManager = {
                         <span>💰 Commission: ₹${course.affiliateCommission || 0}</span>
                     </div>
                 </div>
-                <div style="display:flex;gap:8px;flex-shrink:0;">
-                    <button class="btn btn-secondary" onclick="App.navigateTo('course-content', '${course._id}')">📝 Content</button>
-                    <button class="btn btn-secondary" onclick="App.navigateTo('course-details', '${course._id}')">📊 Details</button>
-                    <button class="btn btn-secondary" onclick="App.navigateTo('course-form', '${course._id}')">✏️ Edit</button>
-                    <button class="btn btn-danger" onclick="ContentManager.deleteCourse('${course._id}')">🗑️</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="ContentManager.copySalesLink('${course._id}')">📋 Copy Sales Link</button>
+                    <a href="${salesUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size:0.85rem;text-decoration:none;">🌐 View Sales Page</a>
+                    <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="App.navigateTo('course-content', '${course._id}')">📝 Content</button>
+                    <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="App.navigateTo('course-details', '${course._id}')">📊 Details</button>
+                    <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="App.navigateTo('course-form', '${course._id}')">✏️ Edit</button>
+                    <button class="btn btn-danger" style="font-size:0.85rem;" onclick="ContentManager.deleteCourse('${course._id}')">🗑️</button>
                 </div>
             </div>
         `;

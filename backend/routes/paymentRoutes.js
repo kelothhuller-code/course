@@ -88,7 +88,7 @@ router.post('/pay', protect, async (req, res) => {
 
     // Use discountedPrice if available and lower than original price
     let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
-      ? item.discountedPrice 
+      ? item.discountedPrice
       : item.price;
 
     // Apply coupon discount server-side
@@ -124,7 +124,7 @@ router.post('/pay', protect, async (req, res) => {
     // Course prices are inclusive of GST
     const baseAmount = Math.round((price / (1 + rate / 100)) * 100) / 100;
     const gstAmount = Math.round((price - baseAmount) * 100) / 100;
-    
+
     let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
     if (isIntraState) {
       cgstAmount = Math.round((gstAmount / 2) * 100) / 100;
@@ -179,7 +179,7 @@ router.post('/pay', protect, async (req, res) => {
 
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';
-    const actionUrl = key === 'mock_key' 
+    const actionUrl = key === 'mock_key'
       ? 'mock' // Front-end will catch this and display a simulation modal/page
       : `${process.env.PAYU_BASE_URL || 'https://test.payu.in'}/_payment`;
 
@@ -395,6 +395,11 @@ router.post('/mock-callback', async (req, res) => {
         }
       }
     }
+  } catch (error) {
+    console.error('Payment callback error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // @desc    Get GST Invoice Details for a transaction
 // @route   GET /api/payment/invoice/:txnid

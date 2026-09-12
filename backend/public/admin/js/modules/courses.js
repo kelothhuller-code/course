@@ -8,6 +8,15 @@ window.CoursesModule = {
     // ==================== FORM RENDER ====================
     async renderForm(courseId = null) {
         let course = null;
+        let allCoursesList = [];
+
+        try {
+            const allRes = await API.get('/api/courses');
+            allCoursesList = allRes.courses || allRes || [];
+        } catch (e) {
+            console.error('Failed to fetch courses list for continuation:', e);
+        }
+
         if (courseId) {
             try {
                 const data = await API.get(`/api/courses/${courseId}`);
@@ -18,6 +27,7 @@ window.CoursesModule = {
         }
 
         const isEdit = !!course;
+        const selectedContinuationIds = (course?.continuationCourses || []).map(c => (typeof c === 'object' && c !== null) ? c._id : c);
 
         return `
             <div class="panel">
@@ -95,6 +105,25 @@ window.CoursesModule = {
                             <label class="form-label">Affiliate Commission (INR)</label>
                             <input type="number" id="course-commission" class="form-control" 
                                    value="${course?.affiliateCommission || 0}" min="0">
+                        </div>
+                    </div>
+
+                    <!-- Mapped Follow-up / Continuation Courses Selector -->
+                    <div class="form-group full-width" style="margin-top:24px; background:var(--bg-dark); padding:16px; border-radius:8px; border:1px solid var(--border);">
+                        <label class="form-label" style="font-weight:600; color:var(--text-main); font-size:1rem;">🚀 Mapped Continuation / Follow-up Courses</label>
+                        <p class="text-muted" style="font-size:0.85rem; margin-bottom:12px;">Select next-step programs (Free or Paid) to showcase under the Dedicated Sales Page & Course Viewer funnel.</p>
+                        
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:10px; max-height:220px; overflow-y:auto; padding:8px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid var(--border);">
+                            ${allCoursesList.filter(c => !courseId || c._id !== courseId).map(c => {
+                                const isChecked = selectedContinuationIds.includes(c._id);
+                                return `
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.88rem; padding:6px 8px; border-radius:4px; background:${isChecked ? 'rgba(59,130,246,0.2)' : 'transparent'}; border:1px solid ${isChecked ? 'var(--primary)' : 'transparent'};">
+                                        <input type="checkbox" class="continuation-checkbox" value="${c._id}" ${isChecked ? 'checked' : ''}>
+                                        <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${c.title}</span>
+                                        <span class="badge" style="font-size:0.7rem; background:${c.isFree ? 'var(--success)' : 'var(--primary)'};">${c.isFree ? 'FREE' : '₹' + (c.discountedPrice || c.price)}</span>
+                                    </label>
+                                `;
+                            }).join('') || '<p class="text-muted" style="margin:0;">No other courses available yet.</p>'}
                         </div>
                     </div>
 
@@ -189,6 +218,8 @@ window.CoursesModule = {
             .map(i => i.value.trim()).filter(Boolean);
         const languages = Array.from(document.querySelectorAll('.language-input'))
             .map(i => i.value.trim()).filter(Boolean);
+        const continuationCourses = Array.from(document.querySelectorAll('.continuation-checkbox:checked'))
+            .map(cb => cb.value);
 
         const courseData = {
             title: document.getElementById('course-title').value.trim(),
@@ -202,7 +233,8 @@ window.CoursesModule = {
             discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
             affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
             outcomes,
-            languages
+            languages,
+            continuationCourses
         };
 
         // Validation

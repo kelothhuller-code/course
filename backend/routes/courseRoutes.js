@@ -333,10 +333,10 @@ router.put('/:id', protect, admin, async (req, res) => {
     res.status(400).json({ message: 'Invalid course data', error: error.message });
   }
 });
-    console.error('Update course error:', error);
-    res.status(400).json({ message: 'Invalid course data', error: error.message });
-  }
-});
+//     console.error('Update course error:', error);
+//     res.status(400).json({ message: 'Invalid course data', error: error.message });
+//   }
+// });
 
 // @desc    Update learning progress
 // @route   POST /api/courses/:id/progress

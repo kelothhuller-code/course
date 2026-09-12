@@ -19,6 +19,10 @@ import certificateRoutes from './routes/certificateRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
 import gstRoutes from './routes/gstRoutes.js';
 
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { sanitizeNoSql } from './middleware/noSqlSanitizer.js';
+
 // Import models for seeding
 import Course from './models/Course.js';
 import User from './models/User.js';
@@ -27,10 +31,43 @@ dotenv.config();
 
 const app = express();
 
+// Security Middleware: Helmet HTTP Headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// Security Middleware: Rate Limiters
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes.' }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { message: 'Too many authentication attempts, please try again after 15 minutes.' }
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { message: 'Too many payment requests, please try again later.' }
+});
+
 // Middleware
 // PayU response comes as urlencoded postback form data, so we must support urlencoded parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// NoSQL Operator Injection Sanitizer
+app.use(sanitizeNoSql);
+
+// Rate limiters
+app.use('/api', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/payment', paymentLimiter);
 
 // Configure CORS to allow frontend calls
 app.use(cors({
@@ -90,7 +127,7 @@ async function seedDatabase() {
     const courseCount = await Course.countDocuments();
     if (courseCount === 0) {
       console.log('📦 Seeding database with initial data...');
-      
+
       // Add your seed data here if needed
       // Example seed data - modify as needed for your app
       const sampleCourse = {
@@ -132,7 +169,7 @@ async function seedDatabase() {
 
       // Uncomment to add seed data
       // await Course.create(sampleCourse);
-      
+
       console.log('✅ Database seeded successfully');
     } else {
       console.log(`📚 Database already has ${courseCount} courses, skipping seed`);
@@ -143,7 +180,7 @@ async function seedDatabase() {
 }
 
 // Database connection
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/widetechnos';
 
 mongoose

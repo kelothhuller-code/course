@@ -173,7 +173,7 @@ window.EventsModule = {
                             </small>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <a href="${event.meetingLink}" target="_blank" class="btn btn-secondary">🔗 Join Link</a>
+                            <a href="${event.meetingLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">🔗 Join Link</a>
                             <button class="btn btn-primary" onclick="EventsModule.openBroadcastModal('${eventId}')">
                                 ✉️ Send Email to Attendees
                             </button>
@@ -381,7 +381,7 @@ window.EventsModule = {
                     <div><strong>Date & Time:</strong> ${new Date(event.dateTime).toLocaleString()}</div>
                     <div><strong>Price:</strong> ${event.isPaid ? '₹' + event.price : 'Free'}</div>
                     <div style="grid-column:1/-1;"><strong>Meeting Link:</strong> 
-                        <a href="${event.meetingLink}" target="_blank" style="color:var(--primary);">${event.meetingLink}</a>
+                        <a href="${event.meetingLink}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);">${event.meetingLink}</a>
                     </div>
                 </div>
 

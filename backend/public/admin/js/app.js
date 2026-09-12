@@ -8,18 +8,19 @@ const App = {
         if (!AuthModule.isAuthenticated()) {
             this.navigateTo('login');
         } else {
-            this.navigateTo('dashboard');
+            this.navigateTo('dashboard'); 
         }
     },
 
     setupNavigation() {
-        const navItems = document.querySelectorAll('.nav-item');
+        const navItems = document.querySelectorAll('.nav-item[data-view]');
         navItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (!AuthModule.isAuthenticated()) return;
 
                 const view = e.currentTarget.getAttribute('data-view');
+                if (!view) return;
                 navItems.forEach(n => n.classList.remove('active'));
                 e.currentTarget.classList.add('active');
                 this.navigateTo(view);
@@ -127,6 +128,19 @@ const App = {
                 case 'referrals':
                     this.setBreadcrumb('Referrals & Affiliates');
                     content = await ReferralsModule.render();
+                    break;
+
+                // ==================== GST & SALES BUILDER VIEWS ====================
+                case 'gst-report':
+                case 'gst_report':
+                    this.setBreadcrumb('🇮🇳 GST Tax Reports');
+                    content = await GstReportModule.render();
+                    break;
+
+                case 'sales-builder':
+                case 'sales_builder':
+                    this.setBreadcrumb('⚡ Sales Page Builder');
+                    content = await SalesBuilderModule.render();
                     break;
 
                 default:

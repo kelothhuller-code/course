@@ -551,10 +551,10 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
                     {/* Mapped Continuation Course Funnel Banner */}
                     {course?.continuationCourses && course.continuationCourses.length > 0 && (
-                      <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))', border: '1px solid rgba(168,85,247,0.35)', margin: '1.5rem 0' }}>
+                      <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08))', border: '1px solid rgba(168,85,247,0.3)', margin: '1.5rem 0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                           <div>
-                            <h4 style={{ margin: '0 0 0.25rem 0', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
+                            <h4 style={{ margin: '0 0 0.25rem 0', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
                               <span>🚀</span> Mapped Continuation / Next Step Course
                             </h4>
                             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>

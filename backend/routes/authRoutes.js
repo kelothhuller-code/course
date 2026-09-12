@@ -6,11 +6,13 @@ import { protect } from '../middleware/auth.js';
 import { sendRegistrationEmail } from '../utils/mailer.js';
 import crypto from 'crypto';
 
+import { getJwtSecret } from '../utils/jwtSecret.js';
+
 const router = express.Router();
 
 // Generate JWT token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027', {
+  return jwt.sign({ id }, getJwtSecret(), {
     expiresIn: '30d',
   });
 };

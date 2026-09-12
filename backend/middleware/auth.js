@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { getJwtSecret } from '../utils/jwtSecret.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -7,7 +8,7 @@ export const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027');
+      const decoded = jwt.verify(token, getJwtSecret());
       
       req.user = await User.findById(decoded.id).select('-password');
       if (!req.user) {
@@ -30,7 +31,7 @@ export const optionalAuth = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027');
+      const decoded = jwt.verify(token, getJwtSecret());
       req.user = await User.findById(decoded.id).select('-password');
     } catch (error) {
       // Token is invalid, but we don't care for optional auth

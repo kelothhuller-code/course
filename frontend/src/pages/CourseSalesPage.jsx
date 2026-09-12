@@ -43,7 +43,16 @@ export default function CourseSalesPage({ user }) {
     fetchSalesPage();
   }, [id, navigate]);
 
+  const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
+    (c.courseId?._id || c.courseId)?.toString() === id.toString()
+  );
+
   const handleEnrollOrBuy = async () => {
+    if (isAlreadyEnrolled) {
+      navigate(`/course/${id}`);
+      return;
+    }
+
     if (!user) {
       navigate(`/auth?redirect=/sale/${id}`);
       return;
@@ -57,7 +66,7 @@ export default function CourseSalesPage({ user }) {
       try {
         await api.enrollFree(course._id);
         alert('🎉 Congratulations! You have successfully enrolled in this free course.');
-        navigate(`/course/${course._id}`);
+        window.location.href = `/course/${course._id}`;
       } catch (err) {
         alert(err.message || 'Free enrollment failed');
       } finally {
@@ -75,7 +84,7 @@ export default function CourseSalesPage({ user }) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#070913', color: '#fff' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc', color: '#0f172a' }}>
         <div className="logo-text" style={{ fontSize: '1.8rem', animation: 'pulse 1.5s infinite' }}>LOADING SALES PAGE...</div>
       </div>
     );
@@ -90,8 +99,12 @@ export default function CourseSalesPage({ user }) {
   const taxableBase = basePrice ? Math.round((basePrice / 1.18) * 100) / 100 : 0;
   const gstPart = basePrice ? Math.round((basePrice - taxableBase) * 100) / 100 : 0;
 
+  const ctaLabel = isAlreadyEnrolled
+    ? '📖 Continue Learning'
+    : (enrollingFree ? 'Enrolling...' : (config.ctaText || (isFree ? 'Enroll Now - Free' : `Buy Course - ₹${basePrice}`)));
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column' }}>
       <NavHeader user={user} />
 
       {/* Admin Quick Share Bar */}
@@ -105,15 +118,15 @@ export default function CourseSalesPage({ user }) {
       )}
 
       {/* Hero Section */}
-      <section style={{ padding: '3.5rem 1.5rem 2.5rem 1.5rem', background: 'radial-gradient(circle at top center, rgba(124, 58, 237, 0.15), transparent 70%)', borderBottom: '1px solid var(--border)' }}>
+      <section style={{ padding: '3.5rem 1.5rem 2.5rem 1.5rem', background: 'radial-gradient(circle at top center, rgba(99, 102, 241, 0.12), transparent 70%)', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '3rem', alignItems: 'center' }}>
           
           <div>
-            <div style={{ display: 'inline-block', padding: '0.35rem 0.9rem', borderRadius: '50px', background: 'rgba(124, 58, 237, 0.2)', border: '1px solid rgba(124, 58, 237, 0.4)', color: '#a78bfa', fontSize: '0.82rem', fontWeight: 700, marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'inline-block', padding: '0.35rem 0.9rem', borderRadius: '50px', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#4f46e5', fontSize: '0.82rem', fontWeight: 700, marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
               {config.badgeText || (isFree ? '🎁 FREE ENROLLMENT' : '⚡ 18% GST INCLUSIVE')}
             </div>
 
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '1rem', background: 'linear-gradient(135deg, #fff 40%, var(--text-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '1rem', color: '#0f172a' }}>
               {config.headline || course?.title}
             </h1>
 
@@ -131,7 +144,7 @@ export default function CourseSalesPage({ user }) {
                   {course?.discountedPrice && course.discountedPrice < course.price && (
                     <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>₹{course.price}</span>
                   )}
-                  <span style={{ fontSize: '0.85rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#047857', background: 'rgba(16, 185, 129, 0.12)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
                     Incl. 18% GST (₹{taxableBase} + ₹{gstPart} GST)
                   </span>
                 </>
@@ -143,9 +156,9 @@ export default function CourseSalesPage({ user }) {
                 className="btn btn-primary btn-lg"
                 onClick={handleEnrollOrBuy}
                 disabled={enrollingFree}
-                style={{ padding: '1rem 2.2rem', fontSize: '1.1rem', fontWeight: 700, borderRadius: '12px', boxShadow: '0 10px 25px rgba(99, 102, 241, 0.4)' }}
+                style={{ padding: '1rem 2.2rem', fontSize: '1.1rem', fontWeight: 700, borderRadius: '12px', boxShadow: '0 10px 25px rgba(99, 102, 241, 0.3)' }}
               >
-                {enrollingFree ? 'Enrolling...' : (config.ctaText || (isFree ? 'Enroll Now - Free' : `Buy Course - ₹${basePrice}`))}
+                {ctaLabel}
               </button>
 
               <button 
@@ -163,7 +176,7 @@ export default function CourseSalesPage({ user }) {
           </div>
 
           {/* Media / Trailer Card */}
-          <div className="glass-card" style={{ overflow: 'hidden', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+          <div className="glass-card" style={{ overflow: 'hidden', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 20px 40px rgba(15,23,42,0.08)' }}>
             {config.promoVideoUrl ? (
               <div style={{ position: 'relative', paddingTop: '56.25%' }}>
                 <iframe 
@@ -180,9 +193,9 @@ export default function CourseSalesPage({ user }) {
                   alt={course?.title}
                   style={{ width: '100%', height: '280px', objectFit: 'cover' }}
                 />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(7,9,19,0.9), transparent)', display: 'flex', alignItems: 'flex-end', padding: '1.5rem' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.85), transparent)', display: 'flex', alignItems: 'flex-end', padding: '1.5rem' }}>
                   <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', textTransform: 'uppercase', fontWeight: 700 }}>{course?.category}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 700 }}>{course?.category}</span>
                     <h3 style={{ margin: '0.2rem 0 0 0', color: '#fff' }}>{course?.title}</h3>
                   </div>
                 </div>
@@ -198,17 +211,17 @@ export default function CourseSalesPage({ user }) {
         
         {/* Mapped Continuation Funnel Callout Banner */}
         {course?.continuationCourses && course.continuationCourses.length > 0 && (
-          <div className="glass-card" style={{ padding: '2rem', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))', border: '1px solid rgba(168, 85, 247, 0.4)', marginBottom: '3rem' }}>
+          <div className="glass-card" style={{ padding: '2rem', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08))', border: '1px solid rgba(168, 85, 247, 0.3)', marginBottom: '3rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '1.6rem' }}>🎯</span>
-              <h3 style={{ margin: 0, color: '#c084fc' }}>Structured Learning Roadmap</h3>
+              <h3 style={{ margin: 0, color: '#7c3aed' }}>Structured Learning Roadmap</h3>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               This course is part of an integrated career track! Upon completing this course, you can smoothly continue with the following next step program:
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               {course.continuationCourses.map(nextCourse => (
-                <div key={nextCourse._id} style={{ background: 'var(--background)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div key={nextCourse._id} style={{ background: '#ffffff', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                   <img src={nextCourse.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80'} alt={nextCourse.title} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
                   <div style={{ flex: 1 }}>
                     <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem' }}>{nextCourse.title}</h4>

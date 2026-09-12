@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/admin/css/style.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar -->
@@ -19,24 +21,49 @@
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-view="dashboard">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                    </svg>
                     Dashboard
                 </a>
                 <a href="#" class="nav-item" data-view="courses">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
                     Courses & Content
                 </a>
+                <a href="#" class="nav-item" data-view="gst-report">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    🇮🇳 GST Tax Reports
+                </a>
                 <a href="#" class="nav-item" data-view="students">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
                     Students
                 </a>
                 <a href="#" class="nav-item" data-view="referrals">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
                     Referrals & Affiliates
                 </a>
-                <a href="/dashboard" class="nav-item" target="_blank">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                    🇮🇳 GST Reports & Sales Builder
+                <a href="http://localhost:5173/" class="external-nav-link" target="_blank" rel="noopener noreferrer"
+                    style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; color:#94a3b8; text-decoration:none; margin-top:1rem; border-top:1px solid rgba(255,255,255,0.1); font-size:0.88rem;">
+                    <span>🎓 Open Student Portal →</span>
                 </a>
             </nav>
         </aside>
@@ -56,7 +83,7 @@
         </main>
     </div>
 
-       <!-- Scripts -->
+    <!-- Scripts -->
     <script src="/admin/js/utils/helpers.js"></script>
     <script src="/admin/js/utils/renderers.js"></script>
     <script src="/admin/js/modules/api.js"></script>
@@ -69,7 +96,10 @@
     <script src="/admin/js/modules/courses.js"></script>
     <script src="/admin/js/modules/tutorials.js"></script>
     <script src="/admin/js/modules/events.js"></script>
+    <script src="/admin/js/modules/gst-report.js"></script>
+    <script src="/admin/js/modules/sales-builder.js"></script>
     <script src="/admin/js/app.js"></script>
 
 </body>
+
 </html>

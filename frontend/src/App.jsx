@@ -76,7 +76,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#070913' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
         <div className="logo-text" style={{ fontSize: '2rem', animation: 'pulse 1.5s infinite' }}>WIDETECHNOS ACADEMY...</div>
       </div>
     );
@@ -97,7 +97,7 @@ function AppContent() {
             element={<Checkout user={user} onRefreshUser={refreshUser} />} 
           />
           <Route path="/sale/:id" element={<CourseSalesPage user={user} />} />
-          <Route path="/course/:id/preview" element={<CoursePreview user={user} />} />
+          <Route path="/course/:id/preview" element={<CourseSalesPage user={user} />} />
           <Route 
             path="/course/:id" 
             element={<CourseViewer user={user} onRefreshUser={refreshUser} />} 

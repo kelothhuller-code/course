@@ -71,13 +71,9 @@ export default function ExploreTab({
                       <button className="btn btn-primary btn-sm" onClick={() => handleContinueLearning(course._id)}>
                         Continue Learning
                       </button>
-                    ) : (course.price === 0 || course.isFree) ? (
-                      <button className="btn btn-primary btn-sm" onClick={() => handleStartLearning(course._id)}>
-                        Enroll Free
-                      </button>
                     ) : (
-                      <button className="btn btn-primary btn-sm" onClick={() => navigate(`/checkout/${course._id}`)}>
-                        Buy Now - ₹{course.discountedPrice || course.price}
+                      <button className="btn btn-primary btn-sm" onClick={() => navigate(`/sale/${course._id}`)}>
+                        {course.price === 0 || course.isFree ? '🎁 Enroll Free' : `🛒 Buy Now - ₹${course.discountedPrice || course.price}`}
                       </button>
                     )}
                     <button 
