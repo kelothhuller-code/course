@@ -11,6 +11,7 @@ import Checkout from './pages/Checkout';
 import CertificateVerify from './pages/CertificateVerify';
 import AllCoursesPage from './pages/AllCoursesPage';
 import CoursePreview from './pages/CoursePreview';
+import CourseSalesPage from './pages/CourseSalesPage';
 
 
 function AppContent() {
@@ -95,6 +96,7 @@ function AppContent() {
             path="/checkout/:id" 
             element={<Checkout user={user} onRefreshUser={refreshUser} />} 
           />
+          <Route path="/sale/:id" element={<CourseSalesPage user={user} />} />
           <Route path="/course/:id/preview" element={<CoursePreview user={user} />} />
           <Route 
             path="/course/:id" 

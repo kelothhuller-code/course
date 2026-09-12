@@ -182,11 +182,11 @@ export const api = {
   },
 
   // Payments
-  initiatePayment: async (itemId, itemType, couponCode = null) => {
+  initiatePayment: async (itemId, itemType, couponCode = null, billingDetails = {}) => {
     const res = await fetch(`${BASE_URL}/payment/pay`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ itemId, itemType, couponCode }),
+      body: JSON.stringify({ itemId, itemType, couponCode, ...billingDetails }),
     });
     return handleResponse(res);
   },
@@ -427,4 +427,51 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  // Dedicated Course Sales Page
+  getCourseSalesPage: async (slugOrId) => {
+    const res = await fetch(`${BASE_URL}/courses/sales/${slugOrId}`);
+    return handleResponse(res);
+  },
+
+  // GST & Tax Reporting API
+  getGstConfig: async () => {
+    const res = await fetch(`${BASE_URL}/admin/gst/config`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  updateGstConfig: async (configData) => {
+    const res = await fetch(`${BASE_URL}/admin/gst/config`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(configData)
+    });
+    return handleResponse(res);
+  },
+
+  getGstReport: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/admin/gst/report?${query}`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  getInvoiceDetails: async (txnid) => {
+    const res = await fetch(`${BASE_URL}/payment/invoice/${txnid}`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  adminUpdateCourse: async (id, courseData) => {
+    const res = await fetch(`${BASE_URL}/courses/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(courseData)
+    });
+    return handleResponse(res);
+  }
 };

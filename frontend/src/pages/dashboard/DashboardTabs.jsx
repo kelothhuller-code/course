@@ -7,6 +7,8 @@ const MyCoursesTab = lazy(() => import('./MyCoursesTab'));
 const EventsTab = lazy(() => import('./EventsTab'));
 const CertificatesTab = lazy(() => import('./CertificatesTab'));
 const ExploreTab = lazy(() => import('./ExploreTab'));
+const MyInvoicesTab = lazy(() => import('./MyInvoicesTab'));
+const GstReportTab = lazy(() => import('./GstReportTab'));
 
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -23,6 +25,8 @@ export default function DashboardTabs({
     courses: MyCoursesTab,
     events: EventsTab,
     certs: CertificatesTab,
+    invoices: MyInvoicesTab,
+    gst_report: GstReportTab,
     explore: ExploreTab,
   };
 

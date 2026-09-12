@@ -137,10 +137,51 @@ router.get('/all', async (req, res) => {
 
 // @desc    Get single course basic info
 // @route   GET /api/courses/:id
+// @desc    Get dedicated sales page payload for a course
+// @route   GET /api/courses/sales/:slugOrId
+// @access  Public
+router.get('/sales/:slugOrId', async (req, res) => {
+  try {
+    const { slugOrId } = req.params;
+    let course;
+    if (slugOrId.match(/^[0-9a-fA-F]{24}$/)) {
+      course = await Course.findById(slugOrId).populate('continuationCourses', 'title price discountedPrice thumbnail category isFree description');
+    } else {
+      course = await Course.findOne({ 'salesPageConfig.slug': slugOrId }).populate('continuationCourses', 'title price discountedPrice thumbnail category isFree description');
+    }
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course sales page not found' });
+    }
+
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
+
+    res.json({
+      course,
+      salesPageUrl,
+      salesPageConfig: course.salesPageConfig || {
+        headline: course.title,
+        subheadline: course.description,
+        highlights: course.outcomes || [],
+        badgeText: course.isFree ? 'FREE COURSE' : '18% GST INCLUSIVE',
+        ctaText: course.isFree ? 'Enroll Now Free' : 'Get Instant Access'
+      }
+    });
+  } catch (error) {
+    console.error('Fetch sales page error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @desc    Get single course basic info
+// @route   GET /api/courses/:id
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
-    const course = await Course.findById(req.id || req.params.id);
+    const course = await Course.findById(req.id || req.params.id)
+      .populate('continuationCourses', 'title price discountedPrice thumbnail category isFree description');
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
@@ -156,6 +197,9 @@ router.get('/:id', async (req, res) => {
         }
       });
     }
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    outline.salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
+
     res.json(outline);
   } catch (error) {
     console.error('Fetch single course error:', error);
@@ -168,7 +212,8 @@ router.get('/:id', async (req, res) => {
 // @access  Private
 router.get('/:id/learn', protect, async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
+    const course = await Course.findById(req.params.id)
+      .populate('continuationCourses', 'title price discountedPrice thumbnail category isFree description');
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
@@ -197,7 +242,7 @@ router.post('/', protect, admin, async (req, res) => {
   const {
     title, description, type, category, isFree, outcomes,
     packageType, price, discountedPrice, affiliateCommission,
-    thumbnail, languages, content
+    thumbnail, languages, content, continuationCourses, salesPageConfig
   } = req.body;
 
   try {
@@ -222,12 +267,18 @@ router.post('/', protect, admin, async (req, res) => {
       thumbnail: thumbnail || '',
       languages: languages || [],
       content: content || [],
+      continuationCourses: continuationCourses || [],
+      salesPageConfig: salesPageConfig || {}
     });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
 
     res.status(201).json({
       success: true,
       message: 'Course created successfully',
-      course
+      course,
+      salesPageUrl
     });
   } catch (error) {
     console.error('Create course error:', error);
@@ -238,13 +289,15 @@ router.post('/', protect, admin, async (req, res) => {
   }
 });
 
-
-
 // @desc    Update a course
 // @route   PUT /api/courses/:id
 // @access  Private/Admin
 router.put('/:id', protect, admin, async (req, res) => {
-  const { title, description, type, category, isFree, outcomes, packageType, price, discountedPrice, thumbnail, languages, content } = req.body;
+  const {
+    title, description, type, category, isFree, outcomes, packageType,
+    price, discountedPrice, thumbnail, languages, content,
+    continuationCourses, salesPageConfig
+  } = req.body;
 
   try {
     const course = await Course.findById(req.params.id);
@@ -264,10 +317,22 @@ router.put('/:id', protect, admin, async (req, res) => {
     course.thumbnail = thumbnail || course.thumbnail;
     course.languages = languages || course.languages;
     course.content = content || course.content;
+    if (continuationCourses !== undefined) course.continuationCourses = continuationCourses;
+    if (salesPageConfig !== undefined) course.salesPageConfig = salesPageConfig;
 
     const updatedCourse = await course.save();
-    res.json(updatedCourse);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const salesPageUrl = `${frontendUrl}/sale/${updatedCourse.salesPageConfig?.slug || updatedCourse._id}`;
+
+    res.json({
+      ...updatedCourse.toObject(),
+      salesPageUrl
+    });
   } catch (error) {
+    console.error('Update course error:', error);
+    res.status(400).json({ message: 'Invalid course data', error: error.message });
+  }
+});
     console.error('Update course error:', error);
     res.status(400).json({ message: 'Invalid course data', error: error.message });
   }

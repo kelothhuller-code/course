@@ -14,8 +14,13 @@ export default function DashboardSidebar({
     { id: 'courses', icon: '📖', label: `My Courses (${enrolledCourses.length})` },
     { id: 'events', icon: '📅', label: `Events (${enrolledEvents.length})` },
     { id: 'certs', icon: '🎓', label: `Certificates (${certificates.length})` },
+    { id: 'invoices', icon: '🧾', label: 'My GST Invoices' },
     { id: 'explore', icon: '🛒', label: 'Explore' },
   ];
+
+  if (profile?.role === 'admin') {
+    menuItems.push({ id: 'gst_report', icon: '🇮🇳', label: 'GST Tax Reports' });
+  }
 
   return (
     <aside className="glass-card sidebar-card" style={{ padding: '1.5rem', alignSelf: 'start' }}>

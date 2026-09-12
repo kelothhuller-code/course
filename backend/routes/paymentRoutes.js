@@ -9,6 +9,8 @@ import ReferralLog from '../models/ReferralLog.js';
 import Coupon from '../models/Coupon.js';
 import { sendPurchaseEmail } from '../utils/mailer.js';
 
+import { getOrInitGstConfig } from './gstRoutes.js';
+
 const router = express.Router();
 
 // Helper to generate hash
@@ -70,7 +72,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
 // @route   POST /api/payment/pay
 // @access  Private
 router.post('/pay', protect, async (req, res) => {
-  const { itemId, itemType, couponCode } = req.body; // itemType: 'course' or 'event'
+  const { itemId, itemType, couponCode, buyerName, buyerAddress, buyerState, buyerGstin } = req.body; // itemType: 'course' or 'event'
 
   try {
     let item;
@@ -113,18 +115,61 @@ router.post('/pay', protect, async (req, res) => {
       return res.status(400).json({ message: 'Item is free (after coupon). No payment required. Use /api/enroll/free' });
     }
 
+    // Compute Indian GST Calculations
+    const gstConfig = await getOrInitGstConfig();
+    const rate = gstConfig.gstRate || 18;
+    const posState = buyerState || gstConfig.sellerState || 'Tamil Nadu';
+    const isIntraState = posState.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
+
+    // Course prices are inclusive of GST
+    const baseAmount = Math.round((price / (1 + rate / 100)) * 100) / 100;
+    const gstAmount = Math.round((price - baseAmount) * 100) / 100;
+    
+    let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
+    if (isIntraState) {
+      cgstAmount = Math.round((gstAmount / 2) * 100) / 100;
+      sgstAmount = Math.round((gstAmount - cgstAmount) * 100) / 100;
+    } else {
+      igstAmount = gstAmount;
+    }
+
+    const isB2B = Boolean(buyerGstin && buyerGstin.trim().length > 5);
+    const invoiceNo = `INV-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+
     // Generate unique txn ID
     const txnid = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
     // Create a pending transaction
     await Transaction.create({
       txnid,
+      invoiceNo,
       userId: req.user._id,
       itemType,
       itemId: item._id,
       amount: price,
       status: 'pending',
       couponCode: appliedCoupon ? appliedCoupon.code : null,
+      billingDetails: {
+        buyerName: buyerName || req.user.name,
+        buyerEmail: req.user.email,
+        buyerPhone: req.body.phone || '9999999999',
+        buyerAddress: buyerAddress || '',
+        buyerState: posState,
+        buyerGstin: buyerGstin ? buyerGstin.toUpperCase().trim() : '',
+        isB2B
+      },
+      gstDetails: {
+        rate,
+        isInclusive: true,
+        baseAmount,
+        gstAmount,
+        cgstAmount,
+        sgstAmount,
+        igstAmount,
+        isIntraState,
+        hsnSacCode: gstConfig.hsnSacCode || '999249',
+        posState
+      }
     });
 
     // Increment coupon usage count
@@ -351,13 +396,63 @@ router.post('/mock-callback', async (req, res) => {
       }
     }
 
+// @desc    Get GST Invoice Details for a transaction
+// @route   GET /api/payment/invoice/:txnid
+// @access  Private
+router.get('/invoice/:txnid', protect, async (req, res) => {
+  try {
+    const txn = await Transaction.findOne({ txnid: req.params.txnid }).populate('userId', 'name email');
+    if (!txn) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    // Check authorization: must be transaction owner or admin
+    if (txn.userId._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to view this invoice' });
+    }
+
+    let itemTitle = 'WIDETECHNOS Course Item';
+    if (txn.itemType === 'course') {
+      const c = await Course.findById(txn.itemId);
+      if (c) itemTitle = c.title;
+    } else if (txn.itemType === 'event') {
+      const e = await Event.findById(txn.itemId);
+      if (e) itemTitle = e.title;
+    }
+
+    const gstConfig = await getOrInitGstConfig();
+
     res.json({
-      message: `Mock payment ${status} processed successfully`,
-      redirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?payment=${status}&txnid=${txnid}`,
+      seller: gstConfig,
+      invoiceNo: txn.invoiceNo || txn.txnid,
+      txnid: txn.txnid,
+      date: txn.createdAt,
+      itemTitle,
+      amount: txn.amount,
+      status: txn.status,
+      billingDetails: txn.billingDetails || {
+        buyerName: req.user.name,
+        buyerEmail: req.user.email,
+        buyerState: gstConfig.sellerState,
+        buyerGstin: '',
+        isB2B: false
+      },
+      gstDetails: txn.gstDetails || {
+        rate: gstConfig.gstRate || 18,
+        isInclusive: true,
+        baseAmount: Math.round((txn.amount / 1.18) * 100) / 100,
+        gstAmount: Math.round((txn.amount - (txn.amount / 1.18)) * 100) / 100,
+        cgstAmount: Math.round(((txn.amount - (txn.amount / 1.18)) / 2) * 100) / 100,
+        sgstAmount: Math.round(((txn.amount - (txn.amount / 1.18)) / 2) * 100) / 100,
+        igstAmount: 0,
+        isIntraState: true,
+        hsnSacCode: gstConfig.hsnSacCode || '999249',
+        posState: gstConfig.sellerState
+      }
     });
   } catch (error) {
-    console.error('Mock payment callback error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Fetch invoice error:', error);
+    res.status(500).json({ message: 'Server error fetching invoice' });
   }
 });
 

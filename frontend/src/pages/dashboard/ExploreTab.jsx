@@ -62,7 +62,7 @@ export default function ExploreTab({
                     <span style={{ marginLeft: '1rem' }}>⏱️ {course.duration || 'Self-paced'}</span>
                   </div>
                   
-                  <div className="card-meta" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div className="card-meta" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     {isCompleted ? (
                       <button className="btn btn-accent btn-sm" onClick={() => viewCertificate(course._id)}>
                         View Certificate
@@ -80,6 +80,13 @@ export default function ExploreTab({
                         Buy Now - ₹{course.discountedPrice || course.price}
                       </button>
                     )}
+                    <button 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => navigate(`/sale/${course._id}`)}
+                      style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                    >
+                      🌐 Sale Page
+                    </button>
                   </div>
                 </div>
               </div>

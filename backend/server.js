@@ -17,6 +17,7 @@ import progressRoutes from './routes/progressRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import certificateRoutes from './routes/certificateRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
+import gstRoutes from './routes/gstRoutes.js';
 
 // Import models for seeding
 import Course from './models/Course.js';
@@ -50,6 +51,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/trials', trialRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/admin/gst', gstRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/enroll', enrollRoutes);
 app.use('/api/progress', progressRoutes);

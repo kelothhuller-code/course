@@ -33,6 +33,28 @@ const CourseSchema = new mongoose.Schema({
   thumbnail: { type: String }, // Image/Cover URL
   languages: [{ type: String }], // List of available languages
   content: [LanguageContentSchema], // Grouped by language
+  continuationCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+  salesPageConfig: {
+    slug: { type: String, sparse: true, unique: true },
+    headline: { type: String },
+    subheadline: { type: String },
+    promoVideoUrl: { type: String },
+    badgeText: { type: String },
+    ctaText: { type: String, default: 'Enroll Now' },
+    highlights: [{ type: String }],
+    targetAudience: [{ type: String }],
+    faqs: [{
+      question: { type: String },
+      answer: { type: String }
+    }],
+    testimonials: [{
+      name: { type: String },
+      role: { type: String },
+      text: { type: String },
+      rating: { type: Number, default: 5 },
+      avatar: { type: String }
+    }]
+  },
   createdAt: { type: Date, default: Date.now }
 });
 

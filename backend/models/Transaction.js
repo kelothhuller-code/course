@@ -7,6 +7,29 @@ const TransactionSchema = new mongoose.Schema({
   itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
+  couponCode: { type: String },
+  invoiceNo: { type: String }, // Official tax invoice number
+  billingDetails: {
+    buyerName: { type: String },
+    buyerEmail: { type: String },
+    buyerPhone: { type: String },
+    buyerAddress: { type: String },
+    buyerState: { type: String },
+    buyerGstin: { type: String },
+    isB2B: { type: Boolean, default: false }
+  },
+  gstDetails: {
+    rate: { type: Number, default: 18 },
+    isInclusive: { type: Boolean, default: true },
+    baseAmount: { type: Number, default: 0 }, // Taxable value
+    gstAmount: { type: Number, default: 0 },  // Total GST
+    cgstAmount: { type: Number, default: 0 },
+    sgstAmount: { type: Number, default: 0 },
+    igstAmount: { type: Number, default: 0 },
+    isIntraState: { type: Boolean, default: true },
+    hsnSacCode: { type: String, default: '999249' },
+    posState: { type: String } // Place of Supply state
+  },
   payuResponse: { type: Object }, // Store the JSON response from PayU webhook/callback
   createdAt: { type: Date, default: Date.now }
 });

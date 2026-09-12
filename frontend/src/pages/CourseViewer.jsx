@@ -549,6 +549,29 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       {activeLesson.description || 'No description available.'}
                     </p>
 
+                    {/* Mapped Continuation Course Funnel Banner */}
+                    {course?.continuationCourses && course.continuationCourses.length > 0 && (
+                      <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))', border: '1px solid rgba(168,85,247,0.35)', margin: '1.5rem 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div>
+                            <h4 style={{ margin: '0 0 0.25rem 0', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
+                              <span>🚀</span> Mapped Continuation / Next Step Course
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              Ready for what's next? Upgrade your skill set with the mapped continuation program!
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            {course.continuationCourses.map(nextC => (
+                              <Link key={nextC._id || nextC} to={`/sale/${nextC._id || nextC}`} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', padding: '0.4rem 0.9rem' }}>
+                                <span>{nextC.title || 'View Next Course'}</span> →
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {activeLesson.driveLink && (
                       <a
                         href={activeLesson.driveLink}

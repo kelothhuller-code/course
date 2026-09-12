@@ -17,6 +17,13 @@ export default function Checkout({ user, onRefreshUser }) {
   const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discountType, discountValue, message }
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
+
+  // Indian GST Billing Details state
+  const [buyerName, setBuyerName] = useState(user?.name || '');
+  const [buyerState, setBuyerState] = useState('Tamil Nadu');
+  const [buyerAddress, setBuyerAddress] = useState('');
+  const [buyerGstin, setBuyerGstin] = useState('');
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -341,6 +348,108 @@ const handleMockPayment = async (status) => {
                   </div>
                 )}
 
+                {/* ── Billing & Indian GST Details Section ── */}
+                <div style={{ margin: '1rem 0', padding: '1rem', background: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>🇮🇳</span> Indian GST Billing Details
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Full Billing Name</label>
+                      <input
+                        type="text"
+                        value={buyerName}
+                        onChange={e => setBuyerName(e.target.value)}
+                        placeholder="Enter full name for tax invoice"
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Billing Street Address</label>
+                      <input
+                        type="text"
+                        value={buyerAddress}
+                        onChange={e => setBuyerAddress(e.target.value)}
+                        placeholder="House/Street/Locality address"
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>State (Place of Supply)</label>
+                      <select
+                        value={buyerState}
+                        onChange={e => setBuyerState(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                      >
+                        {[
+                          'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+                          'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
+                          'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
+                          'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+                          'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab',
+                          'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
+                          'Uttarakhand', 'West Bengal'
+                        ].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Buyer GSTIN (Optional B2B Input Credit)</label>
+                      <input
+                        type="text"
+                        value={buyerGstin}
+                        onChange={e => setBuyerGstin(e.target.value.toUpperCase())}
+                        placeholder="e.g. 33AAAAA0000A1Z5"
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* GST Price Breakup Calculation */}
+                {(() => {
+                  const taxableBase = Math.round((finalPrice / 1.18) * 100) / 100;
+                  const gstTotal = Math.round((finalPrice - taxableBase) * 100) / 100;
+                  const isIntraState = buyerState.trim().toLowerCase() === 'tamil nadu';
+                  const cgst = isIntraState ? Math.round((gstTotal / 2) * 100) / 100 : 0;
+                  const sgst = isIntraState ? Math.round((gstTotal - cgst) * 100) / 100 : 0;
+                  const igst = isIntraState ? 0 : gstTotal;
+
+                  return (
+                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius)', border: '1px solid rgba(59, 130, 246, 0.2)', margin: '1rem 0' }}>
+                      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#60a5fa', margin: '0 0 0.4rem 0' }}>📊 GST Tax Breakdown (18% Inclusive)</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
+                        <span>Taxable Value (Base):</span>
+                        <span>₹{taxableBase.toFixed(2)}</span>
+                      </div>
+                      {isIntraState ? (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
+                            <span>CGST (9%):</span>
+                            <span>₹{cgst.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
+                            <span>SGST (9%):</span>
+                            <span>₹{sgst.toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
+                          <span>IGST (18% Inter-state):</span>
+                          <span>₹{igst.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, color: '#10b981', paddingTop: '0.4rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                        <span>Total GST Included:</span>
+                        <span>₹{gstTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
@@ -350,7 +459,7 @@ const handleMockPayment = async (status) => {
                   fontWeight: 'bold',
                   fontSize: '1.2rem'
                 }}>
-                  <span>Total</span>
+                  <span>Total Amount (Incl. GST)</span>
                   <span>₹{finalPrice}</span>
                 </div>
               </div>
@@ -365,7 +474,7 @@ const handleMockPayment = async (status) => {
                   opacity: processing ? 0.7 : 1
                 }}
               >
-                {processing ? 'Processing...' : `Pay ₹${finalPrice}`}
+                {processing ? 'Processing...' : `Pay ₹${finalPrice} (Incl. GST)`}
               </button>
 
               <p style={{ 
