@@ -123,6 +123,67 @@ router.post('/', protect, admin, async (req, res) => {
 });
 
 
+// @desc    Get gated live workshop access parameters for registered attendees
+// @route   GET /api/events/:id/access
+// @access  Private
+router.get('/:id/access', protect, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const user = await User.findById(req.user._id);
+    const isAdmin = user.role === 'admin';
+    const isEnrolled = user.enrolledEvents.some(
+      (e) => e.eventId.toString() === event._id.toString()
+    );
+
+    if (!isEnrolled && !isAdmin) {
+      return res.status(403).json({ message: 'Access denied. You must register/enroll in this workshop to join.' });
+    }
+
+    res.json({
+      success: true,
+      eventId: event._id,
+      title: event.title,
+      type: event.type,
+      dateTime: event.dateTime,
+      duration: event.duration,
+      meetingType: event.meetingType || 'jitsi',
+      meetingLink: event.meetingLink,
+      meetingPasscode: event.meetingPasscode || '',
+      streamUrl: event.streamUrl || '',
+      userName: user.name,
+      userEmail: user.email
+    });
+  } catch (error) {
+    console.error('Event access error:', error);
+    res.status(500).json({ message: 'Server error accessing event room' });
+  }
+});
+
+// @desc    Get attendee roster for an event (Admin)
+// @route   GET /api/events/:id/attendees
+// @access  Private/Admin
+router.get('/:id/attendees', protect, admin, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const attendees = await User.find({
+      'enrolledEvents.eventId': eventId
+    }).select('name email mobile gstin createdAt');
+
+    res.json({
+      success: true,
+      count: attendees.length,
+      attendees
+    });
+  } catch (error) {
+    console.error('Fetch attendees error:', error);
+    res.status(500).json({ message: 'Error fetching attendee roster' });
+  }
+});
+
 // @desc    Free register for free webinars/workshops
 // @route   POST /api/events/:id/register-free
 // @access  Private

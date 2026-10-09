@@ -103,7 +103,7 @@ window.ContentManager = {
         
         return `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;flex-wrap:wrap;">
-                ${course.thumbnail ? `<img src="${course.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${course.title}">` : 
+                ${(course.thumbnail && (course.thumbnail.startsWith('http') || course.thumbnail.startsWith('data:image'))) ? `<img src="${course.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${course.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>📚</div>';">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;">📚</div>`}
                 <div style="flex:1;min-width:240px;">
                     <h4 style="margin-bottom:4px;">
@@ -146,7 +146,7 @@ window.ContentManager = {
 
         const tutorialsHtml = tutorials.map(t => `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;">
-                ${t.thumbnail ? `<img src="${t.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${t.title}">` : 
+                ${(t.thumbnail && (t.thumbnail.startsWith('http') || t.thumbnail.startsWith('data:image'))) ? `<img src="${t.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${t.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>🎯</div>';">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;">🎯</div>`}
                 <div style="flex:1;">
                     <h4 style="margin-bottom:4px;">${Helpers.safeString(t.title)}</h4>
@@ -186,7 +186,7 @@ window.ContentManager = {
 
         const eventsHtml = events.map(e => `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;">
-                ${e.thumbnail ? `<img src="${e.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${e.title}">` : 
+                ${(e.thumbnail && (e.thumbnail.startsWith('http') || e.thumbnail.startsWith('data:image'))) ? `<img src="${e.thumbnail}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${e.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>📅</div>';">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;">📅</div>`}
                 <div style="flex:1;">
                     <h4 style="margin-bottom:4px;">${Helpers.safeString(e.title)}</h4>

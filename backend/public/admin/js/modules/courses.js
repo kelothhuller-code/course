@@ -533,6 +533,7 @@ async renderDetails(courseId) {
                     ${this.renderDetailTab('revenue', '💰 Revenue & Affiliates')}
                     ${this.renderDetailTab('content', '📚 Content Progress')}
                     ${this.renderDetailTab('comments', '💬 Discussions (' + stats.totalComments + ')')}
+                    ${this.renderDetailTab('reviews', '⭐ Reviews & Ratings')}
                 </div>
 
                 <!-- Tab Panels -->
@@ -548,6 +549,11 @@ async renderDetails(courseId) {
                 <div id="detail-tab-comments" class="detail-tab-panel" style="display:none;">
                     <div id="comments-panel" data-course-id="${courseId}">
                         <div class="loading">Loading comments...</div>
+                    </div>
+                </div>
+                <div id="detail-tab-reviews" class="detail-tab-panel" style="display:none;">
+                    <div id="reviews-panel" data-course-id="${courseId}">
+                        <div class="loading">Loading course reviews...</div>
                     </div>
                 </div>
             </div>
@@ -586,6 +592,14 @@ switchDetailTab(tab) {
         const commentsPanel = document.getElementById('comments-panel');
         if (commentsPanel && commentsPanel.querySelector('.loading')) {
             CoursesModule.loadComments(commentsPanel.dataset.courseId);
+        }
+    }
+
+    // Lazy-load reviews when tab is opened
+    if (tab === 'reviews') {
+        const reviewsPanel = document.getElementById('reviews-panel');
+        if (reviewsPanel) {
+            CoursesModule.loadAdminReviews(reviewsPanel.dataset.courseId, 'all');
         }
     }
 },
@@ -896,5 +910,134 @@ async replyToComment(courseId, commentId) {
         input.value = '';
         this.loadComments(courseId);
     } catch (e) { alert('Error: ' + e.message); }
-}
+},
+
+    // ==================== REVIEWS & FEEDBACK TAB ====================
+    async loadAdminReviews(courseId, filterRating = 'all') {
+        const panel = document.getElementById('reviews-panel');
+        if (!panel) return;
+
+        try {
+            const data = await API.get(`/api/reviews/course/${courseId}?rating=${filterRating}`);
+            const { stats, reviews } = data;
+
+            const renderStars = (n) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+
+            let reviewsListHtml = '';
+            if (!reviews || reviews.length === 0) {
+                reviewsListHtml = Renderers.emptyState('No reviews found for this filter.');
+            } else {
+                reviewsListHtml = reviews.map(r => `
+                    <div style="background:var(--bg-dark);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                            <div>
+                                <strong style="font-size:1rem;color:var(--text-main);">${Helpers.safeString(r.userId?.name, 'Student')}</strong>
+                                <span style="font-size:0.8rem;color:var(--text-muted);margin-left:8px;">${r.userId?.email || ''}</span>
+                                ${r.isVerifiedPurchase ? `<span class="badge" style="background:var(--success);margin-left:8px;">✓ Verified Student</span>` : ''}
+                            </div>
+                            <div style="color:#f59e0b;font-weight:700;font-size:1.1rem;">
+                                ${renderStars(r.rating)} (${r.rating}/5)
+                            </div>
+                        </div>
+
+                        ${r.headline ? `<h5 style="margin:4px 0;font-weight:700;color:var(--text-main);">${Helpers.safeString(r.headline)}</h5>` : ''}
+                        <p style="color:var(--text-main);line-height:1.5;margin:8px 0;font-size:0.92rem;">${Helpers.safeString(r.comment)}</p>
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">Submitted: ${new Date(r.createdAt).toLocaleString()}</div>
+
+                        <!-- Admin Reply Display -->
+                        ${r.adminReply && r.adminReply.text ? `
+                            <div style="background:rgba(59,130,246,0.1);border-left:4px solid var(--primary);padding:12px;border-radius:6px;margin-bottom:12px;">
+                                <div style="font-size:0.8rem;font-weight:700;color:var(--primary);margin-bottom:4px;">
+                                    💬 Admin Official Reply (${new Date(r.adminReply.repliedAt).toLocaleDateString()}):
+                                </div>
+                                <div style="font-size:0.9rem;color:var(--text-main);">${Helpers.safeString(r.adminReply.text)}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Controls -->
+                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;">
+                            <div style="flex:1;display:flex;gap:8px;">
+                                <input type="text" class="form-control review-reply-input-${r._id}" 
+                                       placeholder="${r.adminReply?.text ? 'Edit your admin reply...' : 'Type admin reply to student...'}" 
+                                       value="${r.adminReply?.text || ''}"
+                                       style="padding:6px 12px;font-size:0.85rem;">
+                                <button class="btn btn-primary" style="font-size:0.85rem;padding:6px 14px;"
+                                        onclick="CoursesModule.replyToReviewAdmin('${r._id}', '${courseId}')">
+                                    ${r.adminReply?.text ? 'Update Reply' : 'Reply'}
+                                </button>
+                            </div>
+                            <button class="btn btn-danger" style="font-size:0.85rem;padding:6px 12px;"
+                                    onclick="CoursesModule.deleteReviewAdmin('${r._id}', '${courseId}')">
+                                🗑️ Delete Review
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            panel.innerHTML = `
+                <!-- Filter & Header Controls -->
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:20px;">
+                    <div>
+                        <h4 style="margin:0;font-size:1.1rem;">⭐ Course Ratings & Reviews Overview</h4>
+                        <span style="font-size:0.85rem;color:var(--text-muted);">
+                            Average Rating: <strong>${stats.avgRating || '4.9'} / 5 ★</strong> (${stats.totalReviews || 0} Total Reviews)
+                        </span>
+                    </div>
+
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:0.85rem;color:var(--text-muted);font-weight:600;">Filter Rating:</span>
+                        <select class="form-control" style="width:auto;padding:6px 12px;font-size:0.85rem;" 
+                                onchange="CoursesModule.loadAdminReviews('${courseId}', this.value)">
+                            <option value="all" ${filterRating === 'all' ? 'selected' : ''}>🌟 All Reviews (${stats.totalReviews || 0})</option>
+                            <option value="low" ${filterRating === 'low' ? 'selected' : ''}>⚠️ Needs Attention (1-3 Stars)</option>
+                            <option value="high" ${filterRating === 'high' ? 'selected' : ''}>⭐ High Ratings (4-5 Stars)</option>
+                            <option value="5" ${filterRating === '5' ? 'selected' : ''}>5 Stars (${stats.distribution[5] || 0})</option>
+                            <option value="4" ${filterRating === '4' ? 'selected' : ''}>4 Stars (${stats.distribution[4] || 0})</option>
+                            <option value="3" ${filterRating === '3' ? 'selected' : ''}>3 Stars (${stats.distribution[3] || 0})</option>
+                            <option value="2" ${filterRating === '2' ? 'selected' : ''}>2 Stars (${stats.distribution[2] || 0})</option>
+                            <option value="1" ${filterRating === '1' ? 'selected' : ''}>1 Star (${stats.distribution[1] || 0})</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Reviews Cards List -->
+                <div>${reviewsListHtml}</div>
+            `;
+        } catch (err) {
+            console.error('Error loading admin reviews:', err);
+            panel.innerHTML = Renderers.errorMessage('Failed to load reviews: ' + err.message);
+        }
+    },
+
+    async replyToReviewAdmin(reviewId, courseId) {
+        const input = document.querySelector(`.review-reply-input-${reviewId}`);
+        const replyText = input?.value?.trim();
+        if (!replyText) {
+            alert('Please enter a reply before submitting.');
+            return;
+        }
+        try {
+            const res = await API.post(`/api/reviews/${reviewId}/reply`, { replyText });
+            if (res.success) {
+                alert('✅ Admin reply published!');
+                this.loadAdminReviews(courseId);
+            }
+        } catch (err) {
+            alert('Failed to save reply: ' + err.message);
+        }
+    },
+
+    async deleteReviewAdmin(reviewId, courseId) {
+        if (!confirm('Are you sure you want to delete this student review? This action cannot be undone.')) return;
+        try {
+            const res = await API.delete(`/api/reviews/${reviewId}`);
+            if (res.success) {
+                alert('🗑️ Review deleted successfully!');
+                this.loadAdminReviews(courseId);
+            }
+        } catch (err) {
+            alert('Failed to delete review: ' + err.message);
+        }
+    }
 };

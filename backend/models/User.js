@@ -27,7 +27,7 @@ const UserSchema = new mongoose.Schema({
     },
     certificateId: {
       type: String,
-      unique: true
+      sparse: true
     },
     issuedAt: {
       type: Date,

@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import TrialTutorial from '../models/TrialTutorial.js';
@@ -436,12 +437,56 @@ router.get('/:id/certificate', protect, async (req, res) => {
       courseTitle: course.title,
       completedAt: enrollment.completedAt,
       instructor: 'WIDETECHNOS Academy (Vision by @widetechai)',
-      verificationUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-cert/${course._id}-${user._id}`,
-    });
+    })
   } catch (error) {
-    console.error('Certificate details error:', error);
+    console.error('Get Certificate Details error:', error);
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// @desc    Get secure playback token for a course lesson video
+// @route   POST /api/courses/:id/video-token
+// @access  Private
+router.post('/:id/video-token', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const user = await User.findById(req.user._id);
+    const isAdmin = user.role === 'admin';
+    const isEnrolled = user.enrolledCourses?.some(
+      (c) => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
+    );
+
+    if (!isEnrolled && !isAdmin && !course.isFree) {
+      return res.status(403).json({ message: 'Enrollment required to stream video' });
+    }
+
+    const { videoUrl } = req.body;
+
+    // Issue short-lived 2-hour video access token
+    const streamToken = jwt.sign(
+      {
+        userId: user._id,
+        courseId: course._id,
+        videoUrl,
+        exp: Math.floor(Date.now() / 1000) + (2 * 60 * 60)
+      },
+      process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027'
+    );
+
+    res.json({
+      success: true,
+      streamToken,
+      expiresIn: 7200
+    });
+  } catch (error) {
+    console.error('Video token generation error:', error);
+    res.status(500).json({ message: 'Failed to generate video stream token' });
+  }
+
 });
 
 export default router;

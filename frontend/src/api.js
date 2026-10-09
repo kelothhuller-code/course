@@ -473,5 +473,45 @@ export const api = {
       body: JSON.stringify(courseData)
     });
     return handleResponse(res);
+  },
+
+  // Reviews & Ratings
+  getCourseReviews: async (courseId) => {
+    const res = await fetch(`${BASE_URL}/reviews/course/${courseId}`);
+    return handleResponse(res);
+  },
+
+  createCourseReview: async (reviewData) => {
+    const res = await fetch(`${BASE_URL}/reviews`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(reviewData)
+    });
+    return handleResponse(res);
+  },
+
+  // Secure Video Stream Token
+  getVideoToken: async (courseId, videoUrl) => {
+    const res = await fetch(`${BASE_URL}/courses/${courseId}/video-token`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ videoUrl })
+    });
+    return handleResponse(res);
+  },
+
+  // Live Event & Workshop Access
+  getEventAccess: async (eventId) => {
+    const res = await fetch(`${BASE_URL}/events/${eventId}/access`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  getEventAttendees: async (eventId) => {
+    const res = await fetch(`${BASE_URL}/events/${eventId}/attendees`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
   }
 };

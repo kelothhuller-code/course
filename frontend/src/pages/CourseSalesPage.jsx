@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import TrustBadges from '../components/TrustBadges';
+import CourseReviews from '../components/CourseReviews';
 
 export default function CourseSalesPage({ user }) {
   const { id } = useParams();
@@ -207,8 +209,27 @@ export default function CourseSalesPage({ user }) {
       </section>
 
       {/* Main Content Area */}
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 1.5rem', width: '100%' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '3rem 1.5rem', width: '100%', paddingBottom: '6rem' }}>
         
+        {/* Trust Badges Bar */}
+        <TrustBadges />
+
+        {/* Target Audience Pill Badges */}
+        {(config.targetAudience && config.targetAudience.length > 0) && (
+          <section style={{ marginBottom: '3rem', padding: '1.5rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              🎯 Who Is This Program Built For?
+            </h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+              {config.targetAudience.map((audience, i) => (
+                <span key={i} style={{ padding: '0.4rem 0.9rem', borderRadius: '50px', background: 'rgba(99, 102, 241, 0.08)', color: '#4f46e5', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.88rem', fontWeight: 600 }}>
+                  ✓ {audience}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Mapped Continuation Funnel Callout Banner */}
         {course?.continuationCourses && course.continuationCourses.length > 0 && (
           <div className="glass-card" style={{ padding: '2rem', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08))', border: '1px solid rgba(168, 85, 247, 0.3)', marginBottom: '3rem' }}>
@@ -273,22 +294,8 @@ export default function CourseSalesPage({ user }) {
           </section>
         )}
 
-        {/* Testimonials */}
-        {config.testimonials && config.testimonials.length > 0 && (
-          <section style={{ marginBottom: '3.5rem' }}>
-            <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', textAlign: 'center' }}>⭐ What Students Say</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              {config.testimonials.map((t, idx) => (
-                <div key={idx} className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px' }}>
-                  <div style={{ color: '#f59e0b', marginBottom: '0.5rem' }}>{'★'.repeat(t.rating || 5)}</div>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '1rem' }}>"{t.text}"</p>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t.role}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Student Reviews Component */}
+        <CourseReviews courseId={id} user={user} />
 
         {/* FAQs */}
         {config.faqs && config.faqs.length > 0 && (
@@ -333,6 +340,47 @@ export default function CourseSalesPage({ user }) {
           </button>
         </section>
 
+      </div>
+
+      {/* Sticky Mobile / Bottom Buy Bar */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: '#ffffff',
+        borderTop: '1px solid #e2e8f0',
+        padding: '0.8rem 1.2rem',
+        display: 'flex',
+        justify: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        zIndex: 99
+      }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>{course?.title}</div>
+          <div style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>
+            {isFree ? 'FREE ENROLLMENT' : `₹${basePrice} (Incl. 18% GST)`}
+          </div>
+        </div>
+
+        <button
+          onClick={handleEnrollOrBuy}
+          disabled={enrollingFree}
+          style={{
+            padding: '0.75rem 1.6rem',
+            background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 800,
+            fontSize: '0.92rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(79,70,229,0.3)'
+          }}
+        >
+          {ctaLabel}
+        </button>
       </div>
     </div>
   );

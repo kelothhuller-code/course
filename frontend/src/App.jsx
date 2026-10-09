@@ -12,6 +12,7 @@ import CertificateVerify from './pages/CertificateVerify';
 import AllCoursesPage from './pages/AllCoursesPage';
 import CoursePreview from './pages/CoursePreview';
 import CourseSalesPage from './pages/CourseSalesPage';
+import EventViewer from './pages/EventViewer';
 
 
 function AppContent() {
@@ -103,6 +104,7 @@ function AppContent() {
             element={<CourseViewer user={user} onRefreshUser={refreshUser} />} 
           />
           <Route path="/all-courses" element={<AllCoursesPage user={user} onLogout={handleLogout} />} />
+          <Route path="/event/:id/room" element={<EventViewer user={user} />} />
 
         </Routes>
       </main>

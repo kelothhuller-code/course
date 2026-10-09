@@ -18,6 +18,7 @@ import commentRoutes from './routes/commentRoutes.js';
 import certificateRoutes from './routes/certificateRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
 import gstRoutes from './routes/gstRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -34,6 +35,17 @@ const app = express();
 // Security Middleware: Helmet HTTP Headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'", "*", "data:", "blob:", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "*"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "https:", "*"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:", "*"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "*"],
+      connectSrc: ["'self'", "*"]
+    }
+  }
 }));
 
 // Security Middleware: Rate Limiters
@@ -79,8 +91,14 @@ app.use(cors({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve static files from 'public'
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from 'public' (js, css, images) without 301 redirects
+app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
+
+// Admin Frontend Page Route (Served only when no static file matched)
+app.get(['/admin', '/admin/'], (req, res) => {
+  res.removeHeader('Content-Security-Policy');
+  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+});
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
@@ -95,11 +113,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/leads', leadRoutes);
-
-// Admin Frontend Route
-app.get('/admin*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
-});
+app.use('/api/reviews', reviewRoutes);
 
 // Base Route
 app.get('/', (req, res) => {
@@ -187,6 +201,15 @@ mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log('✅ MongoDB database connected successfully');
+    
+    // Clean up legacy non-sparse subdocument index on users if present
+    try {
+      await mongoose.connection.collection('users').dropIndex('certificates.certificateId_1');
+      console.log('🧹 Cleaned legacy certificates.certificateId_1 index from users collection');
+    } catch (idxErr) {
+      // Index was already dropped or did not exist
+    }
+
     await seedDatabase();
     app.listen(PORT, () => {
       console.log(`🚀 Express server running on port ${PORT}`);

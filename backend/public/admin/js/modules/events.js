@@ -24,7 +24,7 @@ window.EventsModule = {
         if (event?.dateTime) {
             const dt = new Date(event.dateTime);
             const pad = n => String(n).padStart(2, '0');
-            dateTimeValue = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+            dateTimeValue = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
         }
 
         return `
@@ -62,10 +62,27 @@ window.EventsModule = {
                         </div>
                     </div>
                     
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">Meeting Type *</label>
+                            <select id="event-meeting-type" class="form-control" required>
+                                <option value="jitsi" ${event?.meetingType === 'jitsi' ? 'selected' : ''}>Jitsi Meet (100% Free Embedded Video Conf)</option>
+                                <option value="embed_youtube" ${event?.meetingType === 'embed_youtube' ? 'selected' : ''}>YouTube / Twitch Live Embed + Chat</option>
+                                <option value="external" ${event?.meetingType === 'external' ? 'selected' : ''}>External Direct Link (Zoom / Meet)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Meeting Passcode / Key</label>
+                            <input type="text" id="event-passcode" class="form-control" 
+                                   value="${event?.meetingPasscode || ''}" placeholder="Optional passcode">
+                        </div>
+                    </div>
+
                     <div class="form-group full-width">
-                        <label class="form-label">Meeting Link *</label>
+                        <label class="form-label">Meeting / Stream Embed Link *</label>
                         <input type="url" id="event-link" class="form-control" 
-                               value="${event?.meetingLink || ''}" required>
+                               value="${event?.meetingLink || ''}" required placeholder="https://meet.jit.si/myroom or https://youtube.com/embed/..." >
                     </div>
                     
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
@@ -117,6 +134,8 @@ window.EventsModule = {
                 description: document.getElementById('event-description').value.trim(),
                 type: document.getElementById('event-type').value,
                 dateTime: document.getElementById('event-datetime').value,
+                meetingType: document.getElementById('event-meeting-type').value,
+                meetingPasscode: document.getElementById('event-passcode')?.value?.trim() || '',
                 meetingLink: document.getElementById('event-link').value.trim(),
                 duration: document.getElementById('event-duration').value.trim(),
                 isPaid: document.getElementById('event-paid').value === 'true',
@@ -174,6 +193,9 @@ window.EventsModule = {
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <a href="${event.meetingLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">🔗 Join Link</a>
+                            <button class="btn btn-secondary" onclick="EventsModule.exportRosterCSV('${eventId}')">
+                                📥 Export Roster CSV
+                            </button>
                             <button class="btn btn-primary" onclick="EventsModule.openBroadcastModal('${eventId}')">
                                 ✉️ Send Email to Attendees
                             </button>
@@ -270,10 +292,10 @@ window.EventsModule = {
                 </td>
                 <td>
                     ${s.status === 'Paid'
-                        ? '<span class="badge" style="background:var(--success);">✅ Paid</span>'
-                        : s.status === 'Pending'
-                        ? '<span class="badge" style="background:var(--warning);">⏳ Pending</span>'
-                        : '<span class="badge" style="background:var(--text-muted);">🆓 Free</span>'}
+                ? '<span class="badge" style="background:var(--success);">✅ Paid</span>'
+                : s.status === 'Pending'
+                    ? '<span class="badge" style="background:var(--warning);">⏳ Pending</span>'
+                    : '<span class="badge" style="background:var(--text-muted);">🆓 Free</span>'}
                 </td>
                 <td>
                     <a href="mailto:${s.email}" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;">
@@ -524,7 +546,6 @@ window.EventsModule = {
             setTimeout(() => {
                 this.closeBroadcastModal();
             }, 2500);
-
         } catch (error) {
             statusEl.innerHTML = `
                 <div style="padding:12px;background:#fee2e2;color:#991b1b;border-radius:6px;">
@@ -533,6 +554,36 @@ window.EventsModule = {
             `;
             sendBtn.disabled = false;
             sendBtn.textContent = '📨 Send Emails';
+        }
+    },
+
+    async exportRosterCSV(eventId) {
+        try {
+            const data = await API.get(`/api/events/${eventId}/attendees`);
+            if (!data.attendees || data.attendees.length === 0) {
+                alert('No attendees found for this event.');
+                return;
+            }
+
+            const headers = ['Name', 'Email', 'Mobile', 'GSTIN', 'Registration Date'];
+            const rows = data.attendees.map(a => [
+                `"${a.name || ''}"`,
+                `"${a.email || ''}"`,
+                `"${a.mobile || ''}"`,
+                `"${a.gstin || ''}"`,
+                `"${new Date(a.createdAt).toLocaleDateString()}"`
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `Event_Attendees_${eventId}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            alert('CSV Export failed: ' + err.message);
         }
     }
 };
