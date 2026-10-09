@@ -1,5 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import { protect } from '../middleware/auth.js';
 import Transaction from '../models/Transaction.js';
 import Course from '../models/Course.js';
@@ -12,6 +13,85 @@ import { sendPurchaseEmail } from '../utils/mailer.js';
 import { getOrInitGstConfig } from './gstRoutes.js';
 
 const router = express.Router();
+
+// Helper to fulfill purchase, enroll user, credit affiliate, and send email safely
+async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
+  if (txn.status === 'success') {
+    return { alreadyFulfilled: true };
+  }
+
+  txn.status = 'success';
+  txn.gateway = gateway;
+  if (gateway === 'razorpay') {
+    txn.razorpayOrderId = paymentDetails.razorpay_order_id || txn.razorpayOrderId;
+    txn.razorpayPaymentId = paymentDetails.razorpay_payment_id || txn.razorpayPaymentId;
+    txn.razorpaySignature = paymentDetails.razorpay_signature || txn.razorpaySignature;
+    txn.razorpayResponse = paymentDetails;
+  } else if (gateway === 'payu') {
+    txn.payuResponse = paymentDetails;
+  }
+  await txn.save();
+
+  const user = await User.findById(txn.userId);
+  if (!user) return { success: true };
+
+  let itemTitle = 'WIDETECHNOS Academy Item';
+
+  if (txn.itemType === 'course') {
+    const course = await Course.findById(txn.itemId);
+    if (course) itemTitle = course.title;
+
+    const isAlreadyEnrolled = user.enrolledCourses.some(
+      (c) => (c.courseId?._id || c.courseId)?.toString() === txn.itemId.toString()
+    );
+    if (!isAlreadyEnrolled) {
+      user.enrolledCourses.push({
+        courseId: txn.itemId,
+        progress: 0,
+        completed: false,
+        completedChapters: [],
+      });
+      await user.save();
+    }
+
+    // Process Referral Commission
+    if (user.referredBy && course && course.affiliateCommission > 0) {
+      const referrer = await User.findById(user.referredBy);
+      if (referrer) {
+        referrer.walletBalance = (referrer.walletBalance || 0) + course.affiliateCommission;
+        await referrer.save();
+        await ReferralLog.create({
+          referrerId: referrer._id,
+          refereeId: user._id,
+          courseId: course._id,
+          commissionAmount: course.affiliateCommission
+        });
+      }
+    }
+  } else if (txn.itemType === 'event') {
+    const event = await Event.findById(txn.itemId);
+    if (event) itemTitle = event.title;
+
+    const isAlreadyEnrolled = user.enrolledEvents.some(
+      (e) => (e.eventId?._id || e.eventId)?.toString() === txn.itemId.toString()
+    );
+    if (!isAlreadyEnrolled) {
+      user.enrolledEvents.push({
+        eventId: txn.itemId,
+      });
+      await user.save();
+    }
+  }
+
+  // Send purchase confirmation email
+  try {
+    sendPurchaseEmail(user.email, user.name, itemTitle, txn.txnid, txn.amount);
+  } catch (emailErr) {
+    console.error('Failed to send purchase email:', emailErr);
+  }
+
+  return { success: true, itemTitle };
+}
 
 // Helper to generate hash
 const calculateHash = (key, txnid, amount, productinfo, firstname, email, salt) => {
@@ -457,7 +537,274 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Fetch invoice error:', error);
-    res.status(500).json({ message: 'Server error fetching invoice' });
+// @desc    Initiate a Razorpay Order
+// @route   POST /api/payment/razorpay/create-order
+// @access  Private
+router.post('/razorpay/create-order', protect, async (req, res) => {
+  const { itemId, itemType, couponCode, buyerName, buyerAddress, buyerState, buyerGstin, phone } = req.body;
+
+  try {
+    let item;
+    if (itemType === 'course') {
+      item = await Course.findById(itemId);
+    } else if (itemType === 'event') {
+      item = await Event.findById(itemId);
+    }
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Check if user is already enrolled
+    const user = await User.findById(req.user._id);
+    if (itemType === 'course') {
+      const isAlreadyEnrolled = user.enrolledCourses?.some(
+        (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
+      );
+      if (isAlreadyEnrolled) {
+        return res.status(400).json({ message: 'You are already enrolled in this course.' });
+      }
+    }
+
+    // Determine price
+    let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
+      ? item.discountedPrice
+      : item.price;
+
+    // Apply coupon discount server-side
+    let appliedCoupon = null;
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
+      if (coupon) {
+        const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
+        const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
+        const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
+
+        if (!isExpired && !isLimitReached && isApplicable) {
+          if (coupon.discountType === 'percentage') {
+            price = Math.round(price * (1 - coupon.discountValue / 100));
+          } else {
+            price = Math.max(0, price - coupon.discountValue);
+          }
+          appliedCoupon = coupon;
+        }
+      }
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({ message: 'Item is free. No payment required.' });
+    }
+
+    // Indian GST Breakdown
+    const gstConfig = await getOrInitGstConfig();
+    const rate = gstConfig.gstRate || 18;
+    const posState = buyerState || gstConfig.sellerState || 'Tamil Nadu';
+    const isIntraState = posState.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
+
+    const baseAmount = Math.round((price / (1 + rate / 100)) * 100) / 100;
+    const gstAmount = Math.round((price - baseAmount) * 100) / 100;
+
+    let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
+    if (isIntraState) {
+      cgstAmount = Math.round((gstAmount / 2) * 100) / 100;
+      sgstAmount = Math.round((gstAmount - cgstAmount) * 100) / 100;
+    } else {
+      igstAmount = gstAmount;
+    }
+
+    const isB2B = Boolean(buyerGstin && buyerGstin.trim().length > 5);
+    const invoiceNo = `INV-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+    const txnid = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+    const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
+    const isMock = key_id === 'rzp_test_placeholder' || key_id.startsWith('mock');
+
+    let razorpayOrderId = `order_mock_${txnid}`;
+
+    if (!isMock) {
+      const razorpay = new Razorpay({ key_id, key_secret });
+      const order = await razorpay.orders.create({
+        amount: Math.round(price * 100), // paise
+        currency: 'INR',
+        receipt: txnid,
+        notes: {
+          txnid,
+          itemId: item._id.toString(),
+          itemType,
+          userId: req.user._id.toString()
+        }
+      });
+      razorpayOrderId = order.id;
+    }
+
+    // Create pending transaction in MongoDB
+    await Transaction.create({
+      txnid,
+      invoiceNo,
+      userId: req.user._id,
+      itemType,
+      itemId: item._id,
+      amount: price,
+      status: 'pending',
+      gateway: 'razorpay',
+      razorpayOrderId,
+      couponCode: appliedCoupon ? appliedCoupon.code : null,
+      billingDetails: {
+        buyerName: buyerName || req.user.name,
+        buyerEmail: req.user.email,
+        buyerPhone: phone || '9999999999',
+        buyerAddress: buyerAddress || '',
+        buyerState: posState,
+        buyerGstin: buyerGstin ? buyerGstin.toUpperCase().trim() : '',
+        isB2B
+      },
+      gstDetails: {
+        rate,
+        isInclusive: true,
+        baseAmount,
+        gstAmount,
+        cgstAmount,
+        sgstAmount,
+        igstAmount,
+        isIntraState,
+        hsnSacCode: gstConfig.hsnSacCode || '999249',
+        posState
+      }
+    });
+
+    if (appliedCoupon) {
+      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usedCount: 1 } });
+    }
+
+    res.json({
+      success: true,
+      isMock,
+      keyId: key_id,
+      orderId: razorpayOrderId,
+      amount: Math.round(price * 100), // in paise
+      currency: 'INR',
+      txnid,
+      itemTitle: item.title,
+      itemDescription: item.description?.substring(0, 100) || 'Course Enrollment',
+      prefill: {
+        name: buyerName || req.user.name,
+        email: req.user.email,
+        contact: phone || ''
+      }
+    });
+  } catch (error) {
+    console.error('Razorpay order creation error:', error);
+    res.status(500).json({ message: 'Failed to create Razorpay order', error: error.message });
+  }
+});
+
+// @desc    Verify Razorpay Payment Signature
+// @route   POST /api/payment/razorpay/verify
+// @access  Private
+router.post('/razorpay/verify', protect, async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, txnid } = req.body;
+
+  try {
+    let txn = null;
+    if (txnid) {
+      txn = await Transaction.findOne({ txnid });
+    }
+    if (!txn && razorpay_order_id) {
+      txn = await Transaction.findOne({ razorpayOrderId: razorpay_order_id });
+    }
+
+    if (!txn) {
+      return res.status(404).json({ success: false, message: 'Transaction record not found' });
+    }
+
+    // Idempotency: if already completed, return immediately
+    if (txn.status === 'success') {
+      return res.json({ success: true, message: 'Payment already completed', txnid: txn.txnid });
+    }
+
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
+    const isMock = (process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder') === 'rzp_test_placeholder' || txn.razorpayOrderId.startsWith('order_mock_');
+
+    if (!isMock) {
+      // Cryptographic signature check: HMAC-SHA256(order_id + "|" + payment_id, secret)
+      const expectedSignature = crypto
+        .createHmac('sha256', key_secret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+
+      if (expectedSignature !== razorpay_signature) {
+        txn.status = 'failed';
+        txn.razorpayResponse = req.body;
+        await txn.save();
+        return res.status(400).json({
+          success: false,
+          message: 'Payment verification failed: Signature mismatch. Potential tampering detected.'
+        });
+      }
+    }
+
+    // Fulfill the purchase securely
+    await fulfillPurchase(txn, {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      verifiedAt: new Date()
+    }, 'razorpay');
+
+    res.json({
+      success: true,
+      message: 'Payment verified and enrollment confirmed!',
+      txnid: txn.txnid,
+      invoiceNo: txn.invoiceNo
+    });
+  } catch (error) {
+    console.error('Razorpay verification error:', error);
+    res.status(500).json({ success: false, message: 'Server error during payment verification' });
+  }
+});
+
+// @desc    Razorpay Server-to-Server Webhook
+// @route   POST /api/payment/razorpay/webhook
+// @access  Public
+router.post('/razorpay/webhook', async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+
+    if (webhookSecret && signature) {
+      const shasum = crypto.createHmac('sha256', webhookSecret);
+      shasum.update(JSON.stringify(req.body));
+      const digest = shasum.digest('hex');
+
+      if (digest !== signature) {
+        return res.status(400).json({ status: 'invalid_signature' });
+      }
+    }
+
+    const { event, payload } = req.body;
+
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const paymentEntity = payload.payment?.entity;
+      const orderId = paymentEntity?.order_id;
+      const paymentId = paymentEntity?.id;
+
+      if (orderId) {
+        const txn = await Transaction.findOne({ razorpayOrderId: orderId });
+        if (txn && txn.status !== 'success') {
+          await fulfillPurchase(txn, {
+            razorpay_order_id: orderId,
+            razorpay_payment_id: paymentId,
+            webhookEvent: event
+          }, 'razorpay');
+        }
+      }
+    }
+
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ status: 'error' });
   }
 });
 

@@ -190,6 +190,24 @@ export const api = {
   },
 
   // Payments
+  createRazorpayOrder: async (orderData) => {
+    const res = await fetch(`${BASE_URL}/payment/razorpay/create-order`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(orderData),
+    });
+    return handleResponse(res);
+  },
+
+  verifyRazorpayPayment: async (paymentData) => {
+    const res = await fetch(`${BASE_URL}/payment/razorpay/verify`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(paymentData),
+    });
+    return handleResponse(res);
+  },
+
   initiatePayment: async (itemId, itemType, couponCode = null, billingDetails = {}) => {
     const res = await fetch(`${BASE_URL}/payment/pay`, {
       method: 'POST',

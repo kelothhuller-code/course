@@ -62,79 +62,147 @@ export default function Checkout({ user, onRefreshUser }) {
     fetchItem();
   }, [id, navigate]);
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayment = async () => {
     setProcessing(true);
     try {
-      const data = await api.initiatePayment(id, itemType, appliedCoupon?.code || null);
-      setPaymentData(data);
-      
-      if (data.isMock) {
-        // Mock mode - show payment modal
+      const orderPayload = {
+        itemId: id,
+        itemType,
+        couponCode: appliedCoupon?.code || null,
+        buyerName,
+        buyerAddress,
+        buyerState,
+        buyerGstin,
+        phone: user?.phone || '9999999999'
+      };
+
+      const orderData = await api.createRazorpayOrder(orderPayload);
+      setPaymentData(orderData);
+
+      if (orderData.isMock) {
+        // Mock mode (when running locally without live credentials)
         setShowPaymentModal(true);
+        setProcessing(false);
       } else {
-        // Real PayU - submit form
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = data.action;
-        
-        const fields = {
-          key: data.key,
-          txnid: data.txnid,
-          amount: data.amount,
-          productinfo: data.productinfo,
-          firstname: data.firstname,
-          email: data.email,
-          phone: data.phone || '9999999999',
-          surl: data.surl,
-          furl: data.furl,
-          hash: data.hash,
-          service_provider: data.service_provider || 'payu_paisa'
+        // Load official Razorpay checkout script
+        const isLoaded = await loadRazorpayScript();
+        if (!isLoaded) {
+          throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
+        }
+
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          name: 'WideTechnos Academy',
+          description: orderData.itemTitle || 'Course Purchase',
+          image: '/favicon.ico',
+          order_id: orderData.orderId,
+          handler: async function (response) {
+            try {
+              setProcessing(true);
+              const verifyRes = await api.verifyRazorpayPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                txnid: orderData.txnid
+              });
+
+              if (verifyRes.success) {
+                alert('🎉 Payment successful! You are now enrolled.');
+                if (onRefreshUser) await onRefreshUser();
+                navigate('/dashboard?payment=success&txnid=' + orderData.txnid);
+              } else {
+                alert('Payment verification failed: ' + verifyRes.message);
+              }
+            } catch (vErr) {
+              console.error('Verification error:', vErr);
+              alert(vErr.message || 'Payment verification failed');
+            } finally {
+              setProcessing(false);
+            }
+          },
+          prefill: orderData.prefill || {
+            name: user?.name || '',
+            email: user?.email || '',
+            contact: user?.phone || ''
+          },
+          notes: {
+            txnid: orderData.txnid,
+            itemId: id
+          },
+          theme: {
+            color: '#4f46e5'
+          },
+          modal: {
+            ondismiss: function () {
+              setProcessing(false);
+            }
+          }
         };
-        
-        Object.keys(fields).forEach(key => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = fields[key];
-          form.appendChild(input);
+
+        const razorpayInstance = new window.Razorpay(options);
+        razorpayInstance.on('payment.failed', function (response) {
+          console.error('Razorpay payment failed:', response.error);
+          alert(`Payment Failed: ${response.error.description || response.error.reason}`);
+          setProcessing(false);
         });
-        
-        document.body.appendChild(form);
-        form.submit();
+        razorpayInstance.open();
       }
     } catch (err) {
       console.error('Payment initiation error:', err);
       alert(err.message || 'Failed to initiate payment');
-    } finally {
       setProcessing(false);
     }
   };
 
-// In Checkout.js, ensure the mock payment callback uses the correct method name:
-const handleMockPayment = async (status) => {
-  setProcessing(true);
-  try {
-    const result = await api.mockPaymentCallback(paymentData.txnid, status);
-    
-    if (status === 'success') {
-      setPaymentStatus('success');
-      alert('🎉 Payment successful! You are now enrolled.');
-      if (onRefreshUser) onRefreshUser();
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-    } else {
-      setPaymentStatus('failed');
-      alert('Payment failed. Please try again.');
-      setShowPaymentModal(false);
+  const handleMockPayment = async (status) => {
+    setProcessing(true);
+    try {
+      if (status === 'success') {
+        const verifyRes = await api.verifyRazorpayPayment({
+          razorpay_order_id: paymentData.orderId,
+          razorpay_payment_id: 'pay_mock_' + Date.now(),
+          razorpay_signature: 'mock_signature',
+          txnid: paymentData.txnid
+        });
+
+        if (verifyRes.success) {
+          setPaymentStatus('success');
+          alert('🎉 Payment successful! You are now enrolled.');
+          if (onRefreshUser) await onRefreshUser();
+          setTimeout(() => {
+            navigate('/dashboard?payment=success&txnid=' + paymentData.txnid);
+          }, 1500);
+        } else {
+          alert('Verification failed: ' + verifyRes.message);
+        }
+      } else {
+        setPaymentStatus('failed');
+        alert('Payment cancelled or failed. You can try again.');
+        setShowPaymentModal(false);
+      }
+    } catch (err) {
+      console.error('Mock payment error:', err);
+      alert('Payment processing failed. Please try again.');
+    } finally {
+      setProcessing(false);
     }
-  } catch (err) {
-    console.error('Mock payment error:', err);
-    alert('Payment processing failed. Please try again.');
-  } finally {
-    setProcessing(false);
-  }
-};
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -483,7 +551,7 @@ const handleMockPayment = async (status) => {
                 textAlign: 'center',
                 marginTop: '1rem'
               }}>
-                🔒 Secure payment powered by PayU
+                🔒 256-Bit Encrypted Payment powered by Razorpay (UPI, Google Pay, Cards, NetBanking)
               </p>
             </div>
 

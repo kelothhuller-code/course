@@ -30,6 +30,11 @@ const TransactionSchema = new mongoose.Schema({
     hsnSacCode: { type: String, default: '999249' },
     posState: { type: String } // Place of Supply state
   },
+  gateway: { type: String, default: 'razorpay' },
+  razorpayOrderId: { type: String },
+  razorpayPaymentId: { type: String },
+  razorpaySignature: { type: String },
+  razorpayResponse: { type: Object },
   payuResponse: { type: Object }, // Store the JSON response from PayU webhook/callback
   createdAt: { type: Date, default: Date.now }
 });
