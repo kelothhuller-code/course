@@ -207,8 +207,8 @@ export default function AuthPage({ onLoginSuccess }) {
                 </p>
                 <div className="auth-side-stats">
                   <div className="stat-item">
-                    <span className="stat-number">₹499</span>
-                    <span className="stat-label">Start Coding with AI</span>
+                    <span className="stat-number">100%</span>
+                    <span className="stat-label">Practical & Hands-on</span>
                   </div>
                   <div className="stat-item">
                     <span className="stat-number">10+</span>

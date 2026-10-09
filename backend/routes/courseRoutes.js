@@ -136,6 +136,20 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// @desc    Get highlighted/featured course for homepage
+// @route   GET /api/courses/featured
+// @access  Public
+router.get('/featured', async (req, res) => {
+  try {
+    const featuredCourse = await Course.findOne({ isFeatured: true })
+      .select('-content.chapters.videoUrl');
+    res.json({ featuredCourse });
+  } catch (error) {
+    console.error('Fetch featured course error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @desc    Get single course basic info
 // @route   GET /api/courses/:id
 // @desc    Get dedicated sales page payload for a course
@@ -238,12 +252,15 @@ router.get('/:id/learn', protect, async (req, res) => {
 
 // @desc    Create a new course
 // @route   POST /api/courses
+// @desc    Create a new course
+// @route   POST /api/courses
 // @access  Private/Admin
 router.post('/', protect, admin, async (req, res) => {
   const {
     title, description, type, category, isFree, outcomes,
     packageType, price, discountedPrice, affiliateCommission,
-    thumbnail, languages, content, continuationCourses, salesPageConfig
+    thumbnail, languages, content, continuationCourses, salesPageConfig,
+    isFeatured
   } = req.body;
 
   try {
@@ -254,12 +271,17 @@ router.post('/', protect, admin, async (req, res) => {
       });
     }
 
+    if (isFeatured) {
+      await Course.updateMany({}, { isFeatured: false });
+    }
+
     const course = await Course.create({
       title,
       description,
       type: type || 'Course',
       category,
       isFree: isFree || false,
+      isFeatured: !!isFeatured,
       outcomes: outcomes || [],
       packageType: packageType || 'Starter',
       price: isFree ? 0 : (price || 0),
@@ -297,13 +319,21 @@ router.put('/:id', protect, admin, async (req, res) => {
   const {
     title, description, type, category, isFree, outcomes, packageType,
     price, discountedPrice, thumbnail, languages, content,
-    continuationCourses, salesPageConfig
+    continuationCourses, salesPageConfig, isFeatured
   } = req.body;
 
   try {
     const course = await Course.findById(req.params.id);
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (isFeatured !== undefined) {
+      if (isFeatured) {
+        // If enabling featured on this course, un-feature all others
+        await Course.updateMany({ _id: { $ne: course._id } }, { isFeatured: false });
+      }
+      course.isFeatured = isFeatured;
     }
 
     course.title = title || course.title;
@@ -332,6 +362,38 @@ router.put('/:id', protect, admin, async (req, res) => {
   } catch (error) {
     console.error('Update course error:', error);
     res.status(400).json({ message: 'Invalid course data', error: error.message });
+  }
+});
+
+// @desc    Toggle featured/highlighted status of a course on homepage
+// @route   PUT /api/courses/:id/highlight
+// @access  Private/Admin
+router.put('/:id/highlight', protect, admin, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const newFeaturedState = !course.isFeatured;
+    if (newFeaturedState) {
+      // Un-highlight all other courses so this one is uniquely highlighted
+      await Course.updateMany({ _id: { $ne: course._id } }, { isFeatured: false });
+    }
+
+    course.isFeatured = newFeaturedState;
+    await course.save();
+
+    res.json({
+      success: true,
+      isFeatured: course.isFeatured,
+      message: course.isFeatured 
+        ? `⭐ "${course.title}" is now highlighted on the homepage!` 
+        : `Removed "${course.title}" from highlighted position.`
+    });
+  } catch (error) {
+    console.error('Toggle course highlight error:', error);
+    res.status(500).json({ message: 'Failed to toggle course highlight status' });
   }
 });
 //     console.error('Update course error:', error);

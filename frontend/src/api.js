@@ -63,6 +63,14 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  getFeaturedCourse: async () => {
+    const res = await fetch(`${BASE_URL}/courses/featured`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
   getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'All') => {
     try {
       console.log('bbbbb')

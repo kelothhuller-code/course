@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-export default function Navbar({ user, onLogout }) {
+export default function Navbar({ user, featuredCourse, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
@@ -13,6 +13,10 @@ export default function Navbar({ user, onLogout }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const navCtaText = featuredCourse 
+    ? (featuredCourse.isFree ? 'Start Learning — Free' : `Start Learning — ₹${featuredCourse.discountedPrice || featuredCourse.price}`)
+    : 'Explore Courses';
 
   return (
     <nav className={`navbar ${isScrolled ? 'navbar-scrolled' : ''}`}>
@@ -49,12 +53,21 @@ export default function Navbar({ user, onLogout }) {
                   Login
                 </Link>
               )}
-              <Link 
-                to={user ? '/dashboard' : '/auth'} 
-                className="btn btn-primary btn-sm"
-              >
-                Start Learning — ₹499
-              </Link>
+              {featuredCourse ? (
+                <Link 
+                  to={user ? '/dashboard' : '/auth'} 
+                  className="btn btn-primary btn-sm"
+                >
+                  {navCtaText}
+                </Link>
+              ) : (
+                <a 
+                  href="#courses" 
+                  className="btn btn-primary btn-sm"
+                >
+                  {navCtaText}
+                </a>
+              )}
             </div>
           </div>
         </div>

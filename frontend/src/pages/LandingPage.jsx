@@ -38,16 +38,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     hasPrevPage: false
   });
   const [showAllCourses, setShowAllCourses] = useState(false);
+  const [featuredCourse, setFeaturedCourse] = useState(null);
   const navigate = useNavigate();
-
-  // Find the featured ₹499 course - with safety check
-  const featuredCourse = Array.isArray(courses) && courses.length > 0
-    ? courses.find(c =>
-      c.price === 499 ||
-      c.title?.toLowerCase().includes('start coding') ||
-      c.title?.toLowerCase().includes('beginner')
-    ) || courses[0]
-    : null;
 
   // Fetch courses with pagination
   const fetchCourses = async (page = 1, showAll = false) => {
@@ -73,14 +65,24 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [coursesData, eventsData, trialsData] = await Promise.all([
+      const [coursesData, eventsData, trialsData, featuredData] = await Promise.all([
         api.getCourses(1, 3, false),
         api.getEvents(),
         api.getTrials(),
+        api.getFeaturedCourse().catch(() => ({ featuredCourse: null }))
       ]);
 
-      // Ensure courses is an array
-      setCourses(Array.isArray(coursesData.courses) ? coursesData.courses : []);
+      const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
+      setCourses(courseList);
+      
+      // Determine highlighted course: explicit backend featured course, or one marked isFeatured
+      if (featuredData && featuredData.featuredCourse) {
+        setFeaturedCourse(featuredData.featuredCourse);
+      } else {
+        const found = courseList.find(c => c.isFeatured) || null;
+        setFeaturedCourse(found);
+      }
+
       setPagination(coursesData.pagination || {
         currentPage: 1,
         totalPages: 1,
@@ -98,6 +100,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
       setCourses([]);
       setEvents([]);
       setTrials([]);
+      setFeaturedCourse(null);
     } finally {
       setLoading(false);
     }
@@ -187,7 +190,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
   return (
     <div className="landing-page">
-      <Navbar user={user} onLogout={() => {
+      <Navbar user={user} featuredCourse={featuredCourse} onLogout={() => {
         localStorage.removeItem('token');
         navigate('/');
       }} />

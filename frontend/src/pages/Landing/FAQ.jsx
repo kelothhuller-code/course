@@ -6,7 +6,7 @@ export default function FAQ() {
   const faqs = [
     {
       q: 'Do I need coding experience?',
-      a: 'No, the ₹499 beginner class is designed to start from the basics. No prior coding knowledge is required.'
+      a: 'No, our beginner curriculum is designed to start from the absolute basics. No prior coding knowledge is required.'
     },
     {
       q: 'What age is this for?',
@@ -18,11 +18,11 @@ export default function FAQ() {
     },
     {
       q: 'What will I build?',
-      a: 'You\'ll build and publish your own website using AI as your coding partner. The course guides you step by step.'
+      a: 'You\'ll build and publish your own website using AI as your coding partner. The curriculum guides you step by step.'
     },
     {
       q: 'Is this a live course?',
-      a: 'The ₹499 course is a pre-recorded video course you can watch at your own pace. We also offer live workshops separately.'
+      a: 'Our courses are pre-recorded video modules you can watch at your own pace with lifetime access. We also conduct live hands-on workshops separately.'
     },
     {
       q: 'Can I watch the lessons on mobile?',
@@ -30,11 +30,11 @@ export default function FAQ() {
     },
     {
       q: 'How do I access the course after payment?',
-      a: 'After payment, you\'ll get instant access to the course in your dashboard. You can start learning right away.'
+      a: 'After enrollment, you get instant access to the course in your student dashboard. You can start learning right away.'
     },
     {
-      q: 'Are the workshops included in the ₹499 course?',
-      a: 'The ₹499 course is a self-paced video course. Live workshops are separate offerings with their own pricing.'
+      q: 'Are workshops included with courses?',
+      a: 'Self-paced video courses provide lifetime access to modules and certificates. Live interactive workshops are offered separately with their own schedules.'
     }
   ];
 

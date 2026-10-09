@@ -18,18 +18,24 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
               step by step, without needing prior coding experience.
             </p>
             <div className="hero-ctas">
-              <Link 
-                to={user ? '/dashboard' : '/auth'} 
-                className="btn btn-primary btn-lg"
-                onClick={(e) => {
-                  if (user && featuredCourse) {
-                    e.preventDefault();
-                    handleEnroll(featuredCourse, 'course');
-                  }
-                }}
-              >
-                Start Coding with AI — ₹499
-              </Link>
+              {featuredCourse ? (
+                <Link 
+                  to={user ? '/dashboard' : '/auth'} 
+                  className="btn btn-primary btn-lg"
+                  onClick={(e) => {
+                    if (user && featuredCourse) {
+                      e.preventDefault();
+                      handleEnroll(featuredCourse, 'course');
+                    }
+                  }}
+                >
+                  {featuredCourse.title} — {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
+                </Link>
+              ) : (
+                <a href="#courses" className="btn btn-primary btn-lg">
+                  Explore All Courses →
+                </a>
+              )}
               <a href="#trials" className="btn btn-secondary btn-lg">
                 Watch Free Tutorial
               </a>

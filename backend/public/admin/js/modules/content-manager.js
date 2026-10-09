@@ -109,8 +109,9 @@ window.ContentManager = {
                     <h4 style="margin-bottom:4px;">
                         ${Helpers.safeString(course.title, 'Untitled')}
                         <span class="badge" style="background:${course.isFree ? 'var(--success)' : 'var(--primary)'};margin-left:8px;">
-                            ${course.isFree ? 'FREE' : '₹' + (course.price || 0)}
+                            ${course.isFree ? 'FREE' : '₹' + (course.discountedPrice || course.price || 0)}
                         </span>
+                        ${course.isFeatured ? '<span class="badge" style="background:#f59e0b;color:#1e1e24;font-weight:700;margin-left:8px;">⭐ HIGHLIGHTED ON HOME</span>' : ''}
                     </h4>
                     <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:4px;">${Helpers.safeString(course.description, '').substring(0, 100)}...</p>
                     <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:0.8rem;color:var(--text-muted);">
@@ -121,6 +122,9 @@ window.ContentManager = {
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn" style="font-size:0.85rem;${course.isFeatured ? 'background:#f59e0b;color:#1e1e24;font-weight:700;border:none;' : 'background:var(--bg-secondary);color:var(--text-main);'}" onclick="ContentManager.toggleHighlight('${course._id}')">
+                        ${course.isFeatured ? '⭐ Highlighted' : '☆ Highlight on Home'}
+                    </button>
                     <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="ContentManager.copySalesLink('${course._id}')">📋 Copy Sales Link</button>
                     <a href="${salesUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size:0.85rem;text-decoration:none;">🌐 View Sales Page</a>
                     <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="App.navigateTo('course-content', '${course._id}')">📝 Content</button>
@@ -216,6 +220,16 @@ window.ContentManager = {
     },
 
     // ==================== DELETE METHODS ====================
+    async toggleHighlight(id) {
+        try {
+            const res = await API.put(`/api/courses/${id}/highlight`, {});
+            alert(res.message || 'Course highlight status updated!');
+            App.navigateTo('content');
+        } catch (error) {
+            alert('Error toggling highlight: ' + error.message);
+        }
+    },
+
     async deleteCourse(id) {
         if (!confirm('Delete this course? This cannot be undone.')) return;
         try {

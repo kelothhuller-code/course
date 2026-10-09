@@ -25,6 +25,7 @@ const CourseSchema = new mongoose.Schema({
   description: { type: String, required: true },
   category: { type: String, required: true }, // e.g., "AI Development", "AI in Daily Life"
   isFree: { type: Boolean, default: false },
+  isFeatured: { type: Boolean, default: false },
   outcomes: [{ type: String }], // Deliverables / Benefits
   packageType: { type: String, enum: ['Starter', 'Professional', 'Master'], default: 'Starter' },
   price: { type: Number, required: true },

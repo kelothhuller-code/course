@@ -106,6 +106,14 @@ window.CoursesModule = {
                             <input type="number" id="course-commission" class="form-control" 
                                    value="${course?.affiliateCommission || 0}" min="0">
                         </div>
+
+                        <div class="form-group">
+                            <label class="form-label">⭐ Highlight on Homepage?</label>
+                            <select id="course-featured" class="form-control">
+                                <option value="false" ${!course?.isFeatured ? 'selected' : ''}>No</option>
+                                <option value="true" ${course?.isFeatured ? 'selected' : ''}>Yes (Showcase on Landing Page)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Mapped Follow-up / Continuation Courses Selector -->
@@ -232,6 +240,7 @@ window.CoursesModule = {
             price: parseFloat(document.getElementById('course-price').value) || 0,
             discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
             affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
+            isFeatured: document.getElementById('course-featured')?.value === 'true',
             outcomes,
             languages,
             continuationCourses
