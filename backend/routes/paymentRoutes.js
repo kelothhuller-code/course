@@ -537,6 +537,10 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Fetch invoice error:', error);
+    res.status(500).json({ message: 'Server error fetching invoice' });
+  }
+});
+
 // @desc    Initiate a Razorpay Order
 // @route   POST /api/payment/razorpay/create-order
 // @access  Private
