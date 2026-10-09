@@ -24,11 +24,16 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { sanitizeNoSql } from './middleware/noSqlSanitizer.js';
 
+// Setup for __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly load .env from backend directory
+dotenv.config({ path: path.join(__dirname, '.env') });
+// Also fallback load standard .env if present
 // Import models for seeding
 import Course from './models/Course.js';
 import User from './models/User.js';
-
-dotenv.config();
 
 const app = express();
 
@@ -87,9 +92,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Setup for __dirname in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
 
 // Serve static files from 'public' (js, css, images) without 301 redirects
 app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
