@@ -8,25 +8,18 @@ export default function MyInvoicesTab() {
   const [selectedTxn, setSelectedTxn] = useState(null);
 
   useEffect(() => {
-    const fetchProfileData = async () => {
+    const fetchInvoices = async () => {
       try {
         setLoading(true);
-        const data = await api.getProfile();
-        // Fetch user's profile to retrieve transaction records or call profile endpoint
-        if (data?.enrolledCourses) {
-          // Fetch transactions list
-          const txns = await api.adminGetTransactions().catch(() => []);
-          // Filter transactions matching this user
-          const myTxns = txns.filter(t => t.userId?._id === data._id || t.userId === data._id);
-          setTransactions(myTxns);
-        }
+        const res = await api.getMyInvoices();
+        setTransactions(res.transactions || []);
       } catch (err) {
         console.error('Fetch invoices error:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfileData();
+    fetchInvoices();
   }, []);
 
   if (loading) {

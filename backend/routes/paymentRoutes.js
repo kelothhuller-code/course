@@ -481,6 +481,20 @@ router.post('/mock-callback', async (req, res) => {
   }
 });
 
+// @desc    Get all transactions/invoices for logged in user
+// @route   GET /api/payment/my-invoices
+// @access  Private
+router.get('/my-invoices', protect, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ userId: req.user._id })
+      .sort({ createdAt: -1 });
+    res.json({ transactions });
+  } catch (error) {
+    console.error('Fetch my invoices error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @desc    Get GST Invoice Details for a transaction
 // @route   GET /api/payment/invoice/:txnid
 // @access  Private

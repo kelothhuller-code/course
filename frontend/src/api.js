@@ -492,6 +492,13 @@ export const api = {
     return handleResponse(res);
   },
 
+  getMyInvoices: async () => {
+    const res = await fetch(`${BASE_URL}/payment/my-invoices`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
   adminUpdateCourse: async (id, courseData) => {
     const res = await fetch(`${BASE_URL}/courses/${id}`, {
       method: 'PUT',
