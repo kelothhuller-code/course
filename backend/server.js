@@ -214,6 +214,8 @@ mongoose
     app.listen(PORT, () => {
       console.log(`🚀 Express server running on port ${PORT}`);
       console.log(`📍 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+      const isRzpLive = process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.includes('placeholder');
+      console.log(`💳 Gateway: ${isRzpLive ? `Razorpay Active (${process.env.RAZORPAY_KEY_ID})` : 'Mock Test Mode'}`);
     });
   })
   .catch((err) => {
