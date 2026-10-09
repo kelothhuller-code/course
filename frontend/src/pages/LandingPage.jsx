@@ -204,7 +204,9 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           handleEnroll={handleEnroll}
         />
         <BuildJourney />
-        <CourseCurriculum course={featuredCourse} />
+        {featuredCourse && (
+          <CourseCurriculum course={featuredCourse} />
+        )}
         <WhyAI />
         <TrialTutorials
           trials={trials}

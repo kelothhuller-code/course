@@ -51,22 +51,27 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                     <li key={index}>{feature}</li>
                   ))}
                 </ul>
-                <Link 
-                  to={user ? (isEnrolled ? '/dashboard' : `/checkout/${course._id}`) : '/auth'} 
-                  className="btn btn-primary btn-lg"
-                  onClick={(e) => {
-                    if (user) {
-                      e.preventDefault();
-                      if (isEnrolled) {
-                        window.location.href = '/dashboard';
-                      } else {
-                        handleEnroll(course, 'course');
+                <div className="featured-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '1.25rem' }}>
+                  <Link 
+                    to={user ? (isEnrolled ? '/dashboard' : `/checkout/${course._id}`) : '/auth'} 
+                    className="btn btn-primary btn-lg"
+                    onClick={(e) => {
+                      if (user) {
+                        e.preventDefault();
+                        if (isEnrolled) {
+                          window.location.href = '/dashboard';
+                        } else {
+                          handleEnroll(course, 'course');
+                        }
                       }
-                    }
-                  }}
-                >
-                  {isEnrolled ? 'Go to Course →' : (course.isFree ? 'Start Learning — Free' : `Get the Course — ${displayPrice}`)}
-                </Link>
+                    }}
+                  >
+                    {isEnrolled ? 'Go to Course →' : (course.isFree ? 'Start Learning — Free' : `Get the Course — ${displayPrice}`)}
+                  </Link>
+                  <a href="#curriculum" className="btn btn-secondary btn-lg">
+                    View Curriculum ↓
+                  </a>
+                </div>
               </div>
 
               <div className="featured-visual">
