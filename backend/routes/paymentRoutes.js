@@ -198,7 +198,7 @@ router.post('/pay', protect, async (req, res) => {
     // Compute Indian GST Calculations
     const gstConfig = await getOrInitGstConfig();
     const rate = gstConfig.gstRate || 18;
-    const posState = buyerState || gstConfig.sellerState || 'Tamil Nadu';
+    const posState = buyerState || gstConfig.sellerState || 'Kerala';
     const isIntraState = posState.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
 
     // Course prices are inclusive of GST
@@ -524,6 +524,9 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
     res.json({
       seller: gstConfig,
       invoiceNo: txn.invoiceNo || txn.txnid,
+      creditNoteNo: txn.creditNoteNo || '',
+      isRefunded: txn.status === 'refunded',
+      refundDetails: txn.refundDetails || null,
       txnid: txn.txnid,
       date: txn.createdAt,
       itemTitle,
@@ -616,7 +619,7 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
     // Indian GST Breakdown
     const gstConfig = await getOrInitGstConfig();
     const rate = gstConfig.gstRate || 18;
-    const posState = buyerState || gstConfig.sellerState || 'Tamil Nadu';
+    const posState = buyerState || gstConfig.sellerState || 'Kerala';
     const isIntraState = posState.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
 
     const baseAmount = Math.round((price / (1 + rate / 100)) * 100) / 100;

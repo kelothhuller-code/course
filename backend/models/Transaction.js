@@ -6,9 +6,21 @@ const TransactionSchema = new mongoose.Schema({
   itemType: { type: String, enum: ['course', 'event'], required: true },
   itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
   amount: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'success', 'failed', 'refunded'], default: 'pending' },
   couponCode: { type: String },
   invoiceNo: { type: String }, // Official tax invoice number
+  creditNoteNo: { type: String }, // Official GST Credit Note number (GSTR-1 Sec 9B)
+  refundDetails: {
+    refundId: { type: String },
+    refundAmount: { type: Number },
+    refundDate: { type: Date },
+    refundReason: { type: String },
+    refundBaseAmount: { type: Number },
+    refundGstAmount: { type: Number },
+    refundCgstAmount: { type: Number },
+    refundSgstAmount: { type: Number },
+    refundIgstAmount: { type: Number }
+  },
   billingDetails: {
     buyerName: { type: String },
     buyerEmail: { type: String },

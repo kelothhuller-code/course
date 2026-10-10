@@ -20,7 +20,7 @@ export default function Checkout({ user, onRefreshUser }) {
 
   // Indian GST Billing Details state
   const [buyerName, setBuyerName] = useState(user?.name || '');
-  const [buyerState, setBuyerState] = useState('Tamil Nadu');
+  const [buyerState, setBuyerState] = useState('Kerala');
   const [buyerAddress, setBuyerAddress] = useState('');
   const [buyerGstin, setBuyerGstin] = useState('');
 
@@ -481,7 +481,7 @@ export default function Checkout({ user, onRefreshUser }) {
                 {(() => {
                   const taxableBase = Math.round((finalPrice / 1.18) * 100) / 100;
                   const gstTotal = Math.round((finalPrice - taxableBase) * 100) / 100;
-                  const isIntraState = buyerState.trim().toLowerCase() === 'tamil nadu';
+                  const isIntraState = buyerState.trim().toLowerCase() === 'kerala';
                   const cgst = isIntraState ? Math.round((gstTotal / 2) * 100) / 100 : 0;
                   const sgst = isIntraState ? Math.round((gstTotal - cgst) * 100) / 100 : 0;
                   const igst = isIntraState ? 0 : gstTotal;

@@ -68,10 +68,10 @@ export default function MyInvoicesTab() {
                   {t.itemType || 'course'}
                 </td>
                 <td style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>
-                  {t.billingDetails?.buyerState || 'Tamil Nadu'}
+                  {t.billingDetails?.buyerState || 'Kerala'}
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: 'var(--secondary)' }}>
-                  ₹{t.amount?.toFixed(2)}
+                <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: t.status === 'refunded' ? '#ef4444' : 'var(--secondary)' }}>
+                  {t.status === 'refunded' ? `-₹${t.amount?.toFixed(2)}` : `₹${t.amount?.toFixed(2)}`}
                 </td>
                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                   <span style={{
@@ -79,20 +79,20 @@ export default function MyInvoicesTab() {
                     borderRadius: '4px',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    background: t.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    color: t.status === 'success' ? '#10b981' : '#ef4444'
+                    background: t.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : (t.status === 'refunded' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'),
+                    color: t.status === 'success' ? '#10b981' : (t.status === 'refunded' ? '#ef4444' : '#f59e0b')
                   }}>
-                    {t.status?.toUpperCase()}
+                    {t.status === 'refunded' ? 'REFUNDED (CN ISSUED)' : t.status?.toUpperCase()}
                   </span>
                 </td>
                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                  {t.status === 'success' && (
+                  {(t.status === 'success' || t.status === 'refunded') && (
                     <button
                       onClick={() => setSelectedTxn(t.txnid)}
-                      className="btn btn-secondary btn-sm"
+                      className={t.status === 'refunded' ? 'btn btn-outline-danger btn-sm' : 'btn btn-secondary btn-sm'}
                       style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
                     >
-                      📄 View GST Invoice
+                      {t.status === 'refunded' ? '📄 View Credit Note' : '📄 View GST Invoice'}
                     </button>
                   )}
                 </td>

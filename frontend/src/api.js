@@ -499,6 +499,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  refundTransaction: async (txnId, refundData = {}) => {
+    const res = await fetch(`${BASE_URL}/admin/transactions/${txnId}/refund`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(refundData)
+    });
+    return handleResponse(res);
+  },
+
   adminUpdateCourse: async (id, courseData) => {
     const res = await fetch(`${BASE_URL}/courses/${id}`, {
       method: 'PUT',

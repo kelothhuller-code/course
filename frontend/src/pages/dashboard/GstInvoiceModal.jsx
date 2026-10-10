@@ -149,16 +149,29 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                 </p>
               </div>
 
-              <div style={{ textAlign: 'right', background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, background: invoiceData.billingDetails?.isB2B ? '#dbeafe' : '#fef3c7', color: invoiceData.billingDetails?.isB2B ? '#1e40af' : '#92400e', marginBottom: '0.5rem' }}>
-                  {invoiceData.billingDetails?.isB2B ? 'B2B TAX INVOICE' : 'B2C TAX INVOICE'}
+              <div style={{ textAlign: 'right', background: invoiceData.isRefunded ? '#fef2f2' : '#f8fafc', padding: '1rem', borderRadius: '12px', border: invoiceData.isRefunded ? '1px solid #fecaca' : '1px solid #e2e8f0' }}>
+                <div style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, background: invoiceData.isRefunded ? '#fee2e2' : (invoiceData.billingDetails?.isB2B ? '#dbeafe' : '#fef3c7'), color: invoiceData.isRefunded ? '#b91c1c' : (invoiceData.billingDetails?.isB2B ? '#1e40af' : '#92400e'), marginBottom: '0.5rem' }}>
+                  {invoiceData.isRefunded ? '⚠️ REFUND CREDIT NOTE (SEC 9B)' : (invoiceData.billingDetails?.isB2B ? 'B2B TAX INVOICE' : 'B2C TAX INVOICE')}
                 </div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Invoice No:</p>
-                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '1rem', color: '#0f172a', fontFamily: 'monospace' }}>
-                  {invoiceData.invoiceNo}
-                </p>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Date: {new Date(invoiceData.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Place of Supply: <strong>{invoiceData.billingDetails?.buyerState || invoiceData.seller?.sellerState}</strong></p>
+                {invoiceData.isRefunded ? (
+                  <>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#b91c1c', fontWeight: 600 }}>Credit Note No:</p>
+                    <p style={{ margin: '0 0 0.35rem 0', fontWeight: 'bold', fontSize: '1rem', color: '#b91c1c', fontFamily: 'monospace' }}>
+                      {invoiceData.creditNoteNo || `CN-${invoiceData.txnid}`}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Original Invoice: <span style={{ fontFamily: 'monospace' }}>{invoiceData.invoiceNo}</span></p>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#ef4444' }}>Refunded Date: {new Date(invoiceData.refundDetails?.refundDate || invoiceData.date).toLocaleDateString('en-IN')}</p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Invoice No:</p>
+                    <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '1rem', color: '#0f172a', fontFamily: 'monospace' }}>
+                      {invoiceData.invoiceNo}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Date: {new Date(invoiceData.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </>
+                )}
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>Place of Supply: <strong>{invoiceData.billingDetails?.buyerState || invoiceData.seller?.sellerState}</strong></p>
               </div>
             </div>
 
@@ -171,7 +184,7 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                 {invoiceData.billingDetails?.buyerAddress && (
                   <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', color: '#64748b' }}>{invoiceData.billingDetails.buyerAddress}</p>
                 )}
-                <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: '#0f172a' }}>State: <strong>{invoiceData.billingDetails?.buyerState || 'Tamil Nadu'}</strong></p>
+                <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: '#0f172a' }}>State: <strong>{invoiceData.billingDetails?.buyerState || invoiceData.seller?.sellerState || 'Kerala'}</strong></p>
               </div>
               <div>
                 <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, margin: '0 0 0.4rem 0' }}>Tax Identification:</p>
@@ -221,37 +234,37 @@ export default function GstInvoiceModal({ txnid, onClose }) {
 
             {/* Tax Breakdown Box */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '1.5rem 0' }}>
-              <div style={{ width: '320px', background: '#f8fafc', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ width: '340px', background: invoiceData.isRefunded ? '#fef2f2' : '#f8fafc', borderRadius: '12px', padding: '1rem', border: invoiceData.isRefunded ? '1px solid #fecaca' : '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.85rem', color: '#475569' }}>
-                  <span>Taxable Base Value:</span>
+                  <span>{invoiceData.isRefunded ? 'Taxable Base (Reversed):' : 'Taxable Base Value:'}</span>
                   <span>₹{invoiceData.gstDetails?.baseAmount?.toFixed(2)}</span>
                 </div>
 
                 {invoiceData.gstDetails?.isIntraState ? (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.85rem', color: '#475569' }}>
-                      <span>CGST (9%):</span>
+                      <span>{invoiceData.isRefunded ? 'CGST (9% Reversed):' : 'CGST (9%):'}</span>
                       <span>₹{invoiceData.gstDetails?.cgstAmount?.toFixed(2)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.85rem', color: '#475569' }}>
-                      <span>SGST (9%):</span>
+                      <span>{invoiceData.isRefunded ? 'SGST (9% Reversed):' : 'SGST (9%):'}</span>
                       <span>₹{invoiceData.gstDetails?.sgstAmount?.toFixed(2)}</span>
                     </div>
                   </>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.85rem', color: '#475569' }}>
-                    <span>IGST (18%):</span>
+                    <span>{invoiceData.isRefunded ? 'IGST (18% Reversed):' : 'IGST (18%):'}</span>
                     <span>₹{invoiceData.gstDetails?.igstAmount?.toFixed(2)}</span>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderTop: '1px dashed #cbd5e1', marginTop: '0.4rem', fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>
-                  <span>Total Tax Collected:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderTop: '1px dashed #cbd5e1', marginTop: '0.4rem', fontSize: '0.85rem', fontWeight: 600, color: invoiceData.isRefunded ? '#dc2626' : '#2563eb' }}>
+                  <span>{invoiceData.isRefunded ? 'Total GST Reversed:' : 'Total Tax Collected:'}</span>
                   <span>₹{invoiceData.gstDetails?.gstAmount?.toFixed(2)}</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0 0 0', borderTop: '2px solid #0f172a', marginTop: '0.6rem', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
-                  <span>Total (Incl. Tax):</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0 0 0', borderTop: invoiceData.isRefunded ? '2px solid #b91c1c' : '2px solid #0f172a', marginTop: '0.6rem', fontSize: '1.1rem', fontWeight: 800, color: invoiceData.isRefunded ? '#b91c1c' : '#0f172a' }}>
+                  <span>{invoiceData.isRefunded ? 'Refund Credited:' : 'Total (Incl. Tax):'}</span>
                   <span>₹{invoiceData.amount?.toFixed(2)}</span>
                 </div>
               </div>
@@ -259,7 +272,11 @@ export default function GstInvoiceModal({ txnid, onClose }) {
 
             {/* Footer Compliance Note */}
             <div style={{ textAlign: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1.5rem', color: '#64748b', fontSize: '0.78rem' }}>
-              <p style={{ margin: '0 0 0.2rem 0' }}>This is a computer-generated tax invoice issued in accordance with Rule 46 of Indian CGST Rules, 2017.</p>
+              <p style={{ margin: '0 0 0.2rem 0' }}>
+                {invoiceData.isRefunded 
+                  ? 'This is a computer-generated GST Credit Note issued in accordance with Section 34 of the CGST Act, 2017 & GSTR-1 Section 9B.' 
+                  : 'This is a computer-generated tax invoice issued in accordance with Rule 46 of Indian CGST Rules, 2017.'}
+              </p>
               <p style={{ margin: 0, fontWeight: 600 }}>Thank you for learning with WIDETECHNOS Academy!</p>
             </div>
 

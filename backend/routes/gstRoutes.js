@@ -78,7 +78,7 @@ router.put('/config', protect, admin, async (req, res) => {
   }
 });
 
-// @desc    Get GST Tax Report for GSTR-1 & GSTR-3B filing
+// @desc    Get GST Tax Report for GSTR-1 & GSTR-3B filing (including Credit Notes/Refunds Sec 9B)
 // @route   GET /api/admin/gst/report
 // @access  Private/Admin
 router.get('/report', protect, admin, async (req, res) => {
@@ -86,7 +86,7 @@ router.get('/report', protect, admin, async (req, res) => {
     const { startDate, endDate, month, year } = req.query;
     const gstConfig = await getOrInitGstConfig();
 
-    let query = { status: 'success' };
+    let query = { status: { $in: ['success', 'refunded'] } };
 
     if (startDate && endDate) {
       query.createdAt = {
@@ -112,11 +112,21 @@ router.get('/report', protect, admin, async (req, res) => {
     let totalSgst = 0;
     let totalIgst = 0;
 
+    let totalRefundsCount = 0;
+    let totalRefundedAmount = 0;
+    let totalRefundedBase = 0;
+    let totalRefundedGst = 0;
+    let totalRefundedCgst = 0;
+    let totalRefundedSgst = 0;
+    let totalRefundedIgst = 0;
+
     let b2bInvoices = [];
     let b2cByState = {};
+    let creditNotesList = [];
     let sacSummaryMap = {};
 
     transactions.forEach(txn => {
+      const isRefunded = txn.status === 'refunded';
       const gross = txn.amount || 0;
       let base = txn.gstDetails?.baseAmount;
       let gst = txn.gstDetails?.gstAmount;
@@ -124,7 +134,7 @@ router.get('/report', protect, admin, async (req, res) => {
       let sgst = txn.gstDetails?.sgstAmount || 0;
       let igst = txn.gstDetails?.igstAmount || 0;
       const isIntra = txn.gstDetails?.isIntraState ?? true;
-      const posState = txn.billingDetails?.buyerState || txn.gstDetails?.posState || gstConfig.sellerState || 'Tamil Nadu';
+      const posState = txn.billingDetails?.buyerState || txn.gstDetails?.posState || gstConfig.sellerState || 'Kerala';
       const sac = txn.gstDetails?.hsnSacCode || gstConfig.hsnSacCode || '999249';
       const isB2B = Boolean(txn.billingDetails?.buyerGstin && txn.billingDetails.buyerGstin.trim().length > 5);
 
@@ -144,61 +154,102 @@ router.get('/report', protect, admin, async (req, res) => {
         }
       }
 
-      totalGrossSales += gross;
-      totalTaxableValue += base;
-      totalGstCollected += gst;
-      totalCgst += cgst;
-      totalSgst += sgst;
-      totalIgst += igst;
+      if (!isRefunded) {
+        // Sales Invoices
+        totalGrossSales += gross;
+        totalTaxableValue += base;
+        totalGstCollected += gst;
+        totalCgst += cgst;
+        totalSgst += sgst;
+        totalIgst += igst;
 
-      const formattedTxn = {
-        id: txn._id,
-        invoiceNo: txn.invoiceNo || txn.txnid,
-        txnid: txn.txnid,
-        date: txn.createdAt,
-        buyerName: txn.billingDetails?.buyerName || txn.userId?.name || 'Customer',
-        buyerEmail: txn.billingDetails?.buyerEmail || txn.userId?.email || '',
-        buyerState: posState,
-        buyerGstin: txn.billingDetails?.buyerGstin || '',
-        isB2B,
-        grossAmount: gross,
-        taxableBase: base,
-        gstRate: txn.gstDetails?.rate || 18,
-        gstAmount: gst,
-        cgst,
-        sgst,
-        igst,
-        isIntraState: isIntra,
-        hsnSacCode: sac
-      };
+        const formattedTxn = {
+          id: txn._id,
+          invoiceNo: txn.invoiceNo || txn.txnid,
+          txnid: txn.txnid,
+          date: txn.createdAt,
+          buyerName: txn.billingDetails?.buyerName || txn.userId?.name || 'Customer',
+          buyerEmail: txn.billingDetails?.buyerEmail || txn.userId?.email || '',
+          buyerState: posState,
+          buyerGstin: txn.billingDetails?.buyerGstin || '',
+          isB2B,
+          grossAmount: gross,
+          taxableBase: base,
+          gstRate: txn.gstDetails?.rate || 18,
+          gstAmount: gst,
+          cgst,
+          sgst,
+          igst,
+          isIntraState: isIntra,
+          hsnSacCode: sac
+        };
 
-      if (isB2B) {
-        b2bInvoices.push(formattedTxn);
-      } else {
-        // Aggregate for B2C by State
-        if (!b2cByState[posState]) {
-          b2cByState[posState] = {
-            posState,
-            count: 0,
-            grossSales: 0,
-            taxableBase: 0,
-            gstRate: 18,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-            totalGst: 0
-          };
+        if (isB2B) {
+          b2bInvoices.push(formattedTxn);
+        } else {
+          if (!b2cByState[posState]) {
+            b2cByState[posState] = {
+              posState,
+              count: 0,
+              grossSales: 0,
+              taxableBase: 0,
+              gstRate: 18,
+              cgst: 0,
+              sgst: 0,
+              igst: 0,
+              totalGst: 0
+            };
+          }
+          b2cByState[posState].count += 1;
+          b2cByState[posState].grossSales += gross;
+          b2cByState[posState].taxableBase += base;
+          b2cByState[posState].cgst += cgst;
+          b2cByState[posState].sgst += sgst;
+          b2cByState[posState].igst += igst;
+          b2cByState[posState].totalGst += gst;
         }
-        b2cByState[posState].count += 1;
-        b2cByState[posState].grossSales += gross;
-        b2cByState[posState].taxableBase += base;
-        b2cByState[posState].cgst += cgst;
-        b2cByState[posState].sgst += sgst;
-        b2cByState[posState].igst += igst;
-        b2cByState[posState].totalGst += gst;
+      } else {
+        // Credit Notes / Refunds (GSTR-1 Sec 9B)
+        const refAmt = txn.refundDetails?.refundAmount || gross;
+        const refBase = txn.refundDetails?.refundBaseAmount || base;
+        const refGst = txn.refundDetails?.refundGstAmount || gst;
+        const refCgst = txn.refundDetails?.refundCgstAmount || cgst;
+        const refSgst = txn.refundDetails?.refundSgstAmount || sgst;
+        const refIgst = txn.refundDetails?.refundIgstAmount || igst;
+
+        totalRefundsCount += 1;
+        totalRefundedAmount += refAmt;
+        totalRefundedBase += refBase;
+        totalRefundedGst += refGst;
+        totalRefundedCgst += refCgst;
+        totalRefundedSgst += refSgst;
+        totalRefundedIgst += refIgst;
+
+        creditNotesList.push({
+          id: txn._id,
+          creditNoteNo: txn.creditNoteNo || `CN-${txn.txnid}`,
+          originalInvoiceNo: txn.invoiceNo || txn.txnid,
+          txnid: txn.txnid,
+          originalDate: txn.createdAt,
+          refundDate: txn.refundDetails?.refundDate || txn.updatedAt || txn.createdAt,
+          buyerName: txn.billingDetails?.buyerName || txn.userId?.name || 'Customer',
+          buyerEmail: txn.billingDetails?.buyerEmail || txn.userId?.email || '',
+          buyerState: posState,
+          buyerGstin: txn.billingDetails?.buyerGstin || '',
+          isB2B,
+          refundAmount: refAmt,
+          refundBaseAmount: refBase,
+          refundGstAmount: refGst,
+          cgstReversed: refCgst,
+          sgstReversed: refSgst,
+          igstReversed: refIgst,
+          reason: txn.refundDetails?.refundReason || 'Student Cancellation',
+          isIntraState: isIntra,
+          hsnSacCode: sac
+        });
       }
 
-      // SAC Summary map
+      // SAC Summary map (Net calculation)
       if (!sacSummaryMap[sac]) {
         sacSummaryMap[sac] = {
           hsnSacCode: sac,
@@ -213,16 +264,27 @@ router.get('/report', protect, admin, async (req, res) => {
         };
       }
       sacSummaryMap[sac].count += 1;
-      sacSummaryMap[sac].totalValue += gross;
-      sacSummaryMap[sac].taxableBase += base;
-      sacSummaryMap[sac].cgst += cgst;
-      sacSummaryMap[sac].sgst += sgst;
-      sacSummaryMap[sac].igst += igst;
-      sacSummaryMap[sac].totalGst += gst;
+      const multiplier = isRefunded ? -1 : 1;
+      sacSummaryMap[sac].totalValue += (multiplier * gross);
+      sacSummaryMap[sac].taxableBase += (multiplier * base);
+      sacSummaryMap[sac].cgst += (multiplier * cgst);
+      sacSummaryMap[sac].sgst += (multiplier * sgst);
+      sacSummaryMap[sac].igst += (multiplier * igst);
+      sacSummaryMap[sac].totalGst += (multiplier * gst);
     });
 
     const b2cSummaryList = Object.values(b2cByState);
     const sacSummaryList = Object.values(sacSummaryMap);
+
+    // Compute Net Liabilities (GSTR-3B Table 3.1 & 4)
+    const netGrossSales = totalGrossSales - totalRefundedAmount;
+    const netTaxableTurnover = totalTaxableValue - totalRefundedBase;
+    const netGstPayable = totalGstCollected - totalRefundedGst;
+    const netCgstPayable = totalCgst - totalRefundedCgst;
+    const netSgstPayable = totalSgst - totalRefundedSgst;
+    const netIgstPayable = totalIgst - totalRefundedIgst;
+
+    const successCount = transactions.filter(t => t.status === 'success').length;
 
     res.json({
       sellerProfile: {
@@ -233,7 +295,8 @@ router.get('/report', protect, admin, async (req, res) => {
         hsnSacCode: gstConfig.hsnSacCode
       },
       summary: {
-        totalInvoices: transactions.length,
+        // Gross Sales (Table 4 & 7)
+        totalInvoices: successCount,
         totalGrossSales: Math.round(totalGrossSales * 100) / 100,
         totalTaxableValue: Math.round(totalTaxableValue * 100) / 100,
         totalGstCollected: Math.round(totalGstCollected * 100) / 100,
@@ -241,14 +304,35 @@ router.get('/report', protect, admin, async (req, res) => {
         totalSgst: Math.round(totalSgst * 100) / 100,
         totalIgst: Math.round(totalIgst * 100) / 100,
         b2bCount: b2bInvoices.length,
-        b2cCount: transactions.length - b2bInvoices.length
+        b2cCount: successCount - b2bInvoices.length,
+
+        // Credit Notes / Refunds (GSTR-1 Sec 9B)
+        totalRefundsCount,
+        totalRefundedAmount: Math.round(totalRefundedAmount * 100) / 100,
+        totalRefundedBase: Math.round(totalRefundedBase * 100) / 100,
+        totalRefundedGst: Math.round(totalRefundedGst * 100) / 100,
+        totalRefundedCgst: Math.round(totalRefundedCgst * 100) / 100,
+        totalRefundedSgst: Math.round(totalRefundedSgst * 100) / 100,
+        totalRefundedIgst: Math.round(totalRefundedIgst * 100) / 100,
+
+        // Net Liability (GSTR-3B)
+        netGrossSales: Math.round(netGrossSales * 100) / 100,
+        netTaxableTurnover: Math.round(netTaxableTurnover * 100) / 100,
+        netGstPayable: Math.round(netGstPayable * 100) / 100,
+        netCgstPayable: Math.round(netCgstPayable * 100) / 100,
+        netSgstPayable: Math.round(netSgstPayable * 100) / 100,
+        netIgstPayable: Math.round(netIgstPayable * 100) / 100
       },
       b2bInvoices,
       b2cSummary: b2cSummaryList,
+      creditNotes: creditNotesList,
       sacSummary: sacSummaryList,
       allTransactions: transactions.map(t => ({
+        id: t._id,
         txnid: t.txnid,
         invoiceNo: t.invoiceNo || t.txnid,
+        creditNoteNo: t.creditNoteNo || '',
+        status: t.status,
         date: t.createdAt,
         buyerName: t.billingDetails?.buyerName || t.userId?.name || 'Customer',
         buyerGstin: t.billingDetails?.buyerGstin || 'N/A (B2C)',
@@ -259,6 +343,7 @@ router.get('/report', protect, admin, async (req, res) => {
         cgst: t.gstDetails?.cgstAmount || 0,
         sgst: t.gstDetails?.sgstAmount || 0,
         igst: t.gstDetails?.igstAmount || 0,
+        refundDetails: t.refundDetails
       }))
     });
   } catch (error) {
@@ -267,7 +352,7 @@ router.get('/report', protect, admin, async (req, res) => {
   }
 });
 
-// @desc    Export GSTR-1 CSV format for tax filing
+// @desc    Export comprehensive GSTR-1 CSV format (Invoices & Credit Notes Sec 9B)
 // @route   GET /api/admin/gst/report/export
 // @access  Private/Admin
 router.get('/report/export', protect, admin, async (req, res) => {
@@ -275,7 +360,7 @@ router.get('/report/export', protect, admin, async (req, res) => {
     const { startDate, endDate } = req.query;
     const gstConfig = await getOrInitGstConfig();
 
-    let query = { status: 'success' };
+    let query = { status: { $in: ['success', 'refunded'] } };
     if (startDate && endDate) {
       query.createdAt = {
         $gte: new Date(startDate),
@@ -285,9 +370,10 @@ router.get('/report/export', protect, admin, async (req, res) => {
 
     const transactions = await Transaction.find(query).populate('userId', 'name email').sort({ createdAt: -1 });
 
-    let csvContent = 'Invoice No,Invoice Date,Customer Name,Customer GSTIN,Type (B2B/B2C),Place of Supply (State),SAC Code,Gross Total (INR),Taxable Value (INR),GST Rate %,CGST (INR),SGST (INR),IGST (INR),Total Tax (INR)\n';
+    let csvContent = 'Document Type,Document No,Original Invoice Ref,Date,Customer Name,Customer GSTIN,Category,Place of Supply,SAC Code,Gross Value (INR),Taxable Base (INR),Rate %,CGST (INR),SGST (INR),IGST (INR),Total GST (INR),Status\n';
 
     transactions.forEach(t => {
+      const isRefunded = t.status === 'refunded';
       const gross = t.amount || 0;
       const base = t.gstDetails?.baseAmount || Math.round((gross / 1.18) * 100) / 100;
       const gst = t.gstDetails?.gstAmount || Math.round((gross - base) * 100) / 100;
@@ -298,27 +384,35 @@ router.get('/report/export', protect, admin, async (req, res) => {
       const gstin = t.billingDetails?.buyerGstin || '';
       const isB2B = Boolean(gstin && gstin.trim().length > 5);
 
+      const docType = isRefunded ? 'Credit Note (Sec 9B)' : 'Tax Invoice';
+      const docNo = isRefunded ? (t.creditNoteNo || `CN-${t.txnid}`) : (t.invoiceNo || t.txnid);
+      const origRef = isRefunded ? (t.invoiceNo || t.txnid) : 'N/A';
+      const sign = isRefunded ? '-' : '';
+
       const row = [
-        `"${t.invoiceNo || t.txnid}"`,
-        `"${new Date(t.createdAt).toISOString().split('T')[0]}"`,
+        `"${docType}"`,
+        `"${docNo}"`,
+        `"${origRef}"`,
+        `"${new Date(isRefunded ? (t.refundDetails?.refundDate || t.updatedAt || t.createdAt) : t.createdAt).toISOString().split('T')[0]}"`,
         `"${(t.billingDetails?.buyerName || t.userId?.name || 'Customer').replace(/"/g, '""')}"`,
         `"${gstin}"`,
         `"${isB2B ? 'B2B' : 'B2C'}"`,
         `"${pos}"`,
         `"${t.gstDetails?.hsnSacCode || '999249'}"`,
-        gross.toFixed(2),
-        base.toFixed(2),
+        `${sign}${gross.toFixed(2)}`,
+        `${sign}${base.toFixed(2)}`,
         '18%',
-        cgst.toFixed(2),
-        sgst.toFixed(2),
-        igst.toFixed(2),
-        gst.toFixed(2)
+        `${sign}${cgst.toFixed(2)}`,
+        `${sign}${sgst.toFixed(2)}`,
+        `${sign}${igst.toFixed(2)}`,
+        `${sign}${gst.toFixed(2)}`,
+        `"${t.status.toUpperCase()}"`
       ];
       csvContent += row.join(',') + '\n';
     });
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=GST_Report_GSTR1_${Date.now()}.csv`);
+    res.setHeader('Content-Disposition', `attachment; filename=GSTR1_Tax_Report_${Date.now()}.csv`);
     res.status(200).send(csvContent);
   } catch (error) {
     console.error('Export CSV error:', error);
