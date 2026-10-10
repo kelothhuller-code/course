@@ -39,11 +39,25 @@ const App = {
     },
 
     async navigateTo(view, params = null) {
-        this.showLoading();
-
         if (view !== 'login' && !AuthModule.isAuthenticated()) {
             view = 'login';
         }
+
+        const sidebar = document.querySelector('.sidebar');
+        const topbar = document.querySelector('.topbar');
+        const appContainer = document.querySelector('.app-container');
+
+        if (view === 'login') {
+            if (sidebar) sidebar.style.display = 'none';
+            if (topbar) topbar.style.display = 'none';
+            if (appContainer) appContainer.style.display = 'block';
+        } else {
+            if (sidebar) sidebar.style.display = 'flex';
+            if (topbar) topbar.style.display = 'flex';
+            if (appContainer) appContainer.style.display = 'flex';
+        }
+
+        this.showLoading();
 
         let content = '';
         let id = null;
@@ -135,6 +149,11 @@ const App = {
                     content = await CouponsModule.render();
                     break;
 
+                case 'inquiries':
+                    this.setBreadcrumb('📬 Student Inquiries & Support');
+                    content = await InquiriesModule.render();
+                    break;
+
                 // ==================== GST & SALES BUILDER VIEWS ====================
                 case 'gst-report':
                 case 'gst_report':
@@ -178,42 +197,102 @@ const App = {
 
     renderLogin() {
         return `
-            <div class="panel" style="max-width:400px;margin:0 auto;margin-top:50px;">
-                <h3 style="text-align:center;margin-bottom:24px;">Super Admin Login</h3>
-                <form id="login-form">
-                    <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input type="text" id="login-email" class="form-control" required>
+            <div class="login-page-wrapper" style="position:fixed;inset:0;background:radial-gradient(ellipse at 50% 25%, #1e1b4b 0%, #0f172a 100%);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;overflow-y:auto;">
+                <div class="login-card" style="width:100%;max-width:440px;background:rgba(30,41,59,0.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.14);border-radius:24px;padding:40px 32px;box-shadow:0 30px 70px -15px rgba(0,0,0,0.8);animation:fadeIn 0.3s ease;">
+                    <div style="text-align:center;margin-bottom:28px;">
+                        <div style="width:64px;height:64px;margin:0 auto 16px;border-radius:18px;background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 12px 30px -6px rgba(59,130,246,0.6);">
+                            🛡️
+                        </div>
+                        <h2 style="font-size:1.6rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;color:#fff;">
+                            WIDETECHNOS
+                        </h2>
+                        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Super Admin Control Center</p>
+                        <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);font-size:0.75rem;color:#60a5fa;font-weight:600;">
+                            <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+                            Restricted Internal Gate
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Password</label>
-                        <input type="password" id="login-password" class="form-control" required>
+
+                    <form id="login-form">
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label style="font-size:0.82rem;font-weight:600;color:#cbd5e1;margin-bottom:6px;display:block;">Master Email</label>
+                            <div style="position:relative;">
+                                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:1rem;">✉️</span>
+                                <input type="email" id="login-email" class="form-control" required placeholder="admin@widetechnos.com" 
+                                       style="width:100%;padding:12px 14px 12px 42px;border-radius:10px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.14);color:#fff;font-size:0.92rem;" />
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:22px;">
+                            <label style="font-size:0.82rem;font-weight:600;color:#cbd5e1;margin-bottom:6px;display:block;">Master Password</label>
+                            <div style="position:relative;">
+                                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:1rem;">🔑</span>
+                                <input type="password" id="login-password" class="form-control" required placeholder="••••••••••••"
+                                       style="width:100%;padding:12px 42px 12px 42px;border-radius:10px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.14);color:#fff;font-size:0.92rem;" />
+                                <button type="button" onclick="App.togglePassword()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem;" title="Show/Hide Password">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="login-submit-btn" class="btn btn-primary" 
+                                style="width:100%;padding:12px;border-radius:10px;font-weight:700;font-size:0.95rem;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);box-shadow:0 6px 20px rgba(37,99,235,0.4);border:none;color:#fff;cursor:pointer;">
+                            <span>Authenticate & Enter</span> →
+                        </button>
+
+                        <div id="login-error" style="display:none;margin-top:16px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.85rem;text-align:center;"></div>
+                    </form>
+
+                    <div style="margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+                        <a href="http://localhost:5173" target="_blank" rel="noopener noreferrer" style="font-size:0.82rem;color:#94a3b8;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                            🎓 Open Student Academy Portal →
+                        </a>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
-                    <div id="login-error" class="text-danger" style="margin-top:12px;text-align:center;"></div>
-                </form>
+                </div>
             </div>
         `;
+    },
+
+    togglePassword() {
+        const inp = document.getElementById('login-password');
+        if (inp) {
+            inp.type = inp.type === 'password' ? 'text' : 'password';
+        }
     },
 
     setupLoginForm() {
         const form = document.getElementById('login-form');
         if (!form) return;
 
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
-
-        newForm.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('login-email').value;
+            const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
+            const submitBtn = document.getElementById('login-submit-btn');
 
-            const result = await AuthModule.login(email, password);
-            if (!result.success) {
-                errorEl.textContent = result.message || 'Login failed';
-            } else {
-                errorEl.textContent = '';
+            if (!email || !password) return;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Verifying credentials...</span>';
+            errorEl.style.display = 'none';
+
+            try {
+                const result = await AuthModule.login(email, password);
+                if (!result.success) {
+                    errorEl.textContent = result.message || 'Authentication failed. Please verify credentials.';
+                    errorEl.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>Authenticate & Enter</span> →';
+                } else {
+                    errorEl.style.display = 'none';
+                    App.navigateTo('dashboard');
+                }
+            } catch (err) {
+                errorEl.textContent = err.message || 'Server connection error';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Authenticate & Enter</span> →';
             }
         });
     },

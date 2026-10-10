@@ -38,7 +38,7 @@ export default function PrivacyPage({ user }) {
 
           <h2>1. Overview</h2>
           <p>
-            At <strong>WIDETECHNOS Academy</strong>, operated by <strong>WIDE VENTURES</strong> (Trade Names: <strong>WIDE TECH</strong>, <strong>BROFFY</strong>; GSTIN: <strong>32FBEPK9712B1Z0</strong>) located at 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India (via <code>widetech.in</code>), we take your privacy and the security of your personal information seriously. This Privacy Policy outlines what information we collect when you use our educational website, purchase courses, or attend workshops, and how that information is handled.
+            At <strong>WIDETECHNOS Academy</strong>, operated by <strong>WIDE VENTURES</strong> (Trade Names: <strong>WIDE TECH</strong>, <strong>BROFFY</strong>) located at 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India (via <code>widetech.in</code>), we take your privacy and the security of your personal information seriously. This Privacy Policy outlines what information we collect when you use our educational website, purchase courses, or attend workshops, and how that information is handled.
           </p>
 
           <h2>2. Information We Collect</h2>
@@ -89,7 +89,7 @@ export default function PrivacyPage({ user }) {
           <ul>
             <li>Access and review the personal information associated with your student account.</li>
             <li>Request corrections to any inaccurate profile or billing information.</li>
-            <li>Request permanent deletion of your account and data by emailing <code>support@widetechnos.com</code> (subject to statutory financial/tax record retention requirements under Indian GST law).</li>
+            <li>Request permanent deletion of your account and data by emailing <code>support@widetech.in</code> (subject to statutory financial/tax record retention requirements under Indian GST law).</li>
           </ul>
 
           <h2>8. Contact & Grievance Officer</h2>
@@ -99,9 +99,8 @@ export default function PrivacyPage({ user }) {
           <div className="legal-highlight-box">
             <strong>Data Privacy & Grievance Officer</strong><br />
             WIDE VENTURES (WIDE TECH / BROFFY)<br />
-            GSTIN: 32FBEPK9712B1Z0<br />
             Address: 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India<br />
-            Email: <a href="mailto:support@widetechnos.com">support@widetechnos.com</a><br />
+            Email: <a href="mailto:support@widetech.in">support@widetech.in</a><br />
             Website: <a href="https://widetech.in">https://widetech.in</a><br />
             Response Window: Within 48 business hours
           </div>

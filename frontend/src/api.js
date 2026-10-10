@@ -454,6 +454,16 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Submit Contact Us inquiry
+  submitContactForm: async (data) => {
+    const res = await fetch(`${BASE_URL}/leads/contact`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   // Dedicated Course Sales Page
   getCourseSalesPage: async (slugOrId) => {
     const res = await fetch(`${BASE_URL}/courses/sales/${slugOrId}`);

@@ -177,5 +177,18 @@ replyAsAdmin(courseId, commentId, text) {
 
     deleteCoupon(id) {
         return this.delete(`/api/admin/coupons/${id}`);
+    },
+
+    // Contact Inquiries Endpoints
+    getInquiries() {
+        return this.get('/api/leads/messages');
+    },
+
+    replyToInquiry(id, replyText, customSubject) {
+        return this.post(`/api/leads/messages/${id}/reply`, { replyText, customSubject });
+    },
+
+    deleteInquiry(id) {
+        return this.delete(`/api/leads/messages/${id}`);
     }
 };

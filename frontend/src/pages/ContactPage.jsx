@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../api';
 import NavHeader from './NavHeader';
 import Footer from './Landing/Footer';
 import './LegalPage.css';
 
 export default function ContactPage({ user }) {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -17,9 +20,20 @@ export default function ContactPage({ user }) {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) return;
+
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      await api.submitContactForm(formData);
+      setSubmitted(true);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to submit your message. Please try again or email us directly.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,7 +60,7 @@ export default function ContactPage({ user }) {
           <div className="contact-card">
             <span className="contact-icon">📧</span>
             <h3>Email Support</h3>
-            <p><a href="mailto:support@widetechnos.com" style={{ color: 'var(--primary)', fontWeight: 600 }}>support@widetechnos.com</a></p>
+            <p><a href="mailto:support@widetech.in" style={{ color: 'var(--primary)', fontWeight: 600 }}>support@widetech.in</a></p>
             <p style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>Response within 24 business hours</p>
           </div>
 
@@ -129,9 +143,15 @@ export default function ContactPage({ user }) {
                 />
               </div>
 
+              {errorMsg && (
+                <div style={{ color: '#ef4444', fontSize: '0.85rem', background: '#fef2f2', padding: '0.6rem 0.8rem', borderRadius: '6px' }}>
+                  {errorMsg}
+                </div>
+              )}
+
               <div>
-                <button type="submit" className="btn btn-primary btn-md" style={{ padding: '0.75rem 2rem', fontWeight: 700 }}>
-                  Send Inquiry →
+                <button type="submit" disabled={loading} className="btn btn-primary btn-md" style={{ padding: '0.75rem 2rem', fontWeight: 700 }}>
+                  {loading ? 'Sending...' : 'Send Inquiry →'}
                 </button>
               </div>
             </form>
@@ -142,9 +162,9 @@ export default function ContactPage({ user }) {
             <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.7' }}>
               <strong>Trade / Legal Entity Name:</strong> WIDE VENTURES<br />
               <strong>Operating Trade Names:</strong> WIDE TECH, BROFFY, WIDETECHNOS Academy<br />
-              <strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>32FBEPK9712B1Z0</span><br />
               <strong>Registered Principal Place of Business:</strong> 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India<br />
               <strong>Website / Platform:</strong> <a href="https://widetech.in" target="_blank" rel="noopener noreferrer">https://widetech.in</a><br />
+              <strong>Official Support Email:</strong> <a href="mailto:support@widetech.in">support@widetech.in</a><br />
               <strong>Jurisdiction:</strong> Wayanad, Kerala, India<br />
               <strong>Grievance Redressal:</strong> All inquiries and grievances are acknowledged within 24 business hours and resolved within 7 working days.
             </p>
