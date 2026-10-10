@@ -17,6 +17,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import RefundPage from './pages/RefundPage';
 import ContactPage from './pages/ContactPage';
+import WhatsAppButton from './components/WhatsAppButton';
 
 
 function AppContent() {
@@ -158,6 +159,9 @@ function AppContent() {
           </div>
         </div>
       )}
+
+      {/* Persistent Floating WhatsApp Desk */}
+      <WhatsAppButton />
     </div>
   );
 }

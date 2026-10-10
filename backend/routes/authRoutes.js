@@ -198,6 +198,7 @@ router.post('/login', async (req, res) => {
 router.get('/profile', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
+      .select('-password')
       .populate('enrolledCourses.courseId')
       .populate('enrolledEvents.eventId');
 

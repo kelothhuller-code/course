@@ -33,9 +33,12 @@ export default function NavHeader({ user, onLogout }) {
         <div className="container">
           <div className="navbar-inner">
             {/* Logo / Brand */}
-            <Link to="/" className="navbar-brand" onClick={closeMenu}>
-              <span className="brand-name">WIDETECHNOS</span>
-              <span className="brand-tagline">ACADEMY</span>
+            <Link to="/" className="navbar-brand" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+              <img src="/logo.png" alt="WideTech Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span className="brand-name">WIDETECHNOS</span>
+                <span className="brand-tagline">ACADEMY</span>
+              </div>
             </Link>
 
             {/* Mobile Header Quick Bar */}
