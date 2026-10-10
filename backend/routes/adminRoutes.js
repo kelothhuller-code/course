@@ -229,8 +229,10 @@ router.get('/dashboard', async (req, res) => {
     const totalUsers = await User.countDocuments({});
     
     // Calculate total payments received from successful transactions
-    const successfulTxns = await Transaction.find({ status: 'success' });
+    const successfulTxns = await Transaction.find({ status: 'success' }).sort({ createdAt: -1 });
+    const refundedTxns = await Transaction.find({ status: 'refunded' });
     const totalPayments = successfulTxns.reduce((acc, txn) => acc + txn.amount, 0);
+    const totalRefunded = refundedTxns.reduce((acc, txn) => acc + (txn.refundDetails?.refundAmount || txn.amount), 0);
 
     const totalCourses = await Course.countDocuments({});
     const freeCourses = await Course.countDocuments({ isFree: true });
@@ -239,13 +241,77 @@ router.get('/dashboard', async (req, res) => {
     const usersWithEnrollments = await User.find({ 'enrolledCourses.0': { $exists: true } });
     const totalEnrollments = usersWithEnrollments.reduce((acc, user) => acc + user.enrolledCourses.length, 0);
 
+    // Compute last 7 days revenue and signups trend
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().split('T')[0];
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+      last7Days.push({
+        date: dayStr,
+        day: dayLabel,
+        revenue: 0,
+        orders: 0,
+        signups: 0
+      });
+    }
+
+    // Populate daily revenue from successful transactions
+    successfulTxns.forEach(txn => {
+      const txnDate = new Date(txn.createdAt).toISOString().split('T')[0];
+      const match = last7Days.find(d => d.date === txnDate);
+      if (match) {
+        match.revenue += txn.amount;
+        match.orders += 1;
+      }
+    });
+
+    // Populate daily signups
+    const recentUsers = await User.find({
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }).select('createdAt');
+    recentUsers.forEach(u => {
+      const uDate = new Date(u.createdAt).toISOString().split('T')[0];
+      const match = last7Days.find(d => d.date === uDate);
+      if (match) {
+        match.signups += 1;
+      }
+    });
+
+    // Calculate top enrolled courses
+    const courseStatsMap = {};
+    usersWithEnrollments.forEach(u => {
+      u.enrolledCourses.forEach(ec => {
+        const cId = ec.courseId?.toString();
+        if (cId) {
+          courseStatsMap[cId] = (courseStatsMap[cId] || 0) + 1;
+        }
+      });
+    });
+
+    const coursesList = await Course.find({}).select('title price category isFree');
+    const topCourses = coursesList.map(c => ({
+      id: c._id,
+      title: c.title,
+      category: c.category,
+      price: c.price,
+      isFree: c.isFree,
+      enrollments: courseStatsMap[c._id.toString()] || 0
+    })).sort((a, b) => b.enrollments - a.enrollments).slice(0, 5);
+
     res.json({
       totalUsers,
       totalPayments,
+      totalRefunded,
+      netRevenue: totalPayments - totalRefunded,
       totalCourses,
       freeCourses,
       paidCourses: totalCourses - freeCourses,
-      totalEnrollments
+      totalEnrollments,
+      totalRefundsCount: refundedTxns.length,
+      dailyTrend: last7Days,
+      topCourses
     });
   } catch (error) {
     console.error('Admin fetch dashboard error:', error);

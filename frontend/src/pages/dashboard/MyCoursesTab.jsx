@@ -75,6 +75,16 @@ export default function MyCoursesTab({
                   <button className="btn btn-primary btn-sm" onClick={() => handleContinueLearning(course._id)}>
                     {item.progress > 0 ? 'Continue' : 'Start Study'}
                   </button>
+                  {(!course.isFree && course.price > 0) && (
+                    <button 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => setActiveTab && setActiveTab('invoices')}
+                      title="View and download GST Tax Invoice"
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      🧾 Invoice
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
