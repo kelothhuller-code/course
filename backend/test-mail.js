@@ -73,22 +73,38 @@ transporter.verify(async (error, success) => {
 
   console.log(`📤 Step 2: Sending test email to ${targetEmail}...`);
   try {
+    const logoUrl = process.env.APP_LOGO_URL || '';
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || `"WIDETECHNOS Academy" <${process.env.SMTP_USER}>`,
       to: targetEmail,
       subject: '🎉 Test Email: WIDETECHNOS Academy Mailer Active!',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-          <h2 style="color: #4f46e5; margin-top: 0;">🎉 WIDETECHNOS Mailer is Working!</h2>
-          <p>Congratulations! Your email system has been successfully verified.</p>
-          <div style="background: #f8fafc; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 13px; margin: 16px 0;">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
+          <div style="text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
+            <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}" target="_blank" style="text-decoration: none; display: inline-block;">
+              ${logoUrl ? `<img src="${logoUrl}" alt="WIDETECHNOS Academy" style="max-height: 48px; max-width: 200px; display: block; margin: 0 auto 10px auto;" />` : ''}
+              <div style="display: inline-block; text-align: center;">
+                <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">WIDETECHNOS</span>
+                <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #8b5cf6; background: #f3e8ff; padding: 3px 8px; border-radius: 6px; margin-left: 6px; vertical-align: middle; letter-spacing: 1px;">ACADEMY</span>
+              </div>
+            </a>
+          </div>
+          <h2 style="color: #10b981; margin-top: 0;">🎉 SMTP Connection Successful!</h2>
+          <p style="color: #334155; line-height: 1.6;">This is a test email sent from your <strong>WIDETECHNOS Academy</strong> backend.</p>
+          <div style="background: #f8fafc; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 13px; margin: 16px 0; border: 1px solid #e2e8f0;">
             Host: ${process.env.SMTP_HOST}<br />
             Port: ${process.env.SMTP_PORT || '587'}<br />
+            From: ${process.env.SMTP_FROM || 'noreply'}<br />
             Dispatched at: ${new Date().toISOString()}
           </div>
-          <p style="color: #64748b; font-size: 13px; margin: 0;">
-            This test confirms your backend can dispatch student invoices, registration welcomes, and announcement emails.
+          <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.6;">
+            Your automated emails (course purchase receipts, student registration welcomes, and announcement broadcasts) are active and ready!
           </p>
+          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
+          <div style="font-family: sans-serif; font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.6;">
+            <p style="margin: 0 0 6px 0;"><strong>WIDETECHNOS Academy</strong> • Vision by Instagram @widetechai</p>
+            <p style="margin: 0;">Visit our platform at <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}" style="color: #6366f1; text-decoration: none;">widetech.in</a></p>
+          </div>
         </div>
       `,
     });
