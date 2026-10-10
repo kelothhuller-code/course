@@ -593,42 +593,55 @@ a {
 .sidebar-card {
   padding: 1.5rem;
   height: fit-content;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05);
 }
 
 .profile-summary {
   text-align: center;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
 }
 
 .profile-avatar {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  margin: 0 auto 1rem auto;
-  box-shadow: 0 0 20px var(--primary-glow);
+  margin: 0 auto 0.85rem auto;
+  box-shadow: 0 8px 20px -4px var(--primary-glow);
 }
 
 .profile-name {
   font-size: 1.15rem;
   font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
 }
 
 .profile-role {
   font-size: 0.75rem;
-  color: var(--secondary);
+  color: var(--primary);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+.profile-email {
+  font-size: 0.8rem;
+  color: var(--text-muted);
   margin-top: 0.25rem;
+  word-break: break-all;
 }
 
 .sidebar-menu {
@@ -639,22 +652,31 @@ a {
 
 .sidebar-btn {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-secondary);
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.sidebar-btn:hover, .sidebar-btn.active {
-  background: rgba(255, 255, 255, 0.03);
+.sidebar-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.sidebar-btn.active {
+  background: var(--primary);
   color: #fff;
-  border-left: 3px solid var(--secondary);
-  padding-left: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -2px var(--primary-glow);
 }
 
 .dashboard-title {
@@ -1121,6 +1143,74 @@ a {
 @media (max-width: 968px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1rem 0 2rem 0;
+  }
+  .sidebar-card {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+  .profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-align: left;
+    padding-bottom: 0.85rem;
+    margin-bottom: 0.85rem;
+  }
+  .profile-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .profile-info {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .profile-name {
+    font-size: 1.05rem;
+    margin-bottom: 0.1rem;
+  }
+  .profile-role {
+    margin-top: 0;
+    font-size: 0.7rem;
+  }
+  .profile-email {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0.1rem 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem;
+    padding-bottom: 0.35rem;
+    scrollbar-width: none;
+  }
+  .sidebar-menu::-webkit-scrollbar {
+    display: none;
+  }
+  .sidebar-btn {
+    width: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.82rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    justify-content: center;
+  }
+  .sidebar-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
   }
   .course-viewer-layout {
     grid-template-columns: 1fr;

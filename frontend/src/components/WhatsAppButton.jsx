@@ -4,7 +4,7 @@ export default function WhatsAppButton() {
   const [showTooltip, setShowTooltip] = useState(true);
   const phoneNumber = '918281760168';
   const defaultMessage = encodeURIComponent(
-    'Hi WIDETECHNOS Academy! I would like to know more about your AI courses and workshops.'
+    'Hi WideTech Academy! I would like to know more about your AI courses and workshops.'
   );
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${defaultMessage}`;
 

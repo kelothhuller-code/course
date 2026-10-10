@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
-import DashboardSummary from './dashboard/DashboardSummary';
 import DashboardSidebar from './dashboard/DashboardSidebar';
 import DashboardTabs from './dashboard/DashboardTabs';
 import CertificateModal from './dashboard/CertificateModal';
@@ -113,7 +112,7 @@ export default function Dashboard({ user, onRefreshUser }) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Certificate - WIDETECHNOS Academy</title>
+          <title>Certificate - WIDETECH Academy</title>
           <style>
             body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
             * { box-sizing: border-box; }
@@ -184,15 +183,7 @@ export default function Dashboard({ user, onRefreshUser }) {
       <div className="landing-page" style={{ paddingTop: '1rem' }}>
         <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
           
-          {/* Summary Cards */}
-          <DashboardSummary 
-            enrolledCourses={enrolledCourses}
-            inProgressCourses={inProgressCourses}
-            completedCourses={completedCourses}
-            certificates={certificates}
-          />
-
-          <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '2rem' }}>
+          <div className="dashboard-grid">
             
             {/* Sidebar */}
             <DashboardSidebar 
@@ -205,13 +196,14 @@ export default function Dashboard({ user, onRefreshUser }) {
             />
 
             {/* Main Content */}
-            <main>
+            <main style={{ minWidth: 0, width: '100%' }}>
               <DashboardTabs 
                 activeTab={activeTab}
                 inProgressCourses={inProgressCourses}
                 enrolledCourses={enrolledCourses}
-                enrolledEvents={enrolledEvents}
+                completedCourses={completedCourses}
                 certificates={certificates}
+                enrolledEvents={enrolledEvents}
                 allCourses={allCourses}
                 enrolledCourseIds={enrolledCourseIds}
                 handleContinueLearning={handleContinueLearning}

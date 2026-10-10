@@ -64,7 +64,7 @@ export default function CertificateVerify() {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-            WIDETECHNOS ACADEMY
+            WIDETECH ACADEMY
           </div>
           <div style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '1.5rem' }}>
             Certificate of Accomplishment

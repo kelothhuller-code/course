@@ -33,11 +33,11 @@ export default function NavHeader({ user, onLogout }) {
         <div className="container">
           <div className="navbar-inner">
             {/* Logo / Brand */}
-            <Link to="/" className="navbar-brand" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-              <img src="/logo.png" alt="WideTech Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="brand-name">WIDETECHNOS</span>
-                <span className="brand-tagline">ACADEMY</span>
+            <Link to="/" className="navbar-brand" onClick={closeMenu} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+              <img src="/logo.svg" alt="WideTech Logo" style={{ width: '38px', height: '32px', objectFit: 'contain' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+                <span className="brand-name" style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
+                <span className="brand-tagline" style={{ fontSize: '0.68rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
               </div>
             </Link>
 

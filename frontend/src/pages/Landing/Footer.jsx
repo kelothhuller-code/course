@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">
-            <h3>WIDETECHNOS</h3>
+            <h3>WIDETECH</h3>
             <p>
               Making AI education accessible to everyone — from kids to seniors, 
               beginners to professionals.
@@ -51,7 +51,7 @@ export default function Footer() {
         <div className="footer-bottom">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <span>© {new Date().getFullYear()} WIDETECHNOS Academy (WIDE VENTURES). All rights reserved.</span>
+              <span>© {new Date().getFullYear()} WIDETECH Academy (WIDE VENTURES). All rights reserved.</span>
             </div>
             <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem' }}>
               <Link to="/terms" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Terms</Link>

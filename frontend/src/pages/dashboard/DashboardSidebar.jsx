@@ -10,7 +10,7 @@ export default function DashboardSidebar({
   certificates 
 }) {
   const menuItems = [
-    { id: 'continue', icon: '▶', label: 'Continue Learning' },
+    { id: 'continue', icon: '▶', label: 'Dashboard' },
     { id: 'courses', icon: '📖', label: `My Courses (${enrolledCourses.length})` },
     { id: 'events', icon: '📅', label: `Events (${enrolledEvents.length})` },
     { id: 'certs', icon: '🎓', label: `Certificates (${certificates.length})` },
@@ -23,47 +23,27 @@ export default function DashboardSidebar({
   }
 
   return (
-    <aside className="glass-card sidebar-card" style={{ padding: '1.5rem', alignSelf: 'start' }}>
-      <div className="profile-summary" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <div className="profile-avatar" style={{
-          width: '72px',
-          height: '72px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.5rem',
-          fontWeight: 'bold',
-          color: '#fff',
-          margin: '0 auto 0.75rem auto'
-        }}>
+    <aside className="glass-card sidebar-card dashboard-sidebar">
+      <div className="profile-summary">
+        <div className="profile-avatar">
           {profile?.name?.substring(0, 2).toUpperCase() || 'U'}
         </div>
-        <h3 className="profile-name" style={{ marginBottom: '0.25rem' }}>{profile?.name}</h3>
-        <div className="profile-role" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{profile?.role}</div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{profile?.email}</p>
+        <div className="profile-info">
+          <h3 className="profile-name">{profile?.name}</h3>
+          <div className="profile-role">{profile?.role === 'admin' ? 'Super Admin' : 'Student'}</div>
+          <p className="profile-email">{profile?.email}</p>
+        </div>
       </div>
       
-      <nav className="sidebar-menu" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <nav className="sidebar-menu">
         {menuItems.map(item => (
           <button 
             key={item.id}
             className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => setActiveTab(item.id)}
-            style={{
-              padding: '0.75rem 1rem',
-              border: 'none',
-              borderRadius: 'var(--radius)',
-              background: activeTab === item.id ? 'var(--primary)' : 'transparent',
-              color: activeTab === item.id ? '#fff' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              fontWeight: activeTab === item.id ? '600' : '400',
-              transition: 'all var(--transition)'
-            }}
           >
-            {item.icon} {item.label}
+            <span className="sidebar-btn-icon">{item.icon}</span>
+            <span className="sidebar-btn-label">{item.label}</span>
           </button>
         ))}
       </nav>

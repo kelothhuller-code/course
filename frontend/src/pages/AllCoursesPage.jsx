@@ -94,9 +94,12 @@ export default function AllCoursesPage({ user, onLogout }) {
       {/* Navbar */}
       <header className="navbar navbar-scrolled">
         <div className="container nav-container">
-          <Link to="/" className="logo-link">
-            <span className="logo-text">WIDETECHNOS</span>
-            <span className="logo-tagline">ACADEMY</span>
+          <Link to="/" className="navbar-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '38px', height: '32px', objectFit: 'contain' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+              <span className="brand-name" style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
+              <span className="brand-tagline" style={{ fontSize: '0.68rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
+            </div>
           </Link>
 
           <nav className="nav-links">
@@ -293,7 +296,7 @@ export default function AllCoursesPage({ user, onLogout }) {
         <div className="container">
           <div className="footer-grid">
             <div className="footer-brand">
-              <h3>WIDETECHNOS</h3>
+              <h3>WIDETECH</h3>
               <p>
                 Making AI education accessible to everyone — from kids to seniors,
                 beginners to professionals.
@@ -321,13 +324,13 @@ export default function AllCoursesPage({ user, onLogout }) {
             <div className="footer-links">
               <h4>Connect</h4>
               <ul>
-                <li><a href="mailto:hello@widetechnos.com">Email Us</a></li>
+                <li><a href="mailto:hello@widetech.in">Email Us</a></li>
                 <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
               </ul>
             </div>
           </div>
           <div className="footer-bottom">
-            © {new Date().getFullYear()} WIDETECHNOS Academy. All rights reserved.
+            © {new Date().getFullYear()} WIDETECH Academy. All rights reserved.
           </div>
         </div>
       </footer>
