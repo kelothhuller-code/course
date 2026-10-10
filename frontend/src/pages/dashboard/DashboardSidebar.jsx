@@ -79,12 +79,12 @@ export default function DashboardSidebar({
   const menuItems = [
     { id: 'dashboard', icon: NavIcons.dashboard, label: 'Dashboard' },
     { id: 'courses', icon: NavIcons.courses, label: 'My Courses', count: enrolledCourses.length },
-    { id: 'software', icon: NavIcons.software, label: 'Software & Tools', count: profile?.purchasedSoftware?.length || 0 },
-    { id: 'services', icon: NavIcons.services, label: 'Services & Automation', count: profile?.purchasedServices?.length || 0 },
+    { id: 'explore', icon: NavIcons.explore, label: 'Explore Courses' },
     { id: 'events', icon: NavIcons.events, label: 'Live Workshops', count: enrolledEvents.length },
     { id: 'certs', icon: NavIcons.certs, label: 'Certificates', count: certificates.length },
+    { id: 'software', icon: NavIcons.software, label: 'Software & Tools', count: profile?.purchasedSoftware?.length || 0 },
+    { id: 'services', icon: NavIcons.services, label: 'Services & Automation', count: profile?.purchasedServices?.length || 0 },
     { id: 'invoices', icon: NavIcons.invoices, label: 'My GST Invoices' },
-    { id: 'explore', icon: NavIcons.explore, label: 'Explore Store' },
   ];
 
   if (profile?.role === 'admin') {

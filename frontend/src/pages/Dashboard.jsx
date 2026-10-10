@@ -196,8 +196,8 @@ export default function Dashboard({ user, onRefreshUser }) {
       <div className="landing-page" style={{ paddingTop: '1rem' }}>
         <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
           
-          <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
-            {/* Main Content */}
+          <div style={{ width: '100%', maxWidth: '1360px', margin: '0 auto' }}>
+            {/* Main Content Area */}
             <main style={{ minWidth: 0, width: '100%' }}>
               <DashboardTabs 
                 activeTab={activeTab}

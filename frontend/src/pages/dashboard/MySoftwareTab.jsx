@@ -5,6 +5,16 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
   const [allSoftwares, setAllSoftwares] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [selectedSoftware, setSelectedSoftware] = useState(null);
+  const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: profile?.name || '',
+    email: profile?.email || '',
+    phone: '',
+    companyName: '',
+    requirements: ''
+  });
 
   const purchasedList = profile?.purchasedSoftware || [];
 
@@ -26,6 +36,29 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
     navigator.clipboard.writeText(key);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleOpenEnquiry = (sw) => {
+    setSelectedSoftware(sw);
+    setShowEnquiryModal(true);
+  };
+
+  const handleSubmitEnquiry = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await api.submitSoftwareEnquiry({
+        ...formData,
+        softwareId: selectedSoftware?._id || null
+      });
+      alert('Your enquiry has been received in our backend! WideTech engineers will reach out to you directly within 24 hours.');
+      setShowEnquiryModal(false);
+      setFormData({ name: profile?.name || '', email: profile?.email || '', phone: '', companyName: '', requirements: '' });
+    } catch (err) {
+      alert('Error submitting enquiry: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleUnlockDemo = async (swId) => {
@@ -161,9 +194,7 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                     Download Files / Repo
                   </a>
                   <a 
-                    href={sw.demoUrl || 'https://wa.me/918281760168?text=Hi%20WideTech!%20I%20have%20questions%20about%20my%20software%20license.'} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
+                    href="/contact"
                     className="btn btn-secondary btn-sm"
                     style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
                   >
@@ -240,21 +271,143 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <a 
-                    href={`https://wa.me/918281760168?text=${encodeURIComponent(`Hi WideTech! I would like to get software tool: ${sw.title}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button 
+                    type="button"
+                    onClick={() => handleOpenEnquiry(sw)}
                     className="btn btn-primary btn-sm"
                     style={{ fontSize: '0.8rem', padding: '5px 12px' }}
                   >
-                    🛒 Get Tool
-                  </a>
+                    🛒 Enquire / Get Tool
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* ── On-Page Software Enquiry Modal (Direct to Backend) ── */}
+      {showEnquiryModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            maxWidth: '520px',
+            width: '100%',
+            padding: '2rem',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: 800 }}>
+                  Enquire: {selectedSoftware ? selectedSoftware.title : 'Software Product'}
+                </h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Request software licensing, repo files, and technical deployment
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowEnquiryModal(false)} 
+                style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitEnquiry} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Your Name *</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={formData.name} 
+                  onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                  placeholder="Your Name"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Email Address *</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={formData.email} 
+                  onChange={e => setFormData({ ...formData, email: e.target.value })} 
+                  placeholder="you@company.com"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Contact Phone *</label>
+                  <input 
+                    type="tel" 
+                    required 
+                    value={formData.phone} 
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })} 
+                    placeholder="9876543210"
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Company Name</label>
+                  <input 
+                    type="text" 
+                    value={formData.companyName} 
+                    onChange={e => setFormData({ ...formData, companyName: e.target.value })} 
+                    placeholder="Agency / Personal"
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Custom Requirements / Questions</label>
+                <textarea 
+                  rows="3"
+                  value={formData.requirements} 
+                  onChange={e => setFormData({ ...formData, requirements: e.target.value })} 
+                  placeholder="Describe your use-case or any custom features required..."
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', resize: 'vertical' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowEnquiryModal(false)} 
+                  className="btn btn-secondary"
+                  style={{ padding: '0.55rem 1rem' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="btn btn-primary"
+                  style={{ padding: '0.55rem 1.25rem', fontWeight: 700 }}
+                >
+                  {submitting ? 'Submitting...' : '🚀 Submit Software Enquiry'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

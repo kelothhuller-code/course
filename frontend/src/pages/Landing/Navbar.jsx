@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
-export default function Navbar({ user, featuredCourse, onLogout }) {
+export default function Navbar({ user, featuredCourse, hasSoftware = false, hasServices = false, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();

@@ -27,6 +27,10 @@ const SoftwareSchema = new mongoose.Schema({
   highlightBadge: { type: String, default: '' }, // e.g. "HOT", "BESTSELLER", "FEATURED", "ENTERPRISE"
   isFeatured: { type: Boolean, default: false },
   downloadUrl: { type: String, default: '' },
+  filePath: { type: String, default: '' },
+  fileName: { type: String, default: '' },
+  fileSize: { type: String, default: '' },
+  version: { type: String, default: '1.0.0' },
   demoUrl: { type: String, default: '' },
   documentationUrl: { type: String, default: '' },
   status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },

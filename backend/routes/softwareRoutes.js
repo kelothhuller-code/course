@@ -2,88 +2,23 @@ import express from 'express';
 import crypto from 'crypto';
 import Software from '../models/Software.js';
 import User from '../models/User.js';
+import ContactMessage from '../models/ContactMessage.js';
+import Lead from '../models/Lead.js';
 import { authenticateToken } from '../middleware/auth.js';
+
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
-const DEFAULT_SOFTWARES = [
-  {
-    title: 'WideTech AI WhatsApp Support & Lead Bot',
-    description: 'Autonomous 24/7 WhatsApp AI Assistant powered by GPT-4o. Qualifies incoming customer enquiries, answers FAQs with zero hallucinations, books meetings, and synchronizes real-time leads to Google Sheets / CRM.',
-    category: 'AI Bot & Automation',
-    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    performance: 'Sub-150ms Response • 99.9% Uptime • Zero Server Lock-in',
-    usefulness: 'Saves 20+ hours weekly on customer support, captures leads automatically 24/7 without extra human staff.',
-    features: [
-      'Multi-turn AI conversations in Malayalam & English',
-      'Automated Lead qualification & CRM webhook sync',
-      'Media message handling (PDF brochures & image catalog)',
-      'Custom knowledge base ingestion (FAQ document scanner)',
-      'Human-handover alert on WhatsApp'
-    ],
-    price: 9999,
-    discountedPrice: 4999,
-    couponEligible: true,
-    highlightBadge: 'BESTSELLER',
-    isFeatured: true,
-    demoUrl: 'https://wa.me/918281760168?text=Hi%20WideTech!%20I%20want%20to%20test%20the%20AI%20WhatsApp%20Bot%20Demo',
-    downloadUrl: 'https://github.com/kelothhuller-code/course'
-  },
-  {
-    title: 'Automated Lead Enrichment & Prospecting System',
-    description: 'High-speed automated bot that extracts B2B leads from Google Maps / Directories, enriches emails, verifies phone numbers, and generates personalized outreach pitches using AI.',
-    category: 'Business Tool',
-    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-    performance: 'Scrapes & enriches 1,000+ verified leads/hour • 98% Email accuracy',
-    usefulness: 'Directly powers your outbound sales engine. Never run out of high-ticket clients or business contacts.',
-    features: [
-      'Automated Google Places & Directory lead extraction',
-      'Real-time MX-record and SMTP email verification',
-      'AI Icebreaker & personalized cold email generator',
-      'Export directly to Excel, CSV, or HubSpot CRM'
-    ],
-    price: 12000,
-    discountedPrice: 6499,
-    couponEligible: true,
-    highlightBadge: 'HIGH ROI',
-    isFeatured: true,
-    demoUrl: 'https://wa.me/918281760168?text=Hi%20WideTech!%20Show%20me%20the%20Lead%20Enrichment%20System%20Demo'
-  },
-  {
-    title: 'Full-Stack MERN + AI SaaS Production Starter Kit',
-    description: 'Complete production-ready boilerplate codebase including Authentication, Razorpay payment gateway, GST automated invoicing, Super Admin control panel, and OpenAI API integration.',
-    category: 'Developer Kit',
-    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
-    performance: 'Deploy in under 10 minutes on Vercel & Render • Zero Tech Debt',
-    usefulness: 'Cuts development time by 3 to 4 weeks. Build and sell your own SaaS or client apps effortlessly.',
-    features: [
-      'React (Vite) + Node.js (Express) + MongoDB architecture',
-      'Integrated Razorpay webhook verified checkout & GST receipts',
-      'Role-based access control (Student & Super Admin roles)',
-      'Pre-built UI components and dark/light luxury styling'
-    ],
-    price: 5999,
-    discountedPrice: 2999,
-    couponEligible: true,
-    highlightBadge: 'DEVELOPER CHOICE',
-    isFeatured: true,
-    demoUrl: 'https://widetech.in/'
-  }
-];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const softwareUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'software');
 
-// Helper to seed software products if database is empty
-async function ensureSeedSoftwares() {
-  const count = await Software.countDocuments();
-  if (count === 0) {
-    await Software.insertMany(DEFAULT_SOFTWARES);
-    console.log('[Software] Initial standard software products seeded successfully.');
-  }
-}
-
-// GET all active softwares
+// GET all active softwares (only real added software, no hardcoded fallbacks)
 router.get('/', async (req, res) => {
   try {
-    await ensureSeedSoftwares();
     const { category, featured } = req.query;
     const filter = { status: 'active' };
     if (category) filter.category = category;
@@ -107,6 +42,68 @@ router.get('/:id', async (req, res) => {
     res.json({ success: true, software });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving software details' });
+  }
+});
+
+// POST submit software enquiry (No WhatsApp redirection needed)
+router.post('/enquire', async (req, res) => {
+  try {
+    const { softwareId, name, email, phone, requirements, companyName } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ success: false, message: 'Name and email are required.' });
+    }
+
+    let softwareTitle = 'WideTech Software Tool';
+    if (softwareId) {
+      const sw = await Software.findById(softwareId);
+      if (sw) {
+        softwareTitle = sw.title;
+        sw.enquiryCount = (sw.enquiryCount || 0) + 1;
+        await sw.save();
+      }
+    }
+
+    // Save as ContactMessage in DB
+    await ContactMessage.create({
+      name,
+      email,
+      subject: `Software Enquiry: ${softwareTitle}`,
+      message: `Phone: ${phone || 'N/A'}\nCompany: ${companyName || 'N/A'}\nRequirements: ${requirements || 'Interested in software purchase / license'}`
+    });
+
+    // Save or update Lead in DB
+    await Lead.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { name, source: 'software_enquiry' },
+      { upsert: true, new: true }
+    );
+
+    // If matching user exists, attach to their purchasedSoftware as enquiry
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      if (!existingUser.purchasedSoftware) existingUser.purchasedSoftware = [];
+      const alreadyHas = existingUser.purchasedSoftware.find(
+        p => p.softwareId?.toString() === softwareId?.toString()
+      );
+      if (!alreadyHas) {
+        existingUser.purchasedSoftware.push({
+          softwareId: softwareId || null,
+          purchasedAt: new Date(),
+          status: 'enquired',
+          requirements: requirements || `Inquiry for ${softwareTitle}`,
+          contactPhone: phone || ''
+        });
+        await existingUser.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Thank you! Your software enquiry has been received. Our team will contact you directly.'
+    });
+  } catch (err) {
+    console.error('Error submitting software enquiry:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to submit software enquiry' });
   }
 });
 
@@ -145,6 +142,39 @@ router.post('/:id/unlock', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error unlocking software:', err);
     res.status(500).json({ success: false, message: err.message || 'Failed to unlock software' });
+  }
+});
+
+// GET download software package file from server folder
+router.get('/:id/download', async (req, res) => {
+  try {
+    const software = await Software.findById(req.params.id);
+    if (!software) {
+      return res.status(404).json({ success: false, message: 'Software product not found' });
+    }
+
+    if (software.fileName) {
+      const filePath = path.join(softwareUploadDir, path.basename(software.fileName));
+      if (fs.existsSync(filePath)) {
+        return res.download(filePath, software.fileName);
+      }
+    }
+
+    if (software.downloadUrl) {
+      if (software.downloadUrl.startsWith('/uploads/software/')) {
+        const localName = path.basename(software.downloadUrl);
+        const filePath = path.join(softwareUploadDir, localName);
+        if (fs.existsSync(filePath)) {
+          return res.download(filePath, localName);
+        }
+      }
+      return res.redirect(software.downloadUrl);
+    }
+
+    res.status(404).json({ success: false, message: 'Software download package not configured on server' });
+  } catch (err) {
+    console.error('Download software error:', err);
+    res.status(500).json({ success: false, message: 'Failed to download software' });
   }
 });
 

@@ -125,6 +125,7 @@ app.use('/api/payment', paymentLimiter);
 
 // Serve static files from 'public' (js, css, images) without 301 redirects
 app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Configurable Secret Admin Portal Route (defaults to 'wide-hq-portal')
 const rawAdminPath = (process.env.ADMIN_SECRET_PATH || 'wide-hq-portal').replace(/^\/+|\/+$/g, '');

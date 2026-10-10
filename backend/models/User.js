@@ -23,7 +23,9 @@ const UserSchema = new mongoose.Schema({
     softwareId: { type: mongoose.Schema.Types.ObjectId, ref: 'Software' },
     purchasedAt: { type: Date, default: Date.now },
     licenseKey: { type: String },
-    status: { type: String, default: 'active' }
+    status: { type: String, default: 'active' },
+    requirements: { type: String },
+    contactPhone: { type: String }
   }],
   purchasedServices: [{
     serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },

@@ -11,6 +11,7 @@ import Razorpay from 'razorpay';
 import Coupon from '../models/Coupon.js';
 import Software from '../models/Software.js';
 import Service from '../models/Service.js';
+import ContactMessage from '../models/ContactMessage.js';
 
 import {
   getCourseAnalytics,
@@ -847,6 +848,10 @@ router.post('/software', async (req, res) => {
       highlightBadge,
       isFeatured,
       downloadUrl,
+      fileName,
+      filePath,
+      fileSize,
+      version,
       demoUrl,
       documentationUrl,
       status
@@ -870,6 +875,10 @@ router.post('/software', async (req, res) => {
       highlightBadge: highlightBadge || '',
       isFeatured: Boolean(isFeatured),
       downloadUrl: downloadUrl || '',
+      fileName: fileName || '',
+      filePath: filePath || '',
+      fileSize: fileSize || '',
+      version: version || '1.0.0',
       demoUrl: demoUrl || '',
       documentationUrl: documentationUrl || '',
       status: status || 'active'
@@ -879,6 +888,74 @@ router.post('/software', async (req, res) => {
   } catch (err) {
     console.error('Create software error:', err);
     res.status(500).json({ message: 'Failed to create software', error: err.message });
+  }
+});
+
+// @desc    Get all software buyers and enquiries (Admin)
+// @route   GET /api/admin/software/buyers
+router.get('/software/buyers', async (req, res) => {
+  try {
+    const users = await User.find({ 'purchasedSoftware.0': { $exists: true } })
+      .populate('purchasedSoftware.softwareId', 'title category price thumbnail downloadUrl fileName')
+      .lean();
+
+    const buyers = [];
+    for (const user of users) {
+      if (Array.isArray(user.purchasedSoftware)) {
+        for (const item of user.purchasedSoftware) {
+          buyers.push({
+            buyerId: user._id,
+            buyerName: user.name,
+            buyerEmail: user.email,
+            buyerPhone: item.contactPhone || user.contactPhone || user.phone || 'N/A',
+            softwareId: item.softwareId?._id || item.softwareId,
+            softwareTitle: item.softwareId?.title || 'WideTech Software Product',
+            softwareCategory: item.softwareId?.category || 'Software',
+            licenseKey: item.licenseKey || 'N/A',
+            purchasedAt: item.purchasedAt || user.createdAt,
+            status: item.status || 'active',
+            requirements: item.requirements || 'N/A',
+            downloadUrl: item.softwareId?.downloadUrl || ''
+          });
+        }
+      }
+    }
+
+    // Also include software enquiries from ContactMessage
+    const softwareMessages = await ContactMessage.find({
+      $or: [
+        { subject: { $regex: /software/i } },
+        { subject: { $regex: /tool/i } },
+        { message: { $regex: /software/i } }
+      ]
+    }).lean();
+
+    for (const msg of softwareMessages) {
+      const exists = buyers.some(b => b.buyerEmail?.toLowerCase() === msg.email?.toLowerCase());
+      if (!exists) {
+        const phoneMatch = msg.message?.match(/Phone:\s*([^\n\r]+)/);
+        buyers.push({
+          buyerId: msg._id,
+          buyerName: msg.name,
+          buyerEmail: msg.email,
+          buyerPhone: phoneMatch ? phoneMatch[1].trim() : 'N/A',
+          softwareId: null,
+          softwareTitle: msg.subject?.replace(/^Software Enquiry:\s*/i, '') || 'Software Product',
+          softwareCategory: 'Software Enquiry',
+          licenseKey: 'Pending Scoping',
+          purchasedAt: msg.createdAt,
+          status: 'enquired',
+          requirements: msg.message || 'General Enquiry',
+          downloadUrl: ''
+        });
+      }
+    }
+
+    buyers.sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt));
+    res.json({ success: true, count: buyers.length, buyers });
+  } catch (err) {
+    console.error('Error fetching software buyers and enquiries:', err);
+    res.status(500).json({ message: 'Failed to fetch software buyers and enquiries', error: err.message });
   }
 });
 
@@ -1001,6 +1078,179 @@ router.delete('/services/:id', async (req, res) => {
     res.json({ success: true, message: 'Service deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete service', error: err.message });
+  }
+});
+
+// @desc    Get all clients for custom services & bot automation (Admin)
+// @route   GET /api/admin/services/clients
+router.get('/services/clients', async (req, res) => {
+  try {
+    const clients = [];
+
+    // 1. Check users with purchasedServices
+    const usersWithServices = await User.find({ 'purchasedServices.0': { $exists: true } })
+      .populate('purchasedServices.serviceId', 'title category startingPrice thumbnail')
+      .lean();
+
+    for (const u of usersWithServices) {
+      for (const s of u.purchasedServices || []) {
+        clients.push({
+          clientId: u._id,
+          clientName: u.name,
+          clientEmail: u.email,
+          clientPhone: s.contactPhone || u.phone || 'N/A',
+          serviceId: s.serviceId?._id || null,
+          serviceTitle: s.serviceId?.title || 'Custom AI & Bot Service',
+          requirements: s.requirements || 'Custom automation requested',
+          status: s.status || 'enquired',
+          enquiredAt: s.enquiredAt || u.createdAt
+        });
+      }
+    }
+
+    // 2. Also check ContactMessages with "Service Enquiry"
+    const serviceMessages = await ContactMessage.find({
+      $or: [
+        { subject: { $regex: /service/i } },
+        { subject: { $regex: /enquiry/i } },
+        { message: { $regex: /requirements/i } }
+      ]
+    }).lean();
+
+    for (const msg of serviceMessages) {
+      const exists = clients.some(c => c.clientEmail?.toLowerCase() === msg.email?.toLowerCase());
+      if (!exists) {
+        const phoneMatch = msg.message?.match(/Phone:\s*([^\n\r]+)/);
+        clients.push({
+          clientId: msg._id,
+          clientName: msg.name,
+          clientEmail: msg.email,
+          clientPhone: phoneMatch ? phoneMatch[1].trim() : 'N/A',
+          serviceId: null,
+          serviceTitle: msg.subject || 'Custom Software / Bot Consultation',
+          requirements: msg.message || 'General Enquiry',
+          status: 'enquired',
+          enquiredAt: msg.createdAt
+        });
+      }
+    }
+
+    clients.sort((a, b) => new Date(b.enquiredAt) - new Date(a.enquiredAt));
+    res.json({ success: true, count: clients.length, clients });
+  } catch (err) {
+    console.error('Error fetching service clients:', err);
+    res.status(500).json({ message: 'Failed to fetch service clients', error: err.message });
+  }
+});
+
+// @desc    Email deliverables, commitments, documents & license keys to buyers / clients
+// @route   POST /api/admin/deliverables/send-email
+router.post('/deliverables/send-email', async (req, res) => {
+  try {
+    const {
+      recipientEmail,
+      recipientName,
+      itemType, // 'software' or 'service'
+      itemTitle,
+      subject,
+      message,
+      commitments,
+      licenseKey,
+      documentLinks
+    } = req.body;
+
+    if (!recipientEmail || !subject) {
+      return res.status(400).json({ message: 'Recipient email and subject are required' });
+    }
+
+    const commitmentList = Array.isArray(commitments)
+      ? commitments
+      : (typeof commitments === 'string' ? commitments.split('\n').filter(Boolean) : []);
+
+    const docList = Array.isArray(documentLinks)
+      ? documentLinks
+      : (typeof documentLinks === 'string' ? documentLinks.split('\n').filter(Boolean) : []);
+
+    const commitmentsHtml = commitmentList.length > 0 ? `
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #0f172a; font-size: 15px;">📋 Deliverables & Commitments Checklist:</h4>
+        <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 14px; line-height: 1.6;">
+          ${commitmentList.map(c => `<li style="margin-bottom: 6px;"><strong>✓</strong> ${c}</li>`).join('')}
+        </ul>
+      </div>
+    ` : '';
+
+    const licenseHtml = licenseKey ? `
+      <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 16px; margin: 20px 0; text-align: center;">
+        <span style="font-size: 12px; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.05em;">Official Commercial License Key</span>
+        <div style="font-family: monospace; font-size: 18px; font-weight: 800; color: #1e1b4b; margin-top: 6px; letter-spacing: 1px;">
+          ${licenseKey}
+        </div>
+      </div>
+    ` : '';
+
+    const docsHtml = docList.length > 0 ? `
+      <div style="margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px;">📁 Required Documents & Access Links:</h4>
+        ${docList.map(d => {
+          const url = typeof d === 'string' ? d : d.url;
+          const title = typeof d === 'string' ? d : (d.title || d.url);
+          return `
+            <div style="margin-bottom: 8px;">
+              <a href="${url}" target="_blank" style="display: inline-block; background: #6366f1; color: #ffffff; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;">
+                📥 Access / Download: ${title} →
+              </a>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 32px 24px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff;">
+        <div style="text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
+          <span style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">WideTech</span>
+          <span style="font-size: 11px; font-weight: 700; color: #6366f1; background: #e0e7ff; padding: 3px 8px; border-radius: 6px; margin-left: 8px;">DELIVERABLES & COMMITMENTS</span>
+        </div>
+
+        <p style="font-size: 15px; color: #334155; margin: 0 0 12px 0;">Hello <strong>${recipientName || 'Valued Client'}</strong>,</p>
+
+        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 16px 0;">
+          This official communication details your purchased product/service specifications and commitments for: 
+          <strong style="color: #0f172a;">${itemTitle || 'WideTech Solutions'}</strong>.
+        </p>
+
+        ${licenseHtml}
+
+        <div style="font-size: 14px; color: #334155; line-height: 1.7; background: #fdfdfd; padding: 16px; border-left: 4px solid #6366f1; margin: 16px 0;">
+          ${(message || '').replace(/\n/g, '<br>')}
+        </div>
+
+        ${commitmentsHtml}
+        ${docsHtml}
+
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
+        <div style="font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0;"><strong>WideTech AI & Software Engineering Division</strong></p>
+          <p style="margin: 0;">For technical assistance, reply directly to this email or visit <a href="https://widetech.in" style="color: #6366f1;">widetech.in</a></p>
+        </div>
+      </div>
+    `;
+
+    await sendCustomEmail({
+      to: recipientEmail,
+      subject,
+      html: emailHtml,
+      text: message
+    });
+
+    res.json({
+      success: true,
+      message: `Official deliverables & commitments sent successfully to ${recipientEmail}!`
+    });
+  } catch (err) {
+    console.error('Error sending deliverables email:', err);
+    res.status(500).json({ message: 'Failed to send deliverables email', error: err.message });
   }
 });
 

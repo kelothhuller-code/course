@@ -41,6 +41,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   });
   const [showAllCourses, setShowAllCourses] = useState(false);
   const [featuredCourse, setFeaturedCourse] = useState(null);
+  const [hasSoftware, setHasSoftware] = useState(false);
+  const [hasServices, setHasServices] = useState(false);
   const navigate = useNavigate();
 
   // Fetch courses with pagination
@@ -67,11 +69,13 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [coursesData, eventsData, trialsData, featuredData] = await Promise.all([
+      const [coursesData, eventsData, trialsData, featuredData, swData, svcData] = await Promise.all([
         api.getCourses(1, 3, false),
         api.getEvents(),
         api.getTrials(),
-        api.getFeaturedCourse().catch(() => ({ featuredCourse: null }))
+        api.getFeaturedCourse().catch(() => ({ featuredCourse: null })),
+        api.getAllSoftware().catch(() => ({ softwares: [] })),
+        api.getAllServices().catch(() => ({ services: [] }))
       ]);
 
       const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
@@ -84,6 +88,9 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         const found = courseList.find(c => c.isFeatured) || null;
         setFeaturedCourse(found);
       }
+
+      setHasSoftware(Array.isArray(swData?.softwares) && swData.softwares.length > 0);
+      setHasServices(Array.isArray(svcData?.services) && svcData.services.length > 0);
 
       setPagination(coursesData.pagination || {
         currentPage: 1,
@@ -103,6 +110,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
       setEvents([]);
       setTrials([]);
       setFeaturedCourse(null);
+      setHasSoftware(false);
+      setHasServices(false);
     } finally {
       setLoading(false);
     }
@@ -192,13 +201,24 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
   return (
     <div className="landing-page">
-      <Navbar user={user} featuredCourse={featuredCourse} onLogout={() => {
-        localStorage.removeItem('token');
-        navigate('/');
-      }} />
+      <Navbar 
+        user={user} 
+        featuredCourse={featuredCourse} 
+        hasSoftware={hasSoftware}
+        hasServices={hasServices}
+        onLogout={() => {
+          localStorage.removeItem('token');
+          navigate('/');
+        }} 
+      />
 
       <main>
-        <Hero user={user} handleEnroll={handleEnroll} featuredCourse={featuredCourse} />
+        <Hero 
+          user={user} 
+          handleEnroll={handleEnroll} 
+          featuredCourse={featuredCourse} 
+          hasSoftware={hasSoftware}
+        />
         <TrustStrip />
         <FeaturedCourse
           course={featuredCourse}

@@ -13,10 +13,11 @@ const __dirname = path.dirname(__filename);
 // Ensure upload directories exist
 const uploadBaseDir = path.join(__dirname, '..', 'public', 'uploads');
 const thumbnailDir = path.join(uploadBaseDir, 'thumbnails');
+const softwareDir = path.join(uploadBaseDir, 'software');
 // Protected Materials stored OUTSIDE public static folder to prevent direct unauthenticated access
 const materialsDir = path.join(__dirname, '..', 'private_storage', 'materials');
 
-[uploadBaseDir, thumbnailDir, materialsDir].forEach(dir => {
+[uploadBaseDir, thumbnailDir, softwareDir, materialsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -27,6 +28,8 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === 'thumbnail' || req.query.type === 'thumbnail') {
       cb(null, thumbnailDir);
+    } else if (file.fieldname === 'softwareFile' || file.fieldname === 'software' || req.query.type === 'software') {
+      cb(null, softwareDir);
     } else {
       cb(null, materialsDir);
     }
@@ -45,21 +48,23 @@ const fileFilter = (req, file, cb) => {
     // Images
     '.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif',
     // Documents & Slides
-    '.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt', '.zip'
+    '.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt', '.zip',
+    // Software packages & archives
+    '.tar', '.gz', '.tgz', '.7z', '.rar', '.exe', '.dmg', '.pkg', '.deb', '.sh', '.py', '.js', '.json'
   ];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error(`File type ${ext} is not allowed. Supported formats: images (PNG, JPG, WebP, SVG) and documents (PDF, PPTX, DOCX, ZIP).`), false);
+    cb(new Error(`File type ${ext} is not allowed. Supported formats: images, documents, and software packages (ZIP, 7Z, TAR, EXE, DMG, PKG, etc.).`), false);
   }
 };
 
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50 MB max limit
+    fileSize: 100 * 1024 * 1024 // 100 MB max limit
   },
   fileFilter
 });
@@ -89,6 +94,35 @@ router.post('/thumbnail', protect, admin, upload.single('thumbnail'), (req, res)
   } catch (error) {
     console.error('Thumbnail upload error:', error);
     res.status(500).json({ message: 'Error uploading thumbnail', error: error.message });
+  }
+});
+
+// @desc    Upload software file package to dedicated server folder
+// @route   POST /api/upload/software
+// @access  Private/Admin
+router.post('/software', protect, admin, upload.single('softwareFile'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No software package file uploaded' });
+    }
+
+    const publicUrl = `/uploads/software/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${publicUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Software package saved to server software folder successfully',
+      fileName: req.file.filename,
+      originalName: req.file.originalname,
+      sizeBytes: req.file.size,
+      mimeType: req.file.mimetype,
+      url: publicUrl,
+      downloadUrl: publicUrl,
+      fullUrl
+    });
+  } catch (error) {
+    console.error('Software package upload error:', error);
+    res.status(500).json({ message: 'Error uploading software package', error: error.message });
   }
 });
 

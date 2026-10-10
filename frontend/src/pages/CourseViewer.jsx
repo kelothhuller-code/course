@@ -483,7 +483,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
             <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{course?.title || 'Course'}</span>
           </div>
 
-          <div className="course-viewer-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '2rem' }}>
+          <div className="course-viewer-layout">
             {/* Left Side: Video Player & Details */}
             <section className="player-section">
               {activeLesson ? (
@@ -773,7 +773,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
             </section>
 
             {/* Right Side: Lesson List Sidebar */}
-            <aside className="sidebar-chapters" style={{ position: 'sticky', top: '80px', alignSelf: 'start' }}>
+            <aside className="sidebar-chapters">
               <Link to="/dashboard" className="btn btn-secondary btn-sm" style={{ 
                 display: 'flex', 
                 alignItems: 'center', 

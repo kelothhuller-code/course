@@ -41,7 +41,7 @@ export default function MyServicesTab({ profile }) {
         ...formData,
         serviceId: selectedService?._id || null
       });
-      alert('Your service request has been received! WideTech engineers will reach out to you within 24 hours on WhatsApp/Phone.');
+      alert('Your service enquiry has been received in our backend portal! WideTech engineering team will review and contact you within 24 hours.');
       setShowEnquiryModal(false);
       setFormData({ name: profile?.name || '', email: profile?.email || '', phone: '', companyName: '', requirements: '' });
       window.location.reload();

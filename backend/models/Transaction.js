@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const TransactionSchema = new mongoose.Schema({
   txnid: { type: String, required: true, unique: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  itemType: { type: String, enum: ['course', 'event'], required: true },
+  itemType: { type: String, enum: ['course', 'event', 'software', 'service'], required: true },
   itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'success', 'failed', 'refunded'], default: 'pending' },

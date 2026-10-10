@@ -77,7 +77,7 @@ export default function ContinueLearningTab({
             onClick={() => setActiveTab('explore')}
             style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600 }}
           >
-            Explore Catalog →
+            Explore Courses →
           </button>
         </div>
       </div>

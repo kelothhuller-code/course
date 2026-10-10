@@ -45,60 +45,94 @@ export default function NavHeader({ user, onLogout }) {
         <div className="container">
           <div className="navbar-inner">
             
-            {/* Logo / Brand in Single Line */}
-            <Link to="/" className="navbar-brand" onClick={closeMenu}>
-              <img 
-                src="/logo.svg" 
-                alt="WideTech Logo" 
-                style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} 
-              />
-              <span className="brand-name">WIDETECH</span>
-            </Link>
-
-            {/* Mobile Header Quick Bar */}
-            <div className="nav-mobile-bar-actions">
-              {user ? (
-                <Link to="/dashboard" className="mobile-dash-pill" onClick={closeMenu}>
-                  Dashboard
-                </Link>
-              ) : (
-                <Link to="/auth" className="mobile-login-pill" onClick={closeMenu}>
-                  Login
-                </Link>
-              )}
-
+            {/* Left Brand & Side Nav Toggle for BOTH Mobile & Big Screen */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <button
                 className={`navbar-toggle ${isOpen ? 'is-active' : ''}`}
                 onClick={() => setIsOpen(!isOpen)}
-                aria-label={isOpen ? "Close side nav" : "Open side nav"}
-                aria-expanded={isOpen}
+                aria-label={isOpen ? "Close side nav drawer" : "Open side nav drawer"}
+                title="Toggle Side Navigation"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)',
+                  background: isOpen ? 'var(--primary)' : 'rgba(255, 255, 255, 0.9)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  flexDirection: 'column',
+                  gap: '4.5px',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0
+                }}
               >
-                <span className="hamburger-line"></span>
-                <span className="hamburger-line"></span>
-                <span className="hamburger-line"></span>
+                <span className="hamburger-line" style={{ background: isOpen ? '#ffffff' : '#0f172a', transition: 'all 0.2s ease' }}></span>
+                <span className="hamburger-line" style={{ background: isOpen ? '#ffffff' : '#0f172a', transition: 'all 0.2s ease' }}></span>
+                <span className="hamburger-line" style={{ background: isOpen ? '#ffffff' : '#0f172a', transition: 'all 0.2s ease' }}></span>
               </button>
+
+              <Link to="/" className="navbar-brand" onClick={closeMenu} style={{ margin: 0 }}>
+                <img 
+                  src="/logo.svg" 
+                  alt="WideTech Logo" 
+                  style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} 
+                />
+                <span className="brand-name">WIDETECH</span>
+              </Link>
             </div>
 
-            {/* Desktop Navigation - User Panel Views */}
-            <div className="navbar-desktop-nav">
-              <Link to="/dashboard?tab=dashboard" className="nav-link">Dashboard</Link>
-              <Link to="/dashboard?tab=courses" className="nav-link">My Courses</Link>
-              <Link to="/dashboard?tab=software" className="nav-link">Software & Tools</Link>
-              <Link to="/dashboard?tab=services" className="nav-link">Services & Automation</Link>
-              <Link to="/dashboard?tab=events" className="nav-link">Workshops</Link>
-              <Link to="/dashboard?tab=certs" className="nav-link">Certificates</Link>
-              <Link to="/dashboard?tab=invoices" className="nav-link">Invoices</Link>
-              <Link to="/dashboard?tab=explore" className="nav-link">Store</Link>
+            {/* Desktop Navigation - Clean, Uncongested Bar */}
+            <div className="navbar-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+              <Link to="/dashboard?tab=explore" className="nav-link" style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+                🎓 Explore Courses
+              </Link>
+              <Link to="/" className="nav-link" style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+                🌐 Website Home
+              </Link>
 
-              <div className="nav-desktop-auth-actions" style={{ marginLeft: '1rem' }}>
+              <div className="nav-desktop-auth-actions" style={{ marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {user ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <Link to="/" className="btn btn-ghost btn-sm" title="Go to public website">
-                      Website
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Link 
+                      to="/dashboard?tab=dashboard" 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        textDecoration: 'none',
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: '20px',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)'
+                      }}
+                    >
+                      <div style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '0.78rem'
+                      }}>
+                        {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {user.name || 'User'}
+                      </span>
                     </Link>
+
                     <button
                       onClick={handleLogout}
                       className="btn btn-ghost btn-sm nav-signout-btn"
+                      style={{ fontSize: '0.82rem', padding: '0.4rem 0.8rem' }}
                     >
                       Sign Out
                     </button>
@@ -152,11 +186,8 @@ export default function NavHeader({ user, onLogout }) {
                   <Link to="/dashboard?tab=courses" className="sidenav-link" onClick={closeMenu}>
                     My Courses
                   </Link>
-                  <Link to="/dashboard?tab=software" className="sidenav-link" onClick={closeMenu}>
-                    Software & Tools
-                  </Link>
-                  <Link to="/dashboard?tab=services" className="sidenav-link" onClick={closeMenu}>
-                    Services & Automation
+                  <Link to="/dashboard?tab=explore" className="sidenav-link" onClick={closeMenu}>
+                    Explore Courses
                   </Link>
                   <Link to="/dashboard?tab=events" className="sidenav-link" onClick={closeMenu}>
                     Live Workshops
@@ -164,11 +195,14 @@ export default function NavHeader({ user, onLogout }) {
                   <Link to="/dashboard?tab=certs" className="sidenav-link" onClick={closeMenu}>
                     Certificates
                   </Link>
+                  <Link to="/dashboard?tab=software" className="sidenav-link" onClick={closeMenu}>
+                    Software & Tools
+                  </Link>
+                  <Link to="/dashboard?tab=services" className="sidenav-link" onClick={closeMenu}>
+                    Services & Automation
+                  </Link>
                   <Link to="/dashboard?tab=invoices" className="sidenav-link" onClick={closeMenu}>
                     My GST Invoices
-                  </Link>
-                  <Link to="/dashboard?tab=explore" className="sidenav-link" onClick={closeMenu}>
-                    Explore Store Catalog
                   </Link>
                 </div>
 

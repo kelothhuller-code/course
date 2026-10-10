@@ -604,5 +604,14 @@ export const api = {
       body: JSON.stringify(data)
     });
     return handleResponse(res);
+  },
+
+  submitSoftwareEnquiry: async (data) => {
+    const res = await fetch(`${BASE_URL}/software/enquire`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
   }
 };

@@ -1,83 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
 
-const FALLBACK_SOFTWARES = [
-  {
-    _id: 'default-sw-1',
-    title: 'WideTech AI WhatsApp Support & Lead Bot',
-    description: 'Autonomous 24/7 WhatsApp AI Assistant powered by GPT-4o. Qualifies incoming customer enquiries, answers FAQs with zero hallucinations, books meetings, and synchronizes real-time leads to Google Sheets / CRM.',
-    category: 'AI Bot & Automation',
-    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    performance: 'Sub-150ms Response • 99.9% Uptime • Zero Server Lock-in',
-    usefulness: 'Saves 20+ hours weekly on customer support, captures leads automatically 24/7 without extra human staff.',
-    features: [
-      'Multi-turn AI conversations in Malayalam & English',
-      'Automated Lead qualification & CRM webhook sync',
-      'Media message handling (PDF brochures & catalog)',
-      'Custom knowledge base ingestion'
-    ],
-    price: 9999,
-    discountedPrice: 4999,
-    couponEligible: true,
-    highlightBadge: 'BESTSELLER',
-    isFeatured: true
-  },
-  {
-    _id: 'default-sw-2',
-    title: 'Automated Lead Enrichment & Prospecting System',
-    description: 'High-speed automated bot that extracts B2B leads from Google Maps / Directories, enriches emails, verifies phone numbers, and generates personalized outreach pitches using AI.',
-    category: 'Business Tool',
-    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-    performance: 'Scrapes & enriches 1,000+ verified leads/hour • 98% Email accuracy',
-    usefulness: 'Directly powers your outbound sales engine. Never run out of high-ticket clients or business contacts.',
-    features: [
-      'Automated Google Places & Directory lead extraction',
-      'Real-time MX-record and SMTP email verification',
-      'AI Icebreaker & personalized cold email generator'
-    ],
-    price: 12000,
-    discountedPrice: 6499,
-    couponEligible: true,
-    highlightBadge: 'HIGH ROI',
-    isFeatured: true
-  },
-  {
-    _id: 'default-sw-3',
-    title: 'Full-Stack MERN + AI SaaS Production Starter Kit',
-    description: 'Complete production-ready boilerplate codebase including Authentication, Razorpay payment gateway, GST automated invoicing, Super Admin control panel, and OpenAI API integration.',
-    category: 'Developer Kit',
-    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
-    performance: 'Deploy in under 10 minutes on Vercel & Render • Zero Tech Debt',
-    usefulness: 'Cuts development time by 3 to 4 weeks. Build and sell your own SaaS or client apps effortlessly.',
-    features: [
-      'React (Vite) + Node.js (Express) + MongoDB architecture',
-      'Integrated Razorpay webhook verified checkout & GST receipts',
-      'Role-based access control (Student & Super Admin roles)'
-    ],
-    price: 5999,
-    discountedPrice: 2999,
-    couponEligible: true,
-    highlightBadge: 'DEVELOPER CHOICE',
-    isFeatured: true
-  }
-];
-
 export default function SoftwareShowcase() {
-  const [softwares, setSoftwares] = useState(FALLBACK_SOFTWARES);
+  const [softwares, setSoftwares] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalSoftware, setModalSoftware] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    requirements: ''
+  });
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await api.getAllSoftware();
-        if (res.softwares && res.softwares.length > 0) {
-          setSoftwares(res.softwares);
-        }
+        setSoftwares(res.softwares || []);
       } catch (err) {
         console.error('Error loading software showcase:', err);
+        setSoftwares([]);
+      } finally {
+        setLoading(false);
       }
     };
     load();
   }, []);
+
+  const handleEnquiry = (sw) => {
+    setModalSoftware(sw);
+  };
+
+  const handleClose = () => {
+    setModalSoftware(null);
+    setFormData({ name: '', email: '', phone: '', companyName: '', requirements: '' });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await api.submitSoftwareEnquiry({
+        ...formData,
+        softwareId: modalSoftware?._id || null
+      });
+      alert('Thank you! Your enquiry has been received in our backend. WideTech team will reach out to you within 24 hours.');
+      handleClose();
+    } catch (err) {
+      alert('Error submitting enquiry: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Avoid section completely if nothing has been added
+  if (!loading && softwares.length === 0) {
+    return null;
+  }
+
+  if (loading) {
+    return null; // Don't flash empty state
+  }
 
   return (
     <section className="software-section" id="software" style={{ padding: '5rem 0', background: 'var(--bg-card)' }}>
@@ -191,21 +176,143 @@ export default function SoftwareShowcase() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <a 
-                    href={`https://wa.me/918281760168?text=${encodeURIComponent(`Hi WideTech! I am interested in purchasing software: ${item.title}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button 
+                    type="button"
+                    onClick={() => handleEnquiry(item)}
                     className="btn btn-primary btn-sm"
                     style={{ padding: '0.5rem 1.1rem', fontWeight: 700 }}
                   >
-                    Buy Tool →
-                  </a>
+                    Enquire / Get Tool →
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* On-Page Software Enquiry Modal (Direct to Backend) */}
+      {modalSoftware && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            maxWidth: '520px',
+            width: '100%',
+            padding: '2rem',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: 800 }}>
+                  Enquire: {modalSoftware.title}
+                </h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Request product access, licensing, and direct deployment support
+                </p>
+              </div>
+              <button 
+                onClick={handleClose} 
+                style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Your Name *</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={formData.name} 
+                  onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                  placeholder="e.g. Rahul Sharma"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Email Address *</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={formData.email} 
+                  onChange={e => setFormData({ ...formData, email: e.target.value })} 
+                  placeholder="you@company.com"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Contact Phone *</label>
+                  <input 
+                    type="tel" 
+                    required 
+                    value={formData.phone} 
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })} 
+                    placeholder="9876543210"
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Company / Use Case</label>
+                  <input 
+                    type="text" 
+                    value={formData.companyName} 
+                    onChange={e => setFormData({ ...formData, companyName: e.target.value })} 
+                    placeholder="Agency / Personal"
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem' }} 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Requirements / Questions</label>
+                <textarea 
+                  rows="3"
+                  value={formData.requirements} 
+                  onChange={e => setFormData({ ...formData, requirements: e.target.value })} 
+                  placeholder="Tell us what you plan to build or any custom feature requirements..."
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', resize: 'vertical' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button 
+                  type="button" 
+                  onClick={handleClose} 
+                  className="btn btn-secondary"
+                  style={{ padding: '0.55rem 1rem' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="btn btn-primary"
+                  style={{ padding: '0.55rem 1.25rem', fontWeight: 700 }}
+                >
+                  {submitting ? 'Submitting...' : '🚀 Submit Enquiry'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

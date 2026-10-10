@@ -1,68 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
 
-const FALLBACK_SERVICES = [
-  {
-    _id: 'default-svc-1',
-    title: 'Custom AI Bot & Workflow Automation',
-    description: 'We design and deploy fully customized AI WhatsApp bots, Telegram assistants, and automated business workflows that talk to your proprietary databases, qualify inbound leads, and trigger internal alerts.',
-    category: 'AI Bot Automation',
-    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    performance: 'Rapid 7-10 Days Turnaround • Custom LLM Tuning • High Accuracy',
-    usefulness: 'Completely removes manual support bottleneck. Operates 24/7/365 with multilingual Malayalam & English proficiency.',
-    deliverables: [
-      'Official Meta WhatsApp Business Cloud API integration',
-      'Knowledge ingestion with custom company FAQs & PDFs',
-      'Google Sheets, Zoho, or webhook CRM synchronization',
-      '30 days dedicated support & maintenance'
-    ],
-    startingPrice: 14999,
-    discountedPrice: 9999,
-    highlightBadge: 'MOST POPULAR',
-    isFeatured: true
-  },
-  {
-    _id: 'default-svc-2',
-    title: 'Custom Software & Web Application Development',
-    description: 'Bespoke web applications, SaaS platforms, ERP micro-portals, and client management software built with ultra-modern scalable architecture (React, Node.js, Next.js, and Cloud Infrastructure).',
-    category: 'Custom Software',
-    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-    performance: 'Sub-second page speeds • Enterprise-grade encryption • Scalable',
-    usefulness: 'Turn your unique business requirements or product vision into a bulletproof commercial software application.',
-    deliverables: [
-      'Interactive UI/UX design & prototype',
-      'Scalable full-stack application development',
-      'Payment gateways (Razorpay, Stripe) & GST invoices',
-      'Deployment to AWS / Vercel / DigitalOcean'
-    ],
-    startingPrice: 24999,
-    discountedPrice: 19999,
-    highlightBadge: 'ENTERPRISE',
-    isFeatured: true
-  },
-  {
-    _id: 'default-svc-3',
-    title: 'Mobile App Engineering (iOS & Android)',
-    description: 'Native-feel cross-platform mobile apps for startups and local businesses. Push notifications, offline caching, GPS tracking, and seamless camera/media capabilities.',
-    category: 'Mobile App Development',
-    thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800&q=80',
-    performance: 'Smooth 60 FPS • Lightweight APK/IPA • Store Ready',
-    usefulness: 'Direct real estate on your customers’ home screens with instant push engagement and mobile commerce.',
-    deliverables: [
-      'Cross-platform Flutter / React Native architecture',
-      'Authentication via Mobile OTP / Google Login',
-      'Real-time push notifications setup (Firebase)',
-      'Assistance with Google Play Store & Apple App Store submission'
-    ],
-    startingPrice: 29999,
-    discountedPrice: 24999,
-    highlightBadge: 'HIGH IMPACT',
-    isFeatured: true
-  }
-];
-
 export default function ServicesShowcase() {
-  const [services, setServices] = useState(FALLBACK_SERVICES);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modalService, setModalService] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -77,15 +18,25 @@ export default function ServicesShowcase() {
     const load = async () => {
       try {
         const res = await api.getAllServices();
-        if (res.services && res.services.length > 0) {
-          setServices(res.services);
-        }
+        setServices(res.services || []);
       } catch (err) {
         console.error('Error loading services showcase:', err);
+        setServices([]);
+      } finally {
+        setLoading(false);
       }
     };
     load();
   }, []);
+
+  // Avoid section completely if nothing has been added
+  if (!loading && services.length === 0) {
+    return null;
+  }
+
+  if (loading) {
+    return null;
+  }
 
   const handleEnquiry = (svc) => {
     setModalService(svc);
@@ -104,7 +55,7 @@ export default function ServicesShowcase() {
         ...formData,
         serviceId: modalService?._id || null
       });
-      alert('Thank you! Your enquiry has been received. WideTech engineering team will reach out to you within 24 hours on WhatsApp.');
+      alert('Thank you! Your enquiry has been received in our backend portal. WideTech engineering team will reach out to you within 24 hours.');
       handleClose();
     } catch (err) {
       alert('Error submitting enquiry: ' + err.message);
