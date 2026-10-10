@@ -233,7 +233,7 @@ mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log('✅ MongoDB database connected successfully');
-    
+
     // Clean up legacy non-sparse subdocument index on users if present
     try {
       await mongoose.connection.collection('users').dropIndex('certificates.certificateId_1');
