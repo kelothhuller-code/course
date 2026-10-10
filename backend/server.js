@@ -105,11 +105,21 @@ const adminSecretPath = rawAdminPath.length > 0 ? rawAdminPath : 'wide-hq-portal
 // Serve Admin Panel Assets strictly from private directory (NOT accessible via public/)
 const adminPanelDir = path.join(__dirname, 'admin_panel');
 
-// Static assets for the admin panel (js, css)
-app.use(`/${adminSecretPath}`, express.static(adminPanelDir, { redirect: false }));
+// 1. Force trailing slash for admin portal so browser resolves relative assets (./css, ./js) correctly
+app.use((req, res, next) => {
+  const normalizedPath = req.path.replace(/\/+$/, '');
+  if (normalizedPath === `/${adminSecretPath}` && !req.path.endsWith('/')) {
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, `/${adminSecretPath}/${query}`);
+  }
+  next();
+});
 
-// Admin Frontend Page Entry Route
-app.get([`/${adminSecretPath}`, `/${adminSecretPath}/*`], (req, res) => {
+// 2. Static assets for the admin panel (js, css, images)
+app.use(`/${adminSecretPath}`, express.static(adminPanelDir));
+
+// 3. Admin Frontend Page Entry Route
+app.get([`/${adminSecretPath}/`, `/${adminSecretPath}/*`], (req, res) => {
   res.removeHeader('Content-Security-Policy');
   res.sendFile(path.join(adminPanelDir, 'index.html'));
 });
