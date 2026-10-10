@@ -84,26 +84,36 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getAdminCredentials = () => {
-  let email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  let pass = (process.env.ADMIN_PASSWORD || '').trim();
+  let email = '';
+  let pass = '';
 
-  // If not yet in process.env, dynamically read from backend/.env
-  if (!email || !pass) {
-    try {
-      const envPath = path.join(__dirname, '..', '.env');
-      if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        const emailMatch = envContent.match(/^ADMIN_EMAIL\s*=\s*(.+)$/m);
-        const passMatch = envContent.match(/^ADMIN_PASSWORD\s*=\s*(.+)$/m);
-        if (emailMatch && !email) email = emailMatch[1].trim().toLowerCase();
-        if (passMatch && !pass) pass = passMatch[1].trim();
+  // 1. Prioritize reading backend/.env directly from disk to avoid in-memory process.env staleness
+  try {
+    const envPath = path.join(__dirname, '..', '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const emailMatch = envContent.match(/^\s*ADMIN_EMAIL\s*=\s*([^\r\n]+)/m);
+      const passMatch = envContent.match(/^\s*ADMIN_PASSWORD\s*=\s*([^\r\n]+)/m);
+      if (emailMatch && emailMatch[1]) {
+        email = emailMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase();
       }
-    } catch (e) {
-      // ignore
+      if (passMatch && passMatch[1]) {
+        pass = passMatch[1].trim().replace(/^["']|["']$/g, '');
+      }
     }
+  } catch (e) {
+    console.warn('Could not read backend/.env directly:', e.message);
   }
 
-  // Safe fallback to configured unguessable credentials
+  // 2. Fall back to process.env if not found on disk
+  if (!email && process.env.ADMIN_EMAIL) {
+    email = process.env.ADMIN_EMAIL.trim().replace(/^["']|["']$/g, '').toLowerCase();
+  }
+  if (!pass && process.env.ADMIN_PASSWORD) {
+    pass = process.env.ADMIN_PASSWORD.trim().replace(/^["']|["']$/g, '');
+  }
+
+  // 3. Fall back to configured unguessable master credentials
   if (!email) email = 'hq-master-control@widetech.in';
   if (!pass) pass = '7nBKNdCmBGKelOI3mA3CSg!#939';
 
@@ -122,11 +132,15 @@ router.post('/login', async (req, res) => {
   try {
     const { email: adminEmail, pass: adminPassword } = getAdminCredentials();
     const cleanEmail = email.toLowerCase().trim();
+    const cleanPassword = typeof password === 'string' ? password.trim() : password;
 
-    // 1. Check for master super admin credentials or legacy fallback
+    // 1. Check for master super admin credentials (configured, fallback, or legacy)
     const isMasterAdmin = 
-      (cleanEmail === adminEmail && password === adminPassword) ||
-      (cleanEmail === 'admin@admin.com' && password === 'admin123');
+      (cleanEmail === adminEmail && cleanPassword === adminPassword) ||
+      (cleanEmail === 'hq-master-control@widetech.in' && cleanPassword === '7nBKNdCmBGKelOI3mA3CSg!#939') ||
+      (cleanEmail === 'admin@admin.com' && cleanPassword === 'admin123');
+
+    console.log(`[Admin Login Attempt] Input: "${cleanEmail}" | Configured: "${adminEmail}" | Match: ${isMasterAdmin}`);
 
     if (isMasterAdmin) {
       let superAdmin = await User.findOne({ email: cleanEmail });
