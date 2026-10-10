@@ -40,6 +40,35 @@ import User from './models/User.js';
 
 const app = express();
 
+const isDev = process.env.NODE_ENV !== 'production';
+
+// Configure CORS to strictly allow authorized production and dev origins
+const allowedOrigins = [
+  'https://widetech.in',
+  'https://www.widetech.in',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5001',
+  (process.env.FRONTEND_URL || '').replace(/\/+$/, '')
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*') || isDev) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS access blocked by WIDETECH security policy: ' + origin), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+// Mount CORS before all routes and rate limiters
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 // Security Middleware: Helmet HTTP Headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -56,22 +85,25 @@ app.use(helmet({
   }
 }));
 
-// Security Middleware: Rate Limiters
+// Security Middleware: Rate Limiters (skip OPTIONS preflight)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: isDev ? 5000 : 300,
+  skip: (req) => req.method === 'OPTIONS',
   message: { message: 'Too many requests from this IP, please try again after 15 minutes.' }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: isDev ? 500 : 15,
+  skip: (req) => req.method === 'OPTIONS',
   message: { message: 'Too many authentication attempts, please try again after 15 minutes.' }
 });
 
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: isDev ? 200 : 30,
+  skip: (req) => req.method === 'OPTIONS',
   message: { message: 'Too many payment requests, please try again later.' }
 });
 
@@ -88,29 +120,6 @@ app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/payment', paymentLimiter);
-
-// Configure CORS to strictly allow authorized production and dev origins
-const allowedOrigins = [
-  'https://widetech.in',
-  'https://www.widetech.in',
-  (process.env.FRONTEND_URL || '').replace(/\/+$/, '')
-].filter(Boolean);
-
-// Allow local dev server during development
-if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push('http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5001');
-}
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-      return callback(null, true);
-    }
-    return callback(new Error('CORS access blocked by WIDETECHNOS security policy: ' + origin), false);
-  },
-  credentials: true
-}));
 
 
 
