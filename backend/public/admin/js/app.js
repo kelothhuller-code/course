@@ -130,6 +130,11 @@ const App = {
                     content = await ReferralsModule.render();
                     break;
 
+                case 'coupons':
+                    this.setBreadcrumb('🎟️ Coupons & Offers');
+                    content = await CouponsModule.render();
+                    break;
+
                 // ==================== GST & SALES BUILDER VIEWS ====================
                 case 'gst-report':
                 case 'gst_report':

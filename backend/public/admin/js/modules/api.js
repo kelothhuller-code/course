@@ -160,5 +160,22 @@ replyAsAdmin(courseId, commentId, text) {
 
     testSmtp(testEmail) {
         return this.post('/api/admin/test-smtp', { testEmail });
+    },
+
+    // Coupon Endpoints
+    getCoupons() {
+        return this.get('/api/admin/coupons');
+    },
+
+    createCoupon(data) {
+        return this.post('/api/admin/coupons', data);
+    },
+
+    updateCoupon(id, data) {
+        return this.put(`/api/admin/coupons/${id}`, data);
+    },
+
+    deleteCoupon(id) {
+        return this.delete(`/api/admin/coupons/${id}`);
     }
 };
