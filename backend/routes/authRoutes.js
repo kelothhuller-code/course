@@ -84,22 +84,29 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@admin.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    const adminPassword = (process.env.ADMIN_PASSWORD || '').trim();
 
     // Check for special super admin credentials
-    if (email === adminEmail && password === adminPassword) {
+    if (adminEmail && adminPassword && email.toLowerCase().trim() === adminEmail && password === adminPassword) {
       let superAdmin = await User.findOne({ email: adminEmail });
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(adminPassword, salt);
+
       if (!superAdmin) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(adminPassword, salt);
         superAdmin = await User.create({
           name: 'Super Admin',
           email: adminEmail,
           password: hashedPassword,
           role: 'admin',
         });
+      } else {
+        // Keep DB record and role in sync
+        superAdmin.password = hashedPassword;
+        superAdmin.role = 'admin';
+        await superAdmin.save();
       }
+
       return res.json({
         _id: superAdmin._id,
         name: superAdmin.name,
