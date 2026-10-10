@@ -32,6 +32,8 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
     };
   }, [isOpen]);
 
+  const closeMenu = () => setIsOpen(false);
+
   const scrollToSection = (e, sectionId) => {
     e.preventDefault();
     closeMenu();
