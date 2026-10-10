@@ -8,6 +8,7 @@ import ReferralLog from '../models/ReferralLog.js';
 import { protect, admin } from '../middleware/auth.js';
 import { sendCustomEmail, verifySmtpConnection } from '../utils/mailer.js';
 import Razorpay from 'razorpay';
+import Coupon from '../models/Coupon.js';
 
 import {
   getCourseAnalytics,
@@ -701,6 +702,129 @@ router.post('/test-smtp', async (req, res) => {
       message: 'Failed to send test email',
       error: error.message
     });
+  }
+});
+
+// ── Admin Coupon CRUD API (C1) ──
+
+// @desc    Get all coupons with analytics
+// @route   GET /api/admin/coupons
+// @access  Private/Admin
+router.get('/coupons', async (req, res) => {
+  try {
+    const coupons = await Coupon.find({})
+      .populate('applicableCourses', 'title price')
+      .sort({ createdAt: -1 });
+    res.json(coupons);
+  } catch (error) {
+    console.error('Fetch coupons error:', error);
+    res.status(500).json({ message: 'Failed to fetch coupons', error: error.message });
+  }
+});
+
+// @desc    Create new coupon
+// @route   POST /api/admin/coupons
+// @access  Private/Admin
+router.post('/coupons', async (req, res) => {
+  const {
+    code,
+    discountType,
+    discountValue,
+    applicableCourses,
+    expiryDate,
+    usageLimit,
+    maxUsesPerUser,
+    isActive
+  } = req.body;
+
+  if (!code || !discountType || discountValue === undefined) {
+    return res.status(400).json({ message: 'Code, discountType, and discountValue are required' });
+  }
+
+  try {
+    const existing = await Coupon.findOne({ code: code.toUpperCase().trim() });
+    if (existing) {
+      return res.status(400).json({ message: `Coupon with code '${code.toUpperCase().trim()}' already exists` });
+    }
+
+    const coupon = await Coupon.create({
+      code: code.toUpperCase().trim(),
+      discountType,
+      discountValue: Number(discountValue),
+      applicableCourses: applicableCourses || [],
+      expiryDate: expiryDate ? new Date(expiryDate) : null,
+      usageLimit: usageLimit !== undefined && usageLimit !== null ? Number(usageLimit) : null,
+      maxUsesPerUser: maxUsesPerUser !== undefined && maxUsesPerUser !== null ? Number(maxUsesPerUser) : 1,
+      isActive: isActive !== undefined ? Boolean(isActive) : true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Coupon '${coupon.code}' created successfully!`,
+      coupon
+    });
+  } catch (error) {
+    console.error('Create coupon error:', error);
+    res.status(500).json({ message: 'Failed to create coupon', error: error.message });
+  }
+});
+
+// @desc    Update an existing coupon
+// @route   PUT /api/admin/coupons/:id
+// @access  Private/Admin
+router.put('/coupons/:id', async (req, res) => {
+  try {
+    const coupon = await Coupon.findById(req.params.id);
+    if (!coupon) {
+      return res.status(404).json({ message: 'Coupon not found' });
+    }
+
+    const {
+      code,
+      discountType,
+      discountValue,
+      applicableCourses,
+      expiryDate,
+      usageLimit,
+      maxUsesPerUser,
+      isActive
+    } = req.body;
+
+    if (code) coupon.code = code.toUpperCase().trim();
+    if (discountType) coupon.discountType = discountType;
+    if (discountValue !== undefined) coupon.discountValue = Number(discountValue);
+    if (applicableCourses !== undefined) coupon.applicableCourses = applicableCourses;
+    if (expiryDate !== undefined) coupon.expiryDate = expiryDate ? new Date(expiryDate) : null;
+    if (usageLimit !== undefined) coupon.usageLimit = usageLimit !== null ? Number(usageLimit) : null;
+    if (maxUsesPerUser !== undefined) coupon.maxUsesPerUser = Number(maxUsesPerUser);
+    if (isActive !== undefined) coupon.isActive = Boolean(isActive);
+
+    await coupon.save();
+
+    res.json({
+      success: true,
+      message: `Coupon '${coupon.code}' updated successfully!`,
+      coupon
+    });
+  } catch (error) {
+    console.error('Update coupon error:', error);
+    res.status(500).json({ message: 'Failed to update coupon', error: error.message });
+  }
+});
+
+// @desc    Delete coupon
+// @route   DELETE /api/admin/coupons/:id
+// @access  Private/Admin
+router.delete('/coupons/:id', async (req, res) => {
+  try {
+    const coupon = await Coupon.findByIdAndDelete(req.params.id);
+    if (!coupon) {
+      return res.status(404).json({ message: 'Coupon not found' });
+    }
+    res.json({ success: true, message: `Coupon '${coupon.code}' deleted successfully` });
+  } catch (error) {
+    console.error('Delete coupon error:', error);
+    res.status(500).json({ message: 'Failed to delete coupon', error: error.message });
   }
 });
 

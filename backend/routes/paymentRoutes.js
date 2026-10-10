@@ -83,6 +83,18 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
     }
   }
 
+  // Track coupon redemption per user (C2)
+  if (txn.couponCode) {
+    try {
+      await Coupon.findOneAndUpdate(
+        { code: txn.couponCode },
+        { $addToSet: { usedByUsers: user._id } }
+      );
+    } catch (cErr) {
+      console.error('Failed to update coupon user usage:', cErr);
+    }
+  }
+
   // Send purchase confirmation email
   try {
     sendPurchaseEmail(user.email, user.name, itemTitle, txn.txnid, txn.amount);
@@ -128,6 +140,13 @@ router.post('/validate-coupon', protect, async (req, res) => {
     // Check usage limit
     if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
       return res.status(400).json({ message: 'This coupon has reached its usage limit.' });
+    }
+
+    // Check single-use per user tracking (C2)
+    const userUsageCount = (coupon.usedByUsers || []).filter(u => u.toString() === req.user._id.toString()).length;
+    const maxPerUser = coupon.maxUsesPerUser || 1;
+    if (userUsageCount >= maxPerUser) {
+      return res.status(400).json({ message: `You have already redeemed this coupon code.` });
     }
 
     // Check if restricted to specific courses

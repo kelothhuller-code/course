@@ -822,31 +822,41 @@ export default function CourseViewer({ user, onRefreshUser }) {
                   lessonsList.map((lesson, idx) => {
                     const isActive = activeLesson && activeLesson._id === lesson._id;
                     const isCompleted = isLessonCompleted(lesson._id);
-                    
+                    const isAdmin = user?.role === 'admin';
+                    // Chapter Drip Gating: Lesson 0 is unlocked; lesson N requires lesson N-1 completed
+                    const isLocked = !isAdmin && idx > 0 && !isLessonCompleted(lessonsList[idx - 1]._id);
+
                     return (
                       <div 
                         key={lesson._id || idx}
                         className={`lesson-item ${isActive ? 'active' : ''}`}
-                        onClick={() => handleLessonSelect(lesson)}
+                        onClick={() => {
+                          if (isLocked) {
+                            alert('🔒 Lesson Locked: Please finish and mark the previous lesson as complete to unlock this chapter.');
+                            return;
+                          }
+                          handleLessonSelect(lesson);
+                        }}
                         style={{
                           padding: '0.75rem',
                           margin: '0.25rem 0',
                           borderRadius: 'var(--radius)',
-                          cursor: 'pointer',
+                          cursor: isLocked ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.5rem',
                           backgroundColor: isActive ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                          opacity: isLocked ? 0.55 : 1,
                           transition: 'background-color 0.2s',
                           borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent'
                         }}
                       >
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '24px' }}>
-                          {idx + 1}.
+                        <span style={{ fontSize: '0.75rem', color: isLocked ? '#64748b' : 'var(--text-muted)', minWidth: '24px' }}>
+                          {isLocked ? '🔒' : `${idx + 1}.`}
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ 
-                            color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                            color: isLocked ? '#64748b' : (isActive ? 'var(--primary)' : 'var(--text-primary)'),
                             fontSize: '0.85rem',
                             fontWeight: isActive ? '600' : '400',
                             whiteSpace: 'nowrap',
@@ -856,11 +866,14 @@ export default function CourseViewer({ user, onRefreshUser }) {
                             {lesson.title || `Lesson ${idx + 1}`}
                           </div>
                           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                            ⏱️ {lesson.duration || 'N/A'}
+                            {isLocked ? 'Prerequisite Required' : `⏱️ ${lesson.duration || 'N/A'}`}
                           </div>
                         </div>
                         {isCompleted && (
                           <span style={{ color: '#10b981', fontSize: '1rem', flexShrink: 0 }}>✓</span>
+                        )}
+                        {isLocked && (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>🔒</span>
                         )}
                       </div>
                     );

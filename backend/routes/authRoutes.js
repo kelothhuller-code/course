@@ -10,9 +10,9 @@ import { getJwtSecret } from '../utils/jwtSecret.js';
 
 const router = express.Router();
 
-// Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, getJwtSecret(), {
+// Generate JWT token with tokenVersion for concurrent session control (F2)
+const generateToken = (id, tokenVersion = 0) => {
+  return jwt.sign({ id, tokenVersion }, getJwtSecret(), {
     expiresIn: '30d',
   });
 };
@@ -112,12 +112,16 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // Invalidate any previous concurrent sessions (F2)
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
+      await user.save();
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
+        token: generateToken(user._id, user.tokenVersion),
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });

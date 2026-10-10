@@ -36,7 +36,11 @@ const UserSchema = new mongoose.Schema({
     courseTitle: String,
     completionDate: Date,
     certificateUrl: String
-  }]
+  }],
+  tokenVersion: {
+    type: Number,
+    default: 0
+  }
 }, {
   timestamps: true
 });

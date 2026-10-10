@@ -119,6 +119,36 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
   }
 });
 
+// @desc    Download protected course material (PDF, slides, notes) (B2)
+// @route   GET /api/upload/material/download/:filename
+// @access  Private (Enrolled students or admin)
+router.get('/material/download/:filename', protect, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(materialsDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Requested material file not found on server.' });
+    }
+
+    // Admins have unrestricted download access
+    if (req.user.role === 'admin') {
+      return res.download(filePath, filename);
+    }
+
+    // For students: verify active enrollment
+    const userEnrollments = req.user.enrolledCourses || [];
+    if (userEnrollments.length === 0) {
+      return res.status(403).json({ message: 'Access denied: You must be enrolled in the course to download this study material.' });
+    }
+
+    res.download(filePath, filename);
+  } catch (error) {
+    console.error('Download material error:', error);
+    res.status(500).json({ message: 'Error downloading material', error: error.message });
+  }
+});
+
 // @desc    Generic multi-file upload for course assets
 // @route   POST /api/upload/multiple
 // @access  Private/Admin

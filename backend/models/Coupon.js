@@ -32,6 +32,14 @@ const CouponSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  usedByUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  maxUsesPerUser: {
+    type: Number,
+    default: 1
+  },
   isActive: {
     type: Boolean,
     default: true,

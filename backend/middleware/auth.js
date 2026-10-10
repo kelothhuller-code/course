@@ -14,6 +14,13 @@ export const protect = async (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({ message: 'User not found' });
       }
+
+      // Concurrent Login Restriction (F2):
+      // If tokenVersion doesn't match, previous session was invalidated by another device login
+      if (decoded.tokenVersion !== undefined && req.user.tokenVersion !== undefined && decoded.tokenVersion !== req.user.tokenVersion) {
+        return res.status(401).json({ message: 'Session expired: You have been logged in on another device.' });
+      }
+
       next();
     } catch (error) {
       console.error('Auth middleware error:', error);

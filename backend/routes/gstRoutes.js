@@ -420,4 +420,177 @@ router.get('/report/export', protect, admin, async (req, res) => {
   }
 });
 
+// @desc    Export official GSTR-1 government offline JSON file (D2)
+// @route   GET /api/admin/gst/report/export-json
+// @access  Private/Admin
+router.get('/report/export-json', protect, admin, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const gstConfig = await getOrInitGstConfig();
+
+    let query = { status: { $in: ['success', 'refunded'] } };
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+      };
+    }
+
+    const transactions = await Transaction.find(query).populate('userId', 'name email').sort({ createdAt: -1 });
+
+    const now = new Date();
+    const fpMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const fpYear = String(now.getFullYear());
+    const fp = `${fpMonth}${fpYear}`;
+
+    let totalGross = 0;
+    const b2bMap = {};
+    const b2csMap = {};
+    const cdnrList = [];
+    const cdnurList = [];
+    const hsnMap = {};
+
+    transactions.forEach(t => {
+      const isRefunded = t.status === 'refunded';
+      const gross = t.amount || 0;
+      const base = t.gstDetails?.baseAmount || Math.round((gross / 1.18) * 100) / 100;
+      const cgst = t.gstDetails?.cgstAmount || 0;
+      const sgst = t.gstDetails?.sgstAmount || 0;
+      const igst = t.gstDetails?.igstAmount || 0;
+      const gstin = t.billingDetails?.buyerGstin?.toUpperCase().trim() || '';
+      const isB2B = Boolean(gstin && gstin.length > 5);
+      const pos = t.billingDetails?.buyerState || gstConfig.sellerState;
+      const sac = t.gstDetails?.hsnSacCode || '999249';
+
+      if (!isRefunded) {
+        totalGross += gross;
+
+        if (isB2B) {
+          if (!b2bMap[gstin]) {
+            b2bMap[gstin] = { ctin: gstin, inv: [] };
+          }
+          b2bMap[gstin].inv.push({
+            inum: t.invoiceNo || t.txnid,
+            idt: new Date(t.createdAt).toISOString().split('T')[0],
+            val: gross,
+            pos: pos,
+            rchrg: 'N',
+            inv_typ: 'R',
+            itms: [{
+              num: 1,
+              itm_det: {
+                txval: base,
+                rt: 18,
+                iamt: igst,
+                camt: cgst,
+                samt: sgst,
+                csamt: 0
+              }
+            }]
+          });
+        } else {
+          const isIntra = pos.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
+          const key = `${pos}_18`;
+          if (!b2csMap[key]) {
+            b2csMap[key] = {
+              sply_ty: isIntra ? 'INTRA' : 'INTER',
+              pos: pos,
+              typ: 'OE',
+              rt: 18,
+              txval: 0,
+              iamt: 0,
+              camt: 0,
+              samt: 0,
+              csamt: 0
+            };
+          }
+          b2csMap[key].txval = Math.round((b2csMap[key].txval + base) * 100) / 100;
+          b2csMap[key].iamt = Math.round((b2csMap[key].iamt + igst) * 100) / 100;
+          b2csMap[key].camt = Math.round((b2csMap[key].camt + cgst) * 100) / 100;
+          b2csMap[key].samt = Math.round((b2csMap[key].samt + sgst) * 100) / 100;
+        }
+      } else {
+        // Credit Notes (Section 9B)
+        const cnItem = {
+          nt_num: t.creditNoteNo || `CN-${t.txnid}`,
+          nt_dt: new Date(t.refundDetails?.refundDate || t.updatedAt).toISOString().split('T')[0],
+          inum: t.invoiceNo || t.txnid,
+          idt: new Date(t.createdAt).toISOString().split('T')[0],
+          val: gross,
+          itms: [{
+            num: 1,
+            itm_det: {
+              txval: base,
+              rt: 18,
+              iamt: igst,
+              camt: cgst,
+              samt: sgst,
+              csamt: 0
+            }
+          }]
+        };
+
+        if (isB2B) {
+          cdnrList.push({ ctin: gstin, nt: [cnItem] });
+        } else {
+          cdnurList.push({
+            typ: 'B2CL',
+            nt_num: cnItem.nt_num,
+            nt_dt: cnItem.nt_dt,
+            inum: cnItem.inum,
+            idt: cnItem.idt,
+            val: gross,
+            itms: cnItem.itms
+          });
+        }
+      }
+
+      // HSN 12
+      if (!hsnMap[sac]) {
+        hsnMap[sac] = {
+          num: Object.keys(hsnMap).length + 1,
+          hsn_sc: sac,
+          desc: 'Online Educational Services / E-learning Courses',
+          uqc: 'OTH',
+          qty: 0,
+          val: 0,
+          txval: 0,
+          iamt: 0,
+          camt: 0,
+          samt: 0,
+          csamt: 0
+        };
+      }
+      const mult = isRefunded ? -1 : 1;
+      hsnMap[sac].qty += 1;
+      hsnMap[sac].val = Math.round((hsnMap[sac].val + mult * gross) * 100) / 100;
+      hsnMap[sac].txval = Math.round((hsnMap[sac].txval + mult * base) * 100) / 100;
+      hsnMap[sac].iamt = Math.round((hsnMap[sac].iamt + mult * igst) * 100) / 100;
+      hsnMap[sac].camt = Math.round((hsnMap[sac].camt + mult * cgst) * 100) / 100;
+      hsnMap[sac].samt = Math.round((hsnMap[sac].samt + mult * sgst) * 100) / 100;
+    });
+
+    const gstr1Payload = {
+      gstin: gstConfig.gstin,
+      fp,
+      gt: Math.round(totalGross * 100) / 100,
+      cur_gt: Math.round(totalGross * 100) / 100,
+      b2b: Object.values(b2bMap),
+      b2cs: Object.values(b2csMap),
+      cdnr: cdnrList,
+      cdnur: cdnurList,
+      hsn: {
+        data: Object.values(hsnMap)
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=GSTR1_Offline_${fp}_${Date.now()}.json`);
+    res.status(200).json(gstr1Payload);
+  } catch (error) {
+    console.error('Export GSTR-1 JSON error:', error);
+    res.status(500).json({ message: 'Error exporting GSTR-1 JSON', error: error.message });
+  }
+});
+
 export default router;
