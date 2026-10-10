@@ -190,5 +190,26 @@ replyAsAdmin(courseId, commentId, text) {
 
     deleteInquiry(id) {
         return this.delete(`/api/leads/messages/${id}`);
+    },
+
+    // Subscribers & Automated Welcome Email Endpoints
+    getSubscribers() {
+        return this.get('/api/leads/subscribers');
+    },
+
+    getNewsletterConfig() {
+        return this.get('/api/leads/config');
+    },
+
+    updateNewsletterConfig(data) {
+        return this.put('/api/leads/config', data);
+    },
+
+    broadcastToSubscribers(data) {
+        return this.post('/api/leads/broadcast', data);
+    },
+
+    deleteSubscriber(id) {
+        return this.delete(`/api/leads/subscribers/${id}`);
     }
 };

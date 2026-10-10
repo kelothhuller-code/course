@@ -32,12 +32,12 @@ export default function LeadMagnet() {
           Get Our Free <span className="lead-magnet-highlight">AI Starter Toolkit</span>
         </h2>
         <p className="lead-magnet-desc">
-          Join 12,000+ learners and get our curated AI Resource Guide — top tools, prompt templates,
-          and a 7-day learning plan delivered straight to your inbox. Zero cost, zero spam.
+          Get our curated AI Resource Guide — top tools, free prompts,
+          and a clear learning roadmap delivered straight to your inbox. Zero cost, zero spam.
         </p>
 
         <div className="lead-magnet-perks">
-          {['📋 AI Tools Cheat Sheet', '💡 100+ Prompt Templates', '🗺️ 7-Day AI Learning Plan', '🎥 3 Bonus Lesson Videos'].map(p => (
+          {['📋 AI Tools Cheat Sheet', '💡 Free Prompt Library', '🗺️ Free Learning Roadmap', '🎥 Bonus Lesson Videos'].map(p => (
             <span key={p} className="lead-magnet-perk">{p}</span>
           ))}
         </div>

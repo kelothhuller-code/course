@@ -46,35 +46,29 @@ export default function RefundPage({ user }) {
             <strong>Instant Digital Fulfillment:</strong> All courses, video lessons, code repositories, and educational modules offered on WIDETECHNOS Academy are digital goods. Access is provisioned and unlocked automatically in the student's dashboard immediately upon successful payment confirmation. No physical delivery or shipping is involved.
           </div>
 
-          <h2>3. Refund Eligibility Window</h2>
+          <h2>3. All Sales Are Final (No Discretionary Refunds)</h2>
           <p>
-            We offer a <strong>7-Day Money-Back Guarantee</strong> on our self-paced online courses under the following fair-use conditions:
+            Because all courses, workshops, video lectures, and learning materials on WIDETECHNOS Academy are <strong>instant-access digital goods</strong>, all course and workshop enrollments are <strong>final and non-refundable</strong> once access has been unlocked in your dashboard. We do not provide discretionary refunds, change-of-mind refunds, or refunds after curriculum consumption.
+          </p>
+
+          <h2>4. Exceptions: When Refunds Are Processed (Platform Fault Only)</h2>
+          <p>
+            A refund will strictly be granted <strong>only if there is a verified fault from our side</strong>, including:
           </p>
           <ul>
-            <li><strong>Timeframe:</strong> The refund request must be submitted within <strong>7 calendar days</strong> from the date and time of purchase.</li>
-            <li><strong>Consumption Cap:</strong> The student must not have consumed or watched more than <strong>25%</strong> of the total course lessons/chapters.</li>
-            <li><strong>Certificate Status:</strong> If a certificate of completion has already been issued or claimed for the course, the purchase becomes strictly non-refundable.</li>
-            <li><strong>Resource Downloads:</strong> Proprietary starter files, templates, or downloadable course software must not have been bulk-downloaded prior to the refund request.</li>
+            <li><strong>Duplicate Payment / Double Debit:</strong> If your bank account or card was charged more than once for the same transaction due to a payment gateway timeout, the duplicate charge will be refunded 100% automatically.</li>
+            <li><strong>Verified Platform Technical Failure:</strong> If you are unable to access the course or digital content due to a server-side technical error that our support engineering team is unable to resolve within 48 business hours of your report.</li>
+            <li><strong>Workshop Cancellation by Organizer:</strong> If WIDETECHNOS Academy cancels a scheduled live workshop or event without providing an alternative rescheduled date.</li>
           </ul>
 
-          <h2>4. Live Workshops & Events Cancellation Policy</h2>
+          <h2>5. Reporting a Technical Fault or Double Debit</h2>
           <p>
-            For live interactive workshops, masterclasses, and bootcamps:
-          </p>
-          <ul>
-            <li><strong>Cancellation 48+ Hours Before:</strong> If you cancel your event registration at least 48 hours prior to the scheduled start time, you are eligible for a 100% full refund.</li>
-            <li><strong>Within 48 Hours:</strong> Cancellations made within 48 hours of the live session starting are non-refundable, but we will provide you with full access to the event recording and materials.</li>
-            <li><strong>Organizer Rescheduling:</strong> If WIDETECHNOS Academy cancels or reschedules an event, registered attendees may choose either a full 100% refund or free transfer to the rescheduled date.</li>
-          </ul>
-
-          <h2>5. How to Request a Refund</h2>
-          <p>
-            To submit a cancellation or refund request, please follow these simple steps:
+            If you have experienced a technical error or duplicate debit caused by our system or gateway, please report it within <strong>7 days of transaction</strong>:
           </p>
           <ol style={{ paddingLeft: '1.5rem', marginBottom: '1.25rem', lineHeight: '1.8' }}>
-            <li>Email our support team at <strong>support@widetechnos.com</strong> from your registered account email.</li>
-            <li>Use the subject line: <code>Refund Request - [Your Transaction ID]</code>.</li>
-            <li>Include your Course Name, Transaction ID (found in your invoice under <em>Dashboard &gt; Invoices</em>), and a brief description of why you are requesting a refund.</li>
+            <li>Email our billing desk at <strong>support@widetech.in</strong> from your registered account email.</li>
+            <li>Use the subject line: <code>Billing Issue - [Your Transaction ID]</code>.</li>
+            <li>Attach your payment confirmation receipt or screenshot showing the duplicate deduction.</li>
           </ol>
 
           <h2>6. Refund Processing Time & Payment Mode</h2>

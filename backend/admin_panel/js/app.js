@@ -154,6 +154,11 @@ const App = {
                     content = await InquiriesModule.render();
                     break;
 
+                case 'subscribers':
+                    this.setBreadcrumb('👥 Newsletter Leads & Welcome Email Engine');
+                    content = await SubscribersModule.render();
+                    break;
+
                 // ==================== GST & SALES BUILDER VIEWS ====================
                 case 'gst-report':
                 case 'gst_report':
