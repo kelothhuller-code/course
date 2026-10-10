@@ -31,13 +31,13 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
                   {featuredCourse.title} — {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
                 </Link>
               ) : (
-                <a href="#courses" className="btn btn-primary btn-lg">
-                  Explore AI Courses →
-                </a>
+                <Link to="/all-courses" className="btn btn-primary btn-lg">
+                  Explore Courses →
+                </Link>
               )}
-              <a href="#software" className="btn btn-secondary btn-lg">
+              <Link to={user ? "/dashboard?tab=software" : "/auth"} className="btn btn-secondary btn-lg">
                 View Software & Bots
-              </a>
+              </Link>
             </div>
             <div className="hero-trust">
               <span>✓ Practical AI Masterclasses</span>

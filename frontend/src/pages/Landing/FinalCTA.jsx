@@ -22,13 +22,13 @@ export default function FinalCTA({ user, handleEnroll, featuredCourse }) {
               {featuredCourse.title} — {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
             </Link>
           ) : (
-            <a href="#courses" className="btn btn-primary btn-lg">
+            <Link to="/all-courses" className="btn btn-primary btn-lg">
               Explore All Courses →
-            </a>
+            </Link>
           )}
-          <a href="#trials" className="btn btn-secondary btn-lg">
+          <Link to={user ? "/dashboard" : "/auth"} className="btn btn-secondary btn-lg">
             Watch a Free Tutorial
-          </a>
+          </Link>
         </div>
         <div className="trust-tags">
           <span>✓ Beginner friendly</span>

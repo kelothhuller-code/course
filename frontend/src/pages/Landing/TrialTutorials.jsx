@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function TrialTutorials({ trials, onPlayVideo }) {
   if (!trials || trials.length === 0) return null;
@@ -38,9 +39,9 @@ export default function TrialTutorials({ trials, onPlayVideo }) {
         </div>
 
         <div className="trials-cta">
-          <a href="#courses" className="btn btn-secondary">
-            Explore More Free Tutorials
-          </a>
+          <Link to="/auth" className="btn btn-secondary">
+            Explore More Free Tutorials →
+          </Link>
         </div>
       </div>
     </section>

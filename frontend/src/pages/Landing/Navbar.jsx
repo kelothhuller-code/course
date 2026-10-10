@@ -124,13 +124,13 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
                     <Link to="/auth" className="btn btn-ghost btn-sm">
                       Login
                     </Link>
-                    <a 
-                      href="#courses" 
-                      onClick={(e) => scrollToSection(e, 'courses')}
+                    <Link 
+                      to="/all-courses" 
                       className="btn btn-primary btn-sm"
+                      onClick={closeMenu}
                     >
-                      Explore WideTech
-                    </a>
+                      Explore All Courses
+                    </Link>
                   </div>
                 )}
               </div>

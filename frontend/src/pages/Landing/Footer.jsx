@@ -20,10 +20,10 @@ export default function Footer() {
           <div className="footer-links">
             <h4>Learn</h4>
             <ul>
-              <li><a href="/#courses">Courses</a></li>
+              <li><Link to="/all-courses">Courses</Link></li>
               <li><Link to="/all-courses">All Courses</Link></li>
               <li><a href="/#events">Workshops</a></li>
-              <li><a href="/#trials">Free Tutorials</a></li>
+              <li><Link to="/auth">Free Tutorials</Link></li>
             </ul>
           </div>
 

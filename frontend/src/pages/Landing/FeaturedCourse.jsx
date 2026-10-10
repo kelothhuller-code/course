@@ -24,7 +24,7 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
     const chapterCount = (course.content || []).reduce((n, lang) => n + (lang.chapters?.length || 0), 0) || 8;
 
     return (
-      <section className="featured-section" id="courses">
+      <section className="featured-section" id="featured-program">
         <div className="container">
           <div className="section-label">FEATURED PROGRAM</div>
           <h2 className="section-title">Your First Step Into AI-Powered Coding</h2>
@@ -100,7 +100,7 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
 
   // Fallback when NO course is highlighted in the backend
   return (
-    <section className="featured-section" id="courses">
+    <section className="featured-section" id="featured-program">
       <div className="container">
         <div className="section-label">AI ACADEMY</div>
         <h2 className="section-title">Master Practical AI & Web Engineering</h2>
@@ -125,12 +125,12 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                 <li>Verified certificates of completion</li>
               </ul>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
-                <a href="#events" className="btn btn-primary btn-lg">
-                  Explore Live Workshops →
-                </a>
-                <a href="#trials" className="btn btn-secondary btn-lg">
+                <Link to="/all-courses" className="btn btn-primary btn-lg">
+                  Explore All Courses →
+                </Link>
+                <Link to={user ? "/dashboard" : "/auth"} className="btn btn-secondary btn-lg">
                   Watch Free Tutorials
-                </a>
+                </Link>
               </div>
             </div>
 

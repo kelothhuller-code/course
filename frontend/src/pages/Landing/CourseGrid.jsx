@@ -36,7 +36,7 @@ export default function CourseGrid({
   };
 
   return (
-    <section className="course-grid-section" id="all-courses">
+    <section className="course-grid-section" id="courses">
       <div className="container">
         <div className="course-grid-header">
           <div>

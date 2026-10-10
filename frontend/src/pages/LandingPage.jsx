@@ -220,22 +220,8 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           hasSoftware={hasSoftware}
         />
         <TrustStrip />
-        <FeaturedCourse
-          course={featuredCourse}
-          user={user}
-          handleEnroll={handleEnroll}
-        />
-        <BuildJourney />
-        {featuredCourse && (
-          <CourseCurriculum course={featuredCourse} />
-        )}
-        <WhyAI />
-        <TrialTutorials
-          trials={trials}
-          onPlayVideo={setActiveVideo}
-        />
 
-        {/* Course Grid with Pagination */}
+        {/* ── Courses Section (Seen 2nd on Landing Page) ── */}
         <CourseGrid
           courses={courses}
           user={user}
@@ -245,6 +231,23 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           onShowAll={handleShowAll}
           onShowPaginated={handleShowPaginated}
           showAll={showAllCourses}
+        />
+
+        {featuredCourse && (
+          <FeaturedCourse
+            course={featuredCourse}
+            user={user}
+            handleEnroll={handleEnroll}
+          />
+        )}
+        <BuildJourney />
+        {featuredCourse && (
+          <CourseCurriculum course={featuredCourse} />
+        )}
+        <WhyAI />
+        <TrialTutorials
+          trials={trials}
+          onPlayVideo={setActiveVideo}
         />
 
         {/* ── WideTech Software Products & Commercial Tools ── */}
