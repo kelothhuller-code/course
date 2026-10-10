@@ -77,6 +77,11 @@ export default function Checkout({ user, onRefreshUser }) {
   };
 
   const handlePayment = async () => {
+    if (!user) {
+      alert('Please sign in or create an account before completing checkout.');
+      navigate('/auth', { state: { from: `/checkout/${id}` } });
+      return;
+    }
     setProcessing(true);
     try {
       const orderPayload = {
@@ -212,6 +217,10 @@ export default function Checkout({ user, onRefreshUser }) {
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
+    if (!user) {
+      setCouponError('Please sign in first to apply coupon discounts.');
+      return;
+    }
     setCouponLoading(true);
     setCouponError('');
     setAppliedCoupon(null);
