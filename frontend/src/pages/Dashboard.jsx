@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
-import DashboardSidebar from './dashboard/DashboardSidebar';
 import DashboardTabs from './dashboard/DashboardTabs';
 import CertificateModal from './dashboard/CertificateModal';
 
@@ -197,18 +196,7 @@ export default function Dashboard({ user, onRefreshUser }) {
       <div className="landing-page" style={{ paddingTop: '1rem' }}>
         <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
           
-          <div className="dashboard-grid">
-            
-            {/* Sidebar */}
-            <DashboardSidebar 
-              profile={profile}
-              activeTab={activeTab}
-              setActiveTab={handleTabChange}
-              enrolledCourses={enrolledCourses}
-              enrolledEvents={enrolledEvents}
-              certificates={certificates}
-            />
-
+          <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
             {/* Main Content */}
             <main style={{ minWidth: 0, width: '100%' }}>
               <DashboardTabs 
@@ -231,6 +219,7 @@ export default function Dashboard({ user, onRefreshUser }) {
               />
             </main>
           </div>
+
 
           {/* Certificate Modal */}
           <CertificateModal 

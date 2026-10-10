@@ -24,7 +24,64 @@ export default function ContinueLearningTab({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {/* ── User Profile Greeting Banner ── */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: '1rem',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '16px',
+        padding: '1.25rem 1.75rem',
+        boxShadow: '0 4px 12px -2px rgba(15, 23, 42, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ 
+            width: '46px', 
+            height: '46px', 
+            borderRadius: '50%', 
+            background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
+            color: '#fff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            fontSize: '1.15rem', 
+            fontWeight: 800,
+            flexShrink: 0 
+          }}>
+            {profile?.name ? profile.name.substring(0, 2).toUpperCase() : 'U'}
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+              Welcome back, {profile?.name || 'Student'}
+            </h1>
+            <p style={{ margin: '0.15rem 0 0', color: '#64748b', fontSize: '0.84rem' }}>
+              {profile?.email} • <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{profile?.role === 'admin' ? 'Super Admin' : 'Student Account'}</span>
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button 
+            className="btn btn-secondary btn-sm"
+            onClick={() => setActiveTab('courses')}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600 }}
+          >
+            My Courses ({enrolledCourses.length})
+          </button>
+          <button 
+            className="btn btn-primary btn-sm"
+            onClick={() => setActiveTab('explore')}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600 }}
+          >
+            Explore Catalog →
+          </button>
+        </div>
+      </div>
+
       {/* ── 1. KPI Summary Cards & Charts ── */}
       <DashboardSummary 
         enrolledCourses={enrolledCourses}
@@ -32,6 +89,7 @@ export default function ContinueLearningTab({
         completedCourses={completedCourses}
         certificates={certificates}
       />
+
 
       {/* ── 2. My Enrolled Courses Section ── */}
       <section>

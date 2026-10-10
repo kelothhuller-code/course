@@ -85,7 +85,10 @@ export default function NavHeader({ user, onLogout }) {
               <Link to="/dashboard?tab=courses" className="nav-link">My Courses</Link>
               <Link to="/dashboard?tab=software" className="nav-link">Software & Tools</Link>
               <Link to="/dashboard?tab=services" className="nav-link">Services & Automation</Link>
-              <Link to="/dashboard?tab=explore" className="nav-link">Explore Store</Link>
+              <Link to="/dashboard?tab=events" className="nav-link">Workshops</Link>
+              <Link to="/dashboard?tab=certs" className="nav-link">Certificates</Link>
+              <Link to="/dashboard?tab=invoices" className="nav-link">Invoices</Link>
+              <Link to="/dashboard?tab=explore" className="nav-link">Store</Link>
 
               <div className="nav-desktop-auth-actions" style={{ marginLeft: '1rem' }}>
                 {user ? (
