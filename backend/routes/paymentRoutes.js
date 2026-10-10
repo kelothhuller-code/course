@@ -413,6 +413,10 @@ router.post('/response', async (req, res) => {
 // @route   POST /api/payment/mock-callback
 // @access  Public (Simulates the PayU gateway returning post request)
 router.post('/mock-callback', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ message: 'Mock payment callbacks are forbidden in production environment.' });
+  }
+
   const { txnid, status } = req.body;
 
   try {
@@ -660,6 +664,12 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
     const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
     const isMock = key_id === 'rzp_test_placeholder' || key_id.startsWith('mock');
 
+    if (process.env.NODE_ENV === 'production' && isMock) {
+      return res.status(500).json({ 
+        message: 'Production configuration error: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured with live credentials in production environment.' 
+      });
+    }
+
     let razorpayOrderId = `order_mock_${txnid}`;
 
     if (!isMock) {
@@ -765,6 +775,13 @@ router.post('/razorpay/verify', protect, async (req, res) => {
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
     const isMock = (process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder') === 'rzp_test_placeholder' || txn.razorpayOrderId.startsWith('order_mock_');
+
+    if (process.env.NODE_ENV === 'production' && isMock) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Security error: Mock payments cannot be verified in production environment.' 
+      });
+    }
 
     if (!isMock) {
       // Cryptographic signature check: HMAC-SHA256(order_id + "|" + payment_id, secret)

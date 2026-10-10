@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 // Ensure upload directories exist
 const uploadBaseDir = path.join(__dirname, '..', 'public', 'uploads');
 const thumbnailDir = path.join(uploadBaseDir, 'thumbnails');
-const materialsDir = path.join(uploadBaseDir, 'materials');
+// Protected Materials stored OUTSIDE public static folder to prevent direct unauthenticated access
+const materialsDir = path.join(__dirname, '..', 'private_storage', 'materials');
 
 [uploadBaseDir, thumbnailDir, materialsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
@@ -124,8 +125,9 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
 // @access  Private (Enrolled students or admin)
 router.get('/material/download/:filename', protect, async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const filePath = path.join(materialsDir, filename);
+    // Sanitize against directory traversal (e.g. ../../)
+    const safeFilename = path.basename(req.params.filename);
+    const filePath = path.join(materialsDir, safeFilename);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'Requested material file not found on server.' });
@@ -133,7 +135,7 @@ router.get('/material/download/:filename', protect, async (req, res) => {
 
     // Admins have unrestricted download access
     if (req.user.role === 'admin') {
-      return res.download(filePath, filename);
+      return res.download(filePath, safeFilename);
     }
 
     // For students: verify active enrollment
