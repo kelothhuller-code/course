@@ -2,14 +2,21 @@
 window.CouponsModule = {
     async render() {
         try {
-            const [coupons, courses] = await Promise.all([
-                API.getCoupons(),
-                API.getCourses()
+            const [couponsData, coursesData] = await Promise.all([
+                API.getCoupons().catch(e => { console.error('getCoupons error:', e); return []; }),
+                API.getCourses().catch(e => { console.error('getCourses error:', e); return []; })
             ]);
 
+            const coupons = Array.isArray(couponsData) 
+                ? couponsData 
+                : (couponsData?.coupons || couponsData?.data || []);
+            const courses = (window.Helpers && typeof Helpers.extractCourses === 'function')
+                ? Helpers.extractCourses(coursesData)
+                : (Array.isArray(coursesData) ? coursesData : (coursesData?.courses || coursesData?.data || []));
+
             const totalCoupons = coupons.length;
-            const activeCoupons = coupons.filter(c => c.isActive).length;
-            const totalRedemptions = coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
+            const activeCoupons = coupons.filter(c => c && c.isActive).length;
+            const totalRedemptions = coupons.reduce((sum, c) => sum + (c?.usedCount || 0), 0);
 
             let tableRows = `
                 <tr>
@@ -80,8 +87,8 @@ window.CouponsModule = {
                 }).join('');
             }
 
-            const courseOptions = (courses || []).map(c => `
-                <option value="${c._id}">${Helpers.safeString(c.title)} (₹${c.price})</option>
+            const courseOptions = (Array.isArray(courses) ? courses : []).map(c => `
+                <option value="${c?._id}">${Helpers.safeString(c?.title)} (₹${c?.price || 0})</option>
             `).join('');
 
             return `
