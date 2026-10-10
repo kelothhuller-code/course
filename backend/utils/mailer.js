@@ -102,3 +102,34 @@ export const sendPurchaseEmail = async (email, name, itemTitle, txnid, amount) =
     console.error('Error sending purchase email:', error);
   }
 };
+
+export const sendCustomEmail = async ({ to, subject, html, text }) => {
+  const transporter = createTransporter();
+  const mailOptions = {
+    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    to,
+    subject,
+    text: text || '',
+    html: html || `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;line-height:1.6;color:#333;">${(text || '').replace(/\n/g, '<br>')}</div>`
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  return info;
+};
+
+export const verifySmtpConnection = async () => {
+  const transporter = createTransporter();
+  if (typeof transporter.verify === 'function') {
+    return new Promise((resolve) => {
+      transporter.verify((error, success) => {
+        if (error) {
+          resolve({ success: false, error: error.message });
+        } else {
+          resolve({ success: true });
+        }
+      });
+    });
+  }
+  return { success: true, mock: true };
+};
+

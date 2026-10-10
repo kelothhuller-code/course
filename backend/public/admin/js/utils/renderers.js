@@ -69,6 +69,11 @@ window.Renderers = {
                     </div>
                 </td>
                 <td style="color:var(--text-muted);">${Helpers.formatDate(user.createdAt)}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); StudentsModule.openEmailModal('${(user.email || '').replace(/'/g, "\\'")}', '${(user.name || '').replace(/'/g, "\\'")}')">
+                        ✉️ Email
+                    </button>
+                </td>
             </tr>
         `;
     },

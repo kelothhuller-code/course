@@ -152,5 +152,13 @@ replyAsAdmin(courseId, commentId, text) {
 
     replyToComment(commentId, text) {
         return this.post(`/api/admin/comments/${commentId}/reply`, { text });
+    },
+
+    sendEmail({ recipientEmail, subject, message, isBroadcast }) {
+        return this.post('/api/admin/send-email', { recipientEmail, subject, message, isBroadcast });
+    },
+
+    testSmtp(testEmail) {
+        return this.post('/api/admin/test-smtp', { testEmail });
     }
 };

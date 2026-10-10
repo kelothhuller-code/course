@@ -6,6 +6,7 @@ import Certificate from '../models/Certificate.js';
 import Comment from '../models/Comment.js';
 import ReferralLog from '../models/ReferralLog.js';
 import { protect, admin } from '../middleware/auth.js';
+import { sendCustomEmail, verifySmtpConnection } from '../utils/mailer.js';
 
 import {
   getCourseAnalytics,
@@ -345,6 +346,143 @@ router.get('/courses/:id/content', async (req, res) => {
   } catch (error) {
     console.error('Course content fetch error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @desc    Send custom email to a user or broadcast to all students
+// @route   POST /api/admin/send-email
+// @access  Private/Admin
+router.post('/send-email', async (req, res) => {
+  const { recipientEmail, subject, message, isBroadcast } = req.body;
+
+  if (!subject || !message) {
+    return res.status(400).json({ message: 'Subject and message are required' });
+  }
+
+  try {
+    if (isBroadcast) {
+      const users = await User.find({}).select('email name');
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const u of users) {
+        if (!u.email) continue;
+        try {
+          await sendCustomEmail({
+            to: u.email,
+            subject,
+            text: message,
+            html: `
+              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
+                <h2 style="color:#4f46e5;margin-top:0;">WIDETECHNOS Academy</h2>
+                <p>Hello ${u.name || 'Student'},</p>
+                <div style="font-size:15px;line-height:1.6;color:#334155;margin:16px 0;">
+                  ${message.replace(/\n/g, '<br>')}
+                </div>
+                <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;" />
+                <p style="font-size:12px;color:#94a3b8;margin:0;">
+                  Sent from WIDETECHNOS Academy Admin Portal. If you have questions, reply directly to this email or visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
+                </p>
+              </div>
+            `
+          });
+          sentCount++;
+        } catch (err) {
+          failedCount++;
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Broadcast complete: sent to ${sentCount} user(s)${failedCount > 0 ? `, failed: ${failedCount}` : ''}`
+      });
+    }
+
+    if (!recipientEmail) {
+      return res.status(400).json({ message: 'Recipient email is required' });
+    }
+
+    const info = await sendCustomEmail({
+      to: recipientEmail,
+      subject,
+      text: message,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
+          <h2 style="color:#4f46e5;margin-top:0;">WIDETECHNOS Academy</h2>
+          <div style="font-size:15px;line-height:1.6;color:#334155;margin:16px 0;">
+            ${message.replace(/\n/g, '<br>')}
+          </div>
+          <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;" />
+          <p style="font-size:12px;color:#94a3b8;margin:0;">
+            Sent from WIDETECHNOS Academy Support. Visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
+          </p>
+        </div>
+      `
+    });
+
+    res.json({
+      success: true,
+      message: `Email successfully sent to ${recipientEmail}`,
+      messageId: info.messageId
+    });
+  } catch (error) {
+    console.error('Admin send email error:', error);
+    res.status(500).json({ message: 'Failed to send email', error: error.message });
+  }
+});
+
+// @desc    Test SMTP connection and send a test verification email
+// @route   POST /api/admin/test-smtp
+// @access  Private/Admin
+router.post('/test-smtp', async (req, res) => {
+  const { testEmail } = req.body;
+  if (!testEmail) {
+    return res.status(400).json({ message: 'Test email address is required' });
+  }
+
+  try {
+    const smtpCheck = await verifySmtpConnection();
+    if (!smtpCheck.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'SMTP authentication failed. Check your SMTP_USER and SMTP_PASS in .env',
+        error: smtpCheck.error
+      });
+    }
+
+    const info = await sendCustomEmail({
+      to: testEmail,
+      subject: '✅ SMTP Test: WIDETECHNOS Academy Mailer is Working!',
+      text: 'Congratulations! Your SMTP configuration is working properly.',
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
+          <h2 style="color:#10b981;margin-top:0;">🎉 SMTP Connection Successful!</h2>
+          <p>This is a test email sent from your <strong>WIDETECHNOS Academy</strong> backend.</p>
+          <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;font-family:monospace;font-size:13px;margin:16px 0;">
+            SMTP Host: ${process.env.SMTP_HOST || 'default'}<br />
+            SMTP Port: ${process.env.SMTP_PORT || '587'}<br />
+            From: ${process.env.SMTP_FROM || 'noreply'}<br />
+            Dispatched at: ${new Date().toISOString()}
+          </div>
+          <p style="color:#64748b;font-size:13px;margin:0;">
+            Your automated emails (course purchase invoices, registration emails, and student announcements) are ready to go!
+          </p>
+        </div>
+      `
+    });
+
+    res.json({
+      success: true,
+      message: `Test email successfully dispatched to ${testEmail}!`,
+      messageId: info.messageId
+    });
+  } catch (error) {
+    console.error('SMTP test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test email',
+      error: error.message
+    });
   }
 });
 
