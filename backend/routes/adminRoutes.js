@@ -9,6 +9,8 @@ import { protect, admin } from '../middleware/auth.js';
 import { sendCustomEmail, verifySmtpConnection } from '../utils/mailer.js';
 import Razorpay from 'razorpay';
 import Coupon from '../models/Coupon.js';
+import Software from '../models/Software.js';
+import Service from '../models/Service.js';
 
 import {
   getCourseAnalytics,
@@ -812,19 +814,193 @@ router.put('/coupons/:id', async (req, res) => {
   }
 });
 
-// @desc    Delete coupon
-// @route   DELETE /api/admin/coupons/:id
-// @access  Private/Admin
-router.delete('/coupons/:id', async (req, res) => {
+// ==========================================
+// SOFTWARE PRODUCT SALES MANAGEMENT
+// ==========================================
+
+// @desc    Get all software products (Admin)
+// @route   GET /api/admin/software
+router.get('/software', async (req, res) => {
   try {
-    const coupon = await Coupon.findByIdAndDelete(req.params.id);
-    if (!coupon) {
-      return res.status(404).json({ message: 'Coupon not found' });
+    const softwares = await Software.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: softwares.length, softwares });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch software products', error: err.message });
+  }
+});
+
+// @desc    Create new software product (Admin)
+// @route   POST /api/admin/software
+router.post('/software', async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      thumbnail,
+      performance,
+      usefulness,
+      features,
+      price,
+      discountedPrice,
+      couponEligible,
+      highlightBadge,
+      isFeatured,
+      downloadUrl,
+      demoUrl,
+      documentationUrl,
+      status
+    } = req.body;
+
+    if (!title || price === undefined) {
+      return res.status(400).json({ message: 'Title and price are required' });
     }
-    res.json({ success: true, message: `Coupon '${coupon.code}' deleted successfully` });
-  } catch (error) {
-    console.error('Delete coupon error:', error);
-    res.status(500).json({ message: 'Failed to delete coupon', error: error.message });
+
+    const software = await Software.create({
+      title,
+      description: description || '',
+      category: category || 'AI Bot & Automation',
+      thumbnail: thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+      performance: performance || 'Sub-100ms LLM Response • 99.9% Uptime',
+      usefulness: usefulness || 'Automates customer workflows and saves 20+ hours weekly',
+      features: Array.isArray(features) ? features : (typeof features === 'string' ? features.split('\n').filter(Boolean) : []),
+      price: Number(price),
+      discountedPrice: discountedPrice ? Number(discountedPrice) : undefined,
+      couponEligible: couponEligible !== undefined ? Boolean(couponEligible) : true,
+      highlightBadge: highlightBadge || '',
+      isFeatured: Boolean(isFeatured),
+      downloadUrl: downloadUrl || '',
+      demoUrl: demoUrl || '',
+      documentationUrl: documentationUrl || '',
+      status: status || 'active'
+    });
+
+    res.status(201).json({ success: true, message: 'Software product created successfully', software });
+  } catch (err) {
+    console.error('Create software error:', err);
+    res.status(500).json({ message: 'Failed to create software', error: err.message });
+  }
+});
+
+// @desc    Update software product (Admin)
+// @route   PUT /api/admin/software/:id
+router.put('/software/:id', async (req, res) => {
+  try {
+    const software = await Software.findById(req.params.id);
+    if (!software) return res.status(404).json({ message: 'Software not found' });
+
+    Object.assign(software, req.body);
+    if (req.body.features && typeof req.body.features === 'string') {
+      software.features = req.body.features.split('\n').filter(Boolean);
+    }
+    await software.save();
+
+    res.json({ success: true, message: 'Software updated successfully', software });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update software', error: err.message });
+  }
+});
+
+// @desc    Delete software product (Admin)
+// @route   DELETE /api/admin/software/:id
+router.delete('/software/:id', async (req, res) => {
+  try {
+    await Software.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Software deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete software', error: err.message });
+  }
+});
+
+// ==========================================
+// BESPOKE SERVICES & BOT AUTOMATION MANAGEMENT
+// ==========================================
+
+// @desc    Get all services (Admin)
+// @route   GET /api/admin/services
+router.get('/services', async (req, res) => {
+  try {
+    const services = await Service.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: services.length, services });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch services', error: err.message });
+  }
+});
+
+// @desc    Create new service package (Admin)
+// @route   POST /api/admin/services
+router.post('/services', async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      thumbnail,
+      performance,
+      usefulness,
+      deliverables,
+      startingPrice,
+      discountedPrice,
+      couponEligible,
+      highlightBadge,
+      isFeatured,
+      status
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ message: 'Service title is required' });
+    }
+
+    const service = await Service.create({
+      title,
+      description: description || '',
+      category: category || 'AI Bot Automation',
+      thumbnail: thumbnail || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
+      performance: performance || 'Turnaround: 7-14 Days • 24/7 SLA',
+      usefulness: usefulness || 'Bespoke end-to-end automation tailored for your company',
+      deliverables: Array.isArray(deliverables) ? deliverables : (typeof deliverables === 'string' ? deliverables.split('\n').filter(Boolean) : []),
+      startingPrice: startingPrice ? Number(startingPrice) : 0,
+      discountedPrice: discountedPrice ? Number(discountedPrice) : undefined,
+      couponEligible: Boolean(couponEligible),
+      highlightBadge: highlightBadge || '',
+      isFeatured: Boolean(isFeatured),
+      status: status || 'active'
+    });
+
+    res.status(201).json({ success: true, message: 'Service package created successfully', service });
+  } catch (err) {
+    console.error('Create service error:', err);
+    res.status(500).json({ message: 'Failed to create service', error: err.message });
+  }
+});
+
+// @desc    Update service package (Admin)
+// @route   PUT /api/admin/services/:id
+router.put('/services/:id', async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id);
+    if (!service) return res.status(404).json({ message: 'Service not found' });
+
+    Object.assign(service, req.body);
+    if (req.body.deliverables && typeof req.body.deliverables === 'string') {
+      service.deliverables = req.body.deliverables.split('\n').filter(Boolean);
+    }
+    await service.save();
+
+    res.json({ success: true, message: 'Service updated successfully', service });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update service', error: err.message });
+  }
+});
+
+// @desc    Delete service package (Admin)
+// @route   DELETE /api/admin/services/:id
+router.delete('/services/:id', async (req, res) => {
+  try {
+    await Service.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Service deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete service', error: err.message });
   }
 });
 

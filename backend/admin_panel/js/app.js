@@ -83,6 +83,17 @@ const App = {
                     content = await DashboardModule.render();
                     break;
 
+                // ==================== SOFTWARE & AI SERVICES ====================
+                case 'software':
+                    this.setBreadcrumb('Software Products & AI Tools');
+                    content = await SoftwareModule.render();
+                    break;
+
+                case 'services':
+                    this.setBreadcrumb('AI Bot & Custom Software Services');
+                    content = await ServicesModule.render();
+                    break;
+
                 // ==================== CONTENT MANAGEMENT HUB ====================
                 case 'content':
                 case 'courses':

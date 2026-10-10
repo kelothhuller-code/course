@@ -7,15 +7,14 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
       <div className="container">
         <div className="hero-grid">
           <div className="hero-content">
-            <div className="hero-badge">🚀 AI LEARNING FOR AGE 10+</div>
+            <div className="hero-badge">🚀 AI EDUCATION • SOFTWARE PRODUCTS • BOT AUTOMATION</div>
             <h1 className="hero-title">
-              Learn to Build with AI.
+              Build & Automate with AI.
               <br />
-              <span className="hero-highlight">Even If You've Never Coded Before.</span>
+              <span className="hero-highlight">Learn the Tech or Let Us Build It for You.</span>
             </h1>
             <p className="hero-description">
-              Learn how to use AI as your coding partner to create, customize and publish your first website — 
-              step by step, without needing prior coding experience.
+              Master cutting-edge AI prompts, coding workflows, and bot automations — or deploy WideTech's ready-to-run commercial software systems and bespoke app engineering.
             </p>
             <div className="hero-ctas">
               {featuredCourse ? (
@@ -33,17 +32,17 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
                 </Link>
               ) : (
                 <a href="#courses" className="btn btn-primary btn-lg">
-                  Explore All Courses →
+                  Explore AI Courses →
                 </a>
               )}
-              <a href="#trials" className="btn btn-secondary btn-lg">
-                Watch Free Tutorial
+              <a href="#software" className="btn btn-secondary btn-lg">
+                View Software & Bots
               </a>
             </div>
             <div className="hero-trust">
-              <span>✓ Beginner-friendly</span>
-              <span>✓ Step-by-step</span>
-              <span>✓ No prior coding required</span>
+              <span>✓ Practical AI Masterclasses</span>
+              <span>✓ Ready-to-Deploy Software</span>
+              <span>✓ Custom Bot Engineering</span>
             </div>
           </div>
 

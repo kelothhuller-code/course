@@ -8,15 +8,29 @@ import DashboardTabs from './dashboard/DashboardTabs';
 import CertificateModal from './dashboard/CertificateModal';
 
 export default function Dashboard({ user, onRefreshUser }) {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('continue');
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || 'dashboard');
   const [selectedCert, setSelectedCert] = useState(null);
   const [certLoading, setCertLoading] = useState(false);
   const [myLearning, setMyLearning] = useState(null);
   const [allCourses, setAllCourses] = useState([]);
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+
+  // Sync tab with URL search params
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    navigate(`/dashboard?tab=${newTab}`, { replace: true });
+  };
 
   // Memoized values to prevent unnecessary re-renders
   const enrolledCourses = myLearning?.courses || [];
@@ -189,7 +203,7 @@ export default function Dashboard({ user, onRefreshUser }) {
             <DashboardSidebar 
               profile={profile}
               activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setActiveTab={handleTabChange}
               enrolledCourses={enrolledCourses}
               enrolledEvents={enrolledEvents}
               certificates={certificates}
@@ -199,6 +213,7 @@ export default function Dashboard({ user, onRefreshUser }) {
             <main style={{ minWidth: 0, width: '100%' }}>
               <DashboardTabs 
                 activeTab={activeTab}
+                profile={profile}
                 inProgressCourses={inProgressCourses}
                 enrolledCourses={enrolledCourses}
                 completedCourses={completedCourses}
@@ -209,7 +224,7 @@ export default function Dashboard({ user, onRefreshUser }) {
                 handleContinueLearning={handleContinueLearning}
                 handleStartLearning={handleStartLearning}
                 viewCertificate={viewCertificate}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleTabChange}
                 setSelectedCert={setSelectedCert}
                 certLoading={certLoading}
                 navigate={navigate}

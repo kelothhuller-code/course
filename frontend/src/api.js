@@ -565,5 +565,44 @@ export const api = {
       headers: getHeaders()
     });
     return handleResponse(res);
+  },
+
+  // Software Products & AI Tools
+  getAllSoftware: async () => {
+    const res = await fetch(`${BASE_URL}/software`);
+    return handleResponse(res);
+  },
+
+  getSoftwareById: async (id) => {
+    const res = await fetch(`${BASE_URL}/software/${id}`);
+    return handleResponse(res);
+  },
+
+  unlockSoftware: async (id) => {
+    const res = await fetch(`${BASE_URL}/software/${id}/unlock`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  // AI Services & Bot Automation
+  getAllServices: async () => {
+    const res = await fetch(`${BASE_URL}/services`);
+    return handleResponse(res);
+  },
+
+  getServiceById: async (id) => {
+    const res = await fetch(`${BASE_URL}/services/${id}`);
+    return handleResponse(res);
+  },
+
+  submitServiceEnquiry: async (data) => {
+    const res = await fetch(`${BASE_URL}/services/enquire`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
   }
 };

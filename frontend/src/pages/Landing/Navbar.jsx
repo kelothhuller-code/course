@@ -20,7 +20,7 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
     setIsOpen(false);
   }, [location]);
 
-  // Lock body scroll when mobile menu is open
+  // Lock body scroll when mobile side nav is open
   useEffect(() => {
     if (isOpen) {
       document.body.classList.add('menu-open-scroll-lock');
@@ -32,15 +32,22 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
     };
   }, [isOpen]);
 
-  const closeMenu = () => setIsOpen(false);
-
-  const navCtaText = featuredCourse 
-    ? (featuredCourse.isFree ? 'Start Learning — Free' : `Start Learning — ₹${featuredCourse.discountedPrice || featuredCourse.price}`)
-    : 'Explore Courses';
+  const scrollToSection = (e, sectionId) => {
+    e.preventDefault();
+    closeMenu();
+    const el = document.getElementById(sectionId);
+    if (el) {
+      const yOffset = -70;
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    } else {
+      window.location.hash = sectionId;
+    }
+  };
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
+      {/* Mobile Backdrop Overlay */}
       {isOpen && (
         <div 
           className="nav-backdrop" 
@@ -52,13 +59,15 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
       <nav className={`navbar ${isScrolled ? 'navbar-scrolled' : ''}`}>
         <div className="container">
           <div className="navbar-inner">
-            {/* Brand Logo */}
-            <Link to="/" className="navbar-brand" onClick={closeMenu} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-              <img src="/logo.svg" alt="WideTech Logo" style={{ width: '38px', height: '32px', objectFit: 'contain' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                <span className="brand-name" style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
-                <span className="brand-tagline" style={{ fontSize: '0.68rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
-              </div>
+            
+            {/* Brand Logo & Name in One Single Horizontal Line */}
+            <Link to="/" className="navbar-brand" onClick={closeMenu}>
+              <img 
+                src="/logo.svg" 
+                alt="WideTech Logo" 
+                style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} 
+              />
+              <span className="brand-name">WIDETECH</span>
             </Link>
 
             {/* Mobile Header Quick Actions */}
@@ -73,11 +82,11 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
                 </Link>
               )}
 
-              {/* Animated Hamburger Toggle Button */}
+              {/* Hamburger Button to Open Side Nav */}
               <button 
                 className={`navbar-toggle ${isOpen ? 'is-active' : ''}`} 
                 onClick={() => setIsOpen(!isOpen)}
-                aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+                aria-label={isOpen ? "Close side nav" : "Open side nav"}
                 aria-expanded={isOpen}
               >
                 <span className="hamburger-line"></span>
@@ -86,11 +95,72 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
               </button>
             </div>
 
-            {/* Navigation Menu (Desktop & Mobile Drawer) */}
-            <div className={`navbar-menu ${isOpen ? 'navbar-menu-open' : ''}`}>
-              {/* Logged-in User Card (Mobile Only) */}
+            {/* Desktop Navigation Links (Landing Page) */}
+            <div className="navbar-desktop-nav">
+              <a href="#courses" onClick={(e) => scrollToSection(e, 'courses')} className="nav-link">AI Courses</a>
+              <a href="#software" onClick={(e) => scrollToSection(e, 'software')} className="nav-link">Softwares & Bots</a>
+              <a href="#services" onClick={(e) => scrollToSection(e, 'services')} className="nav-link">Custom Services</a>
+              <a href="#events" onClick={(e) => scrollToSection(e, 'events')} className="nav-link">Workshops</a>
+              <a href="#about" onClick={(e) => scrollToSection(e, 'about')} className="nav-link">About</a>
+
+              <div className="nav-desktop-auth-actions" style={{ marginLeft: '1rem' }}>
+                {user ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <Link to="/dashboard" className="btn btn-primary btn-sm nav-dashboard-btn">
+                      Dashboard
+                    </Link>
+                    <button 
+                      onClick={onLogout} 
+                      className="btn btn-ghost btn-sm nav-signout-btn" 
+                      title="Sign Out"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <Link to="/auth" className="btn btn-ghost btn-sm">
+                      Login
+                    </Link>
+                    <a 
+                      href="#courses" 
+                      onClick={(e) => scrollToSection(e, 'courses')}
+                      className="btn btn-primary btn-sm"
+                    >
+                      Explore WideTech
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Mobile Side Nav Drawer (Matches Desktop Navigation Only) ── */}
+            <aside 
+              className={`navbar-sidenav ${isOpen ? 'navbar-sidenav-open' : ''}`}
+              aria-label="Mobile Navigation Drawer"
+            >
+              {/* Drawer Top Header */}
+              <div className="sidenav-header">
+                <Link to="/" className="navbar-brand" onClick={closeMenu}>
+                  <img 
+                    src="/logo.svg" 
+                    alt="WideTech Logo" 
+                    style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+                  />
+                  <span className="brand-name" style={{ fontSize: '1.25rem' }}>WIDETECH</span>
+                </Link>
+                <button 
+                  className="sidenav-close-btn" 
+                  onClick={closeMenu} 
+                  aria-label="Close Navigation"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* User Account Strip if logged in */}
               {user && (
-                <div className="nav-user-drawer-card">
+                <div className="sidenav-user-card">
                   <div className="nav-user-avatar">
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
@@ -100,7 +170,8 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
                   </div>
                   <Link 
                     to="/dashboard" 
-                    className="btn btn-primary btn-sm nav-user-dash-link"
+                    className="btn btn-primary btn-sm"
+                    style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                     onClick={closeMenu}
                   >
                     Dashboard →
@@ -108,109 +179,70 @@ export default function Navbar({ user, featuredCourse, onLogout }) {
                 </div>
               )}
 
-              <div className="navbar-links">
-                <a href="#courses" className="nav-link" onClick={closeMenu}>
-                  Courses
-                </a>
-                {featuredCourse && (
-                  <a href="#curriculum" className="nav-link" onClick={closeMenu}>
-                    Curriculum
+              {/* Sidenav Links - Exactly matching Computer Navigation */}
+              <div className="sidenav-body">
+                <div className="sidenav-group">
+                  <a href="#courses" className="sidenav-link" onClick={(e) => scrollToSection(e, 'courses')}>
+                    AI Courses
                   </a>
-                )}
-                <a href="#events" className="nav-link" onClick={closeMenu}>
-                  Workshops
-                </a>
-                <a href="#trials" className="nav-link" onClick={closeMenu}>
-                  Free Tutorials
-                </a>
-                <a href="#why-ai" className="nav-link" onClick={closeMenu}>
-                  Why AI?
-                </a>
-                <a href="#about" className="nav-link" onClick={closeMenu}>
-                  About
-                </a>
-                <Link to="/all-courses" className="nav-link" onClick={closeMenu}>
-                  All Courses
-                </Link>
-
-                {/* Desktop Buttons */}
-                <div className="nav-desktop-auth-actions">
-                  {user ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <Link to="/dashboard" className="btn btn-primary btn-sm nav-dashboard-btn">
-                        Dashboard
-                      </Link>
-                      <button 
-                        onClick={onLogout} 
-                        className="btn btn-ghost btn-sm nav-signout-btn" 
-                        title="Sign Out"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Link to="/auth" className="btn btn-ghost btn-sm">
-                        Login
-                      </Link>
-                      {featuredCourse ? (
-                        <Link 
-                          to="/auth" 
-                          className="btn btn-primary btn-sm"
-                        >
-                          {navCtaText}
-                        </Link>
-                      ) : (
-                        <a 
-                          href="#courses" 
-                          className="btn btn-primary btn-sm"
-                        >
-                          {navCtaText}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mobile Drawer Bottom Actions */}
-                <div className="nav-mobile-bottom-actions">
-                  {user ? (
-                    <>
-                      <Link 
-                        to="/dashboard" 
-                        className="btn btn-primary btn-md mobile-cta-btn"
-                        onClick={closeMenu}
-                      >
-                        Go to Dashboard
-                      </Link>
-                      <button 
-                        onClick={() => { closeMenu(); onLogout(); }} 
-                        className="btn btn-ghost btn-sm mobile-signout-btn"
-                      >
-                        Sign Out
-                      </button>
-                    </>
-                  ) : (
-                    <div className="mobile-auth-grid">
-                      <Link 
-                        to="/auth" 
-                        className="btn btn-secondary btn-md"
-                        onClick={closeMenu}
-                      >
-                        Login
-                      </Link>
-                      <Link 
-                        to="/auth?signup=true" 
-                        className="btn btn-primary btn-md"
-                        onClick={closeMenu}
-                      >
-                        Join Free
-                      </Link>
-                    </div>
-                  )}
+                  <a href="#software" className="sidenav-link" onClick={(e) => scrollToSection(e, 'software')}>
+                    Softwares & Bots
+                  </a>
+                  <a href="#services" className="sidenav-link" onClick={(e) => scrollToSection(e, 'services')}>
+                    Custom Services
+                  </a>
+                  <a href="#events" className="sidenav-link" onClick={(e) => scrollToSection(e, 'events')}>
+                    Workshops
+                  </a>
+                  <a href="#about" className="sidenav-link" onClick={(e) => scrollToSection(e, 'about')}>
+                    About WideTech
+                  </a>
                 </div>
               </div>
-            </div>
+
+              {/* Sidenav Bottom Auth Actions */}
+              <div className="sidenav-footer">
+                {user ? (
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <Link 
+                      to="/dashboard" 
+                      className="btn btn-primary btn-md" 
+                      style={{ flex: 1, textAlign: 'center' }}
+                      onClick={closeMenu}
+                    >
+                      Dashboard
+                    </Link>
+                    <button 
+                      onClick={() => { closeMenu(); onLogout(); }} 
+                      className="btn btn-ghost btn-sm"
+                      style={{ border: '1px solid #e2e8f0' }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <Link 
+                      to="/auth" 
+                      className="btn btn-secondary btn-md" 
+                      style={{ textAlign: 'center' }}
+                      onClick={closeMenu}
+                    >
+                      Sign In
+                    </Link>
+                    <Link 
+                      to="/auth?signup=true" 
+                      className="btn btn-primary btn-md" 
+                      style={{ textAlign: 'center' }}
+                      onClick={closeMenu}
+                    >
+                      Get Started
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </aside>
+
           </div>
         </div>
       </nav>

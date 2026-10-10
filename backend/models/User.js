@@ -19,6 +19,19 @@ const UserSchema = new mongoose.Schema({
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
     enrolledAt: { type: Date, default: Date.now }
   }],
+  purchasedSoftware: [{
+    softwareId: { type: mongoose.Schema.Types.ObjectId, ref: 'Software' },
+    purchasedAt: { type: Date, default: Date.now },
+    licenseKey: { type: String },
+    status: { type: String, default: 'active' }
+  }],
+  purchasedServices: [{
+    serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
+    enquiredAt: { type: Date, default: Date.now },
+    status: { type: String, enum: ['enquired', 'in_scoping', 'in_progress', 'completed', 'active'], default: 'enquired' },
+    requirements: { type: String },
+    contactPhone: { type: String }
+  }],
   createdAt: { type: Date, default: Date.now },
   certificates: [{
     courseId: {

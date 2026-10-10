@@ -166,22 +166,26 @@
 }
 
 .navbar-brand {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   text-decoration: none;
-  line-height: 1.1;
+  line-height: 1;
   z-index: 1001;
+  flex-shrink: 0;
 }
 
 .brand-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .brand-tagline {
@@ -302,12 +306,8 @@ body.menu-open-scroll-lock {
   touch-action: none;
 }
 
-.navbar-menu {
-  display: flex;
-  align-items: center;
-}
-
-.navbar-links {
+/* Desktop Nav Links */
+.navbar-desktop-nav {
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -319,6 +319,7 @@ body.menu-open-scroll-lock {
   font-weight: 500;
   font-size: 0.9rem;
   transition: all var(--transition);
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -330,6 +331,124 @@ body.menu-open-scroll-lock {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* ── Off-Canvas Side Nav Drawer (Mobile) ── */
+.navbar-sidenav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(85vw, 340px);
+  height: 100vh;
+  background: #ffffff;
+  box-shadow: 25px 0 50px -12px rgba(15, 23, 42, 0.25);
+  z-index: 10001;
+  transform: translateX(-100%);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.navbar-sidenav-open {
+  transform: translateX(0);
+}
+
+.sidenav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidenav-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidenav-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.sidenav-user-card {
+  margin: 1rem 1.25rem 0;
+  padding: 0.75rem 0.85rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(2, 132, 199, 0.06));
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidenav-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sidenav-group-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.sidenav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidenav-link:hover, .sidenav-link:active {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+
+.sidenav-whatsapp-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.sidenav-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border);
+  background: #ffffff;
 }
 
 .nav-dashboard-btn {
@@ -1307,13 +1426,17 @@ body.menu-open-scroll-lock {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .navbar-desktop-nav {
+    display: none !important;
+  }
+
   .nav-mobile-bar-actions {
-    display: flex;
+    display: flex !important;
   }
 
   .navbar-toggle {
-    display: flex;
+    display: flex !important;
   }
 
   .nav-desktop-auth-actions {

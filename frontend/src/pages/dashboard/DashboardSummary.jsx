@@ -37,12 +37,46 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
   ];
   const maxChapters = Math.max(...weeklyDays.map(d => d.chapters), 8);
 
+  const CardIcons = {
+    enrolled: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+    ),
+    inProgress: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    ),
+    completed: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    ),
+    certs: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="7"/>
+        <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+      </svg>
+    ),
+    chapters: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+    )
+  };
+
   const summaryCards = [
-    { icon: '📚', label: 'Enrolled Courses', value: totalCourses, subtext: `${notStartedCourses.length} not started`, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
-    { icon: '📖', label: 'In Progress', value: inProgressCourses.length, subtext: 'Actively learning', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
-    { icon: '🎓', label: 'Completed Courses', value: completedCourses.length, subtext: `${completedPct.toFixed(0)}% completed`, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
-    { icon: '🏆', label: 'Verified Certificates', value: certificates.length, subtext: 'Official credentials', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)' },
-    { icon: '🔥', label: 'Chapters Done', value: totalChaptersFinished, subtext: 'Lessons mastered', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)' },
+    { icon: CardIcons.enrolled, label: 'Enrolled Courses', value: totalCourses, subtext: `${notStartedCourses.length} not started`, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
+    { icon: CardIcons.inProgress, label: 'In Progress', value: inProgressCourses.length, subtext: 'Actively learning', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+    { icon: CardIcons.completed, label: 'Completed Courses', value: completedCourses.length, subtext: `${completedPct.toFixed(0)}% completed`, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+    { icon: CardIcons.certs, label: 'Verified Certificates', value: certificates.length, subtext: 'Official credentials', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)' },
+    { icon: CardIcons.chapters, label: 'Chapters Done', value: totalChaptersFinished, subtext: 'Lessons mastered', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)' },
   ];
 
   return (
@@ -71,7 +105,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{card.label}</span>
-              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: card.bg, color: card.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {card.icon}
               </div>
             </div>
@@ -104,9 +138,10 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                <span>📊</span> Weekly Study Activity
+              <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>
+                Weekly Study Activity
               </h3>
+
               <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
                 Lessons & chapters completed over the last 7 days
               </p>
@@ -308,11 +343,12 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
           boxShadow: '0 4px 12px -2px rgba(15, 23, 42, 0.05)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
-              <span>⚡</span> Continue Where You Left Off:
+            <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', fontWeight: 700 }}>
+              Continue Where You Left Off:
             </h4>
             <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{inProgressCourses.length} active course(s)</span>
           </div>
+
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem' }}>
             {inProgressCourses.slice(0, 3).map((item, idx) => {

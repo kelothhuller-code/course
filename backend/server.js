@@ -20,6 +20,8 @@ import leadRoutes from './routes/leadRoutes.js';
 import gstRoutes from './routes/gstRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import softwareRoutes from './routes/softwareRoutes.js';
+import serviceRoutes from './routes/serviceRoutes.js';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -163,10 +165,12 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/software', softwareRoutes);
+app.use('/api/services', serviceRoutes);
 
 // Base Route
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to WIDETECHNOS Academy Backend API' });
+  res.json({ message: 'Welcome to WideTech Official Backend API' });
 });
 
 // 404 Route handler

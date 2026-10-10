@@ -23,6 +23,8 @@ import VideoModal from './Landing/VideoModal';
 import AdvancedCourses from './Landing/AdvancedCourses';
 import CourseGrid from './Landing/CourseGrid';
 import LeadMagnet from './Landing/LeadMagnet';
+import SoftwareShowcase from './Landing/SoftwareShowcase';
+import ServicesShowcase from './Landing/ServicesShowcase';
 
 export default function LandingPage({ user, onOpenMockPayment }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
@@ -224,6 +226,12 @@ export default function LandingPage({ user, onOpenMockPayment }) {
           onShowPaginated={handleShowPaginated}
           showAll={showAllCourses}
         />
+
+        {/* ── WideTech Software Products & Commercial Tools ── */}
+        <SoftwareShowcase />
+
+        {/* ── WideTech Custom Engineering & AI Bot Automation Services ── */}
+        <ServicesShowcase />
 
         <LearningPaths />
         <EventsSection

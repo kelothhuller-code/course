@@ -55,3 +55,5 @@ export const admin = (req, res, next) => {
     res.status(403).json({ message: 'Not authorized as an admin' });
   }
 };
+
+export const authenticateToken = protect;

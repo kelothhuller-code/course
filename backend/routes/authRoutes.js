@@ -200,7 +200,9 @@ router.get('/profile', protect, async (req, res) => {
     const user = await User.findById(req.user._id)
       .select('-password')
       .populate('enrolledCourses.courseId')
-      .populate('enrolledEvents.eventId');
+      .populate('enrolledEvents.eventId')
+      .populate('purchasedSoftware.softwareId')
+      .populate('purchasedServices.serviceId');
 
     if (user) {
       res.json(user);

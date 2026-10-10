@@ -70,12 +70,9 @@ export default function CoursePreview({ user }) {
       {/* ─── Navbar ─── */}
       <header className="cp-navbar">
         <div className="cp-navbar-inner">
-          <Link to="/" className="cp-logo" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '36px', height: '30px', objectFit: 'contain' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span className="cp-logo-main" style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
-              <span className="cp-logo-sub" style={{ fontSize: '0.65rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
-            </div>
+          <Link to="/" className="navbar-brand">
+            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
+            <span className="brand-name">WIDETECH</span>
           </Link>
           <nav className="cp-nav-links">
             <Link to="/all-courses" className="cp-nav-link">All Courses</Link>

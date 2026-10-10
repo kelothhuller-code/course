@@ -9,6 +9,8 @@ const CertificatesTab = lazy(() => import('./CertificatesTab'));
 const ExploreTab = lazy(() => import('./ExploreTab'));
 const MyInvoicesTab = lazy(() => import('./MyInvoicesTab'));
 const GstReportTab = lazy(() => import('./GstReportTab'));
+const MySoftwareTab = lazy(() => import('./MySoftwareTab'));
+const MyServicesTab = lazy(() => import('./MyServicesTab'));
 
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -21,8 +23,11 @@ export default function DashboardTabs({
   ...props 
 }) {
   const tabComponents = {
+    dashboard: ContinueLearningTab,
     continue: ContinueLearningTab,
     courses: MyCoursesTab,
+    software: MySoftwareTab,
+    services: MyServicesTab,
     events: EventsTab,
     certs: CertificatesTab,
     invoices: MyInvoicesTab,

@@ -94,12 +94,9 @@ export default function AllCoursesPage({ user, onLogout }) {
       {/* Navbar */}
       <header className="navbar navbar-scrolled">
         <div className="container nav-container">
-          <Link to="/" className="navbar-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '38px', height: '32px', objectFit: 'contain' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span className="brand-name" style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
-              <span className="brand-tagline" style={{ fontSize: '0.68rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
-            </div>
+          <Link to="/" className="navbar-brand">
+            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
+            <span className="brand-name">WIDETECH</span>
           </Link>
 
           <nav className="nav-links">

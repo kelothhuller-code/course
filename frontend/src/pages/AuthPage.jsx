@@ -53,12 +53,9 @@ export default function AuthPage({ onLoginSuccess }) {
       {/* Simple Navbar for Auth Page */}
       <header className="auth-navbar">
         <div className="container auth-nav-container">
-          <Link to="/" className="auth-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '36px', height: '30px', objectFit: 'contain' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span className="brand-name" style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.5px' }}>WIDETECH</span>
-              <span className="brand-tagline" style={{ fontSize: '0.65rem', letterSpacing: '1.2px', opacity: 0.8 }}>ACADEMY</span>
-            </div>
+          <Link to="/" className="navbar-brand">
+            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
+            <span className="brand-name">WIDETECH</span>
           </Link>
           <Link to="/" className="btn btn-ghost btn-sm">
             ← Back to Home
