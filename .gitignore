@@ -5,4 +5,9 @@ dist/
 frontend/dist/
 .env.local
 .env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
 *.log
