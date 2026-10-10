@@ -245,7 +245,7 @@ const App = {
                             <span>Authenticate & Enter</span> →
                         </button>
 
-                        <div id="login-error" style="display:none;margin-top:16px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.85rem;text-align:center;"></div>
+                        <div id="login-error" style="display:none;margin-top:16px;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.22);border:1px solid rgba(239,68,68,0.6);color:#fca5a5;font-size:0.88rem;font-weight:600;text-align:center;box-shadow:0 8px 24px rgba(239,68,68,0.25);line-height:1.4;"></div>
                     </form>
 
                     <div style="margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
@@ -280,22 +280,29 @@ const App = {
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span>Verifying credentials...</span>';
-            errorEl.style.display = 'none';
+            if (errorEl) errorEl.style.display = 'none';
 
             try {
                 const result = await AuthModule.login(email, password);
                 if (!result.success) {
-                    errorEl.textContent = result.message || 'Authentication failed. Please verify credentials.';
-                    errorEl.style.display = 'block';
+                    const msg = result.message || 'Authentication failed. Please verify credentials.';
+                    const el = document.getElementById('login-error');
+                    if (el) {
+                        el.innerHTML = `⚠️ <strong>Login Error:</strong> ${msg}`;
+                        el.style.display = 'block';
+                    }
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<span>Authenticate & Enter</span> →';
                 } else {
-                    errorEl.style.display = 'none';
                     App.navigateTo('dashboard');
                 }
             } catch (err) {
-                errorEl.textContent = err.message || 'Server connection error';
-                errorEl.style.display = 'block';
+                const msg = err.message || 'Server connection error';
+                const el = document.getElementById('login-error');
+                if (el) {
+                    el.innerHTML = `⚠️ <strong>Connection Error:</strong> ${msg}`;
+                    el.style.display = 'block';
+                }
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<span>Authenticate & Enter</span> →';
             }

@@ -24,8 +24,17 @@ window.API = {
         const response = await fetch(url, { ...options, headers });
 
         if (response.status === 401) {
-            AuthModule.logout();
-            throw new Error('Unauthorized');
+            // Do NOT wipe the login screen if we are currently submitting credentials
+            if (!url.includes('/login')) {
+                AuthModule.logout();
+            }
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || 'Invalid email or password');
+        }
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Request failed (${response.status})`);
         }
 
         return response;
