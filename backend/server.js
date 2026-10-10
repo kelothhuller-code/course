@@ -19,6 +19,7 @@ import certificateRoutes from './routes/certificateRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
 import gstRoutes from './routes/gstRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -117,6 +118,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Base Route
 app.get('/', (req, res) => {
