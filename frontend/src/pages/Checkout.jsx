@@ -553,6 +553,21 @@ export default function Checkout({ user, onRefreshUser }) {
               }}>
                 🔒 256-Bit Encrypted Payment powered by Razorpay (UPI, Google Pay, Cards, NetBanking)
               </p>
+
+              <p style={{ 
+                fontSize: '0.72rem', 
+                color: 'var(--text-muted)', 
+                textAlign: 'center',
+                marginTop: '0.4rem',
+                lineHeight: 1.4
+              }}>
+                By proceeding, you agree to our{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Terms</a>
+                ,{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Privacy Policy</a>
+                {' '}and{' '}
+                <a href="/refund" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Refund Policy</a>.
+              </p>
             </div>
 
             {/* Right: Item Details */}

@@ -1,0 +1,199 @@
+/* ─── Legal Pages Styling (Terms, Privacy, Refund, Contact) ─── */
+.legal-page-wrapper {
+  min-height: 100vh;
+  background: var(--background, #f8fafc);
+  color: var(--text-primary, #0f172a);
+  font-family: 'Inter', -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.legal-header {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(14, 165, 233, 0.06));
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding: 3.5rem 1.5rem 2.5rem;
+  text-align: center;
+}
+
+.legal-badge {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--primary, #4f46e5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 9999px;
+  margin-bottom: 0.85rem;
+}
+
+.legal-header h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 0.5rem;
+  font-family: 'Outfit', sans-serif;
+}
+
+.legal-header p {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.95rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.legal-main {
+  flex: 1;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+}
+
+.legal-card {
+  background: #ffffff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  padding: 2.5rem 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  line-height: 1.7;
+}
+
+.legal-card h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-family: 'Outfit', sans-serif;
+}
+
+.legal-card h2:first-of-type {
+  margin-top: 0.5rem;
+}
+
+.legal-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.legal-card p {
+  color: #334155;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.legal-card ul {
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.legal-card li {
+  color: #334155;
+  font-size: 0.92rem;
+  margin-bottom: 0.5rem;
+}
+
+.legal-highlight-box {
+  background: #f8fafc;
+  border-left: 4px solid var(--primary, #4f46e5);
+  padding: 1rem 1.25rem;
+  border-radius: 0 10px 10px 0;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.legal-meta-tags {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.legal-quick-nav {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.legal-nav-link {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: #f1f5f9;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.legal-nav-link:hover,
+.legal-nav-link.active {
+  background: var(--primary, #4f46e5);
+  color: #ffffff;
+}
+
+/* Contact page cards */
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.contact-card {
+  background: #f8fafc;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.contact-card .contact-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.contact-card h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.contact-card p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .legal-header {
+    padding: 2.5rem 1rem 1.75rem;
+  }
+  .legal-header h1 {
+    font-size: 1.75rem;
+  }
+  .legal-main {
+    padding: 1.5rem 1rem 3rem;
+  }
+  .legal-card {
+    padding: 1.5rem 1.25rem;
+  }
+  .legal-card h2 {
+    font-size: 1.2rem;
+  }
+}

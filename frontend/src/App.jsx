@@ -13,6 +13,10 @@ import AllCoursesPage from './pages/AllCoursesPage';
 import CoursePreview from './pages/CoursePreview';
 import CourseSalesPage from './pages/CourseSalesPage';
 import EventViewer from './pages/EventViewer';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import RefundPage from './pages/RefundPage';
+import ContactPage from './pages/ContactPage';
 
 
 function AppContent() {
@@ -105,6 +109,10 @@ function AppContent() {
           />
           <Route path="/all-courses" element={<AllCoursesPage user={user} onLogout={handleLogout} />} />
           <Route path="/event/:id/room" element={<EventViewer user={user} />} />
+          <Route path="/terms" element={<TermsPage user={user} />} />
+          <Route path="/privacy" element={<PrivacyPage user={user} />} />
+          <Route path="/refund" element={<RefundPage user={user} />} />
+          <Route path="/contact" element={<ContactPage user={user} />} />
 
         </Routes>
       </main>
