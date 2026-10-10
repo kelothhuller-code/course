@@ -98,11 +98,28 @@ app.use(cors({
 // Serve static files from 'public' (js, css, images) without 301 redirects
 app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
 
-// Admin Frontend Page Route (Served only when no static file matched)
-app.get(['/admin', '/admin/'], (req, res) => {
+// Configurable Secret Admin Portal Route (defaults to 'wide-hq-portal')
+const rawAdminPath = (process.env.ADMIN_SECRET_PATH || 'wide-hq-portal').replace(/^\/+|\/+$/g, '');
+const adminSecretPath = rawAdminPath.length > 0 ? rawAdminPath : 'wide-hq-portal';
+
+// Serve Admin Panel Assets strictly from private directory (NOT accessible via public/)
+const adminPanelDir = path.join(__dirname, 'admin_panel');
+
+// Static assets for the admin panel (js, css)
+app.use(`/${adminSecretPath}`, express.static(adminPanelDir, { redirect: false }));
+
+// Admin Frontend Page Entry Route
+app.get([`/${adminSecretPath}`, `/${adminSecretPath}/*`], (req, res) => {
   res.removeHeader('Content-Security-Policy');
-  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+  res.sendFile(path.join(adminPanelDir, 'index.html'));
 });
+
+// Explicitly ensure standard '/admin' returns 404 so crawlers/bots cannot probe it
+if (adminSecretPath !== 'admin') {
+  app.all(['/admin', '/admin/*'], (req, res) => {
+    res.status(404).json({ message: 'Route not found - /admin' });
+  });
+}
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
