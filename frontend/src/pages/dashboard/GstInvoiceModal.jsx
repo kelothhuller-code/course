@@ -138,14 +138,14 @@ export default function GstInvoiceModal({ txnid, onClose }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h2 style={{ margin: '0 0 0.25rem 0', color: '#2563eb', fontSize: '1.4rem', fontWeight: 800 }}>
-                  {invoiceData.seller?.legalName || 'WIDETECHNOS ACADEMY PRIVATE LIMITED'}
+                  {invoiceData.seller?.legalName || 'WIDE VENTURES'}
                 </h2>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>{invoiceData.seller?.tradeName || 'WIDETECHNOS ACADEMY'}</p>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>{invoiceData.seller?.tradeName || 'WIDE VENTURES (WIDE TECH / BROFFY)'}</p>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b', maxWidth: '350px' }}>
-                  {invoiceData.seller?.registeredAddress}
+                  {invoiceData.seller?.registeredAddress || '8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731'}
                 </p>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#0f172a', fontWeight: 700 }}>
-                  GSTIN: <span style={{ fontFamily: 'monospace', color: '#2563eb' }}>{invoiceData.seller?.gstin || '33AAAAA0000A1Z5'}</span>
+                  GSTIN: <span style={{ fontFamily: 'monospace', color: '#2563eb' }}>{invoiceData.seller?.gstin || '32FBEPK9712B1Z0'}</span>
                 </p>
               </div>
 

@@ -50,7 +50,12 @@ export default function Footer() {
 
         <div className="footer-bottom">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <span>© {new Date().getFullYear()} WIDETECHNOS Academy. All rights reserved.</span>
+            <div>
+              <span>© {new Date().getFullYear()} WIDETECHNOS Academy (WIDE VENTURES). All rights reserved.</span>
+              <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '2px' }}>
+                Trade Names: WIDE TECH, BROFFY • GSTIN: 32FBEPK9712B1Z0 • Wayanad, Kerala
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem' }}>
               <Link to="/terms" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Terms</Link>
               <Link to="/privacy" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Privacy</Link>

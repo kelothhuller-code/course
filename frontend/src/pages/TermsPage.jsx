@@ -38,7 +38,7 @@ export default function TermsPage({ user }) {
 
           <h2>1. Introduction & Acceptance</h2>
           <p>
-            Welcome to <strong>WIDETECHNOS Academy</strong> ("we," "our," or "us"). By accessing or using our website located at <code>widetech.in</code>, mobile applications, courses, workshops, and educational services (collectively, the "Platform"), you agree to be bound by these Terms and Conditions ("Terms").
+            Welcome to <strong>WIDETECHNOS Academy</strong>, operated by <strong>WIDE VENTURES</strong> (operating trade names: <strong>WIDE TECH</strong>, <strong>BROFFY</strong>, and WIDETECHNOS Academy; GSTIN: <strong>32FBEPK9712B1Z0</strong>) with registered office at 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India ("we," "our," or "us"). By accessing or using our website located at <code>widetech.in</code>, mobile applications, courses, workshops, and educational services (collectively, the "Platform"), you agree to be bound by these Terms and Conditions ("Terms").
           </p>
           <p>
             If you do not agree with any part of these Terms, you must not access or register for our courses or use any of our services.
@@ -112,7 +112,9 @@ export default function TermsPage({ user }) {
             If you have questions or concerns regarding these Terms, please contact our legal and support team:
           </p>
           <div className="legal-highlight-box">
-            <strong>WIDETECHNOS Academy</strong><br />
+            <strong>WIDE VENTURES (WIDE TECH / BROFFY)</strong><br />
+            GSTIN: 32FBEPK9712B1Z0<br />
+            Address: 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India<br />
             Email: <a href="mailto:support@widetechnos.com">support@widetechnos.com</a><br />
             Website: <a href="https://widetech.in">https://widetech.in</a><br />
             Support Hours: Monday – Saturday, 9:00 AM – 6:00 PM IST

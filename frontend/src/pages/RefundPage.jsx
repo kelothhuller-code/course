@@ -38,7 +38,7 @@ export default function RefundPage({ user }) {
 
           <h2>1. Overview & Commitment</h2>
           <p>
-            At <strong>WIDETECHNOS Academy</strong> (operated via <code>widetech.in</code>), our primary objective is to deliver high-quality, practical AI and web development education. We want every student to feel confident when investing in their learning. This Cancellation and Refund Policy outlines the terms and conditions under which refunds and cancellations are processed.
+            At <strong>WIDETECHNOS Academy</strong>, operated by <strong>WIDE VENTURES</strong> (Trade Names: <strong>WIDE TECH</strong>, <strong>BROFFY</strong>; GSTIN: <strong>32FBEPK9712B1Z0</strong>) located at 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India (via <code>widetech.in</code>), our primary objective is to deliver high-quality, practical AI and web development education. We want every student to feel confident when investing in their learning. This Cancellation and Refund Policy outlines the terms and conditions under which refunds and cancellations are processed.
           </p>
 
           <h2>2. Digital Course Delivery & Fulfillment Policy</h2>
@@ -92,7 +92,10 @@ export default function RefundPage({ user }) {
             If you have any questions regarding your invoice, payment failure, or cancellation, please reach out to our dedicated billing desk:
           </p>
           <div className="legal-highlight-box">
-            <strong>WIDETECHNOS Billing Support</strong><br />
+            <strong>WIDE VENTURES Billing & Refund Support</strong><br />
+            Operating Trade Names: WIDE TECH, BROFFY<br />
+            GSTIN: 32FBEPK9712B1Z0<br />
+            Address: 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India<br />
             Email: <a href="mailto:support@widetechnos.com">support@widetechnos.com</a><br />
             Support Hours: Monday – Saturday, 9:00 AM – 6:00 PM IST<br />
             Resolution Window: Usually responded to within 24 business hours

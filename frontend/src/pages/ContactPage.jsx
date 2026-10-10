@@ -139,11 +139,14 @@ export default function ContactPage({ user }) {
 
           <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
             <h3>Registered Business Details</h3>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.6' }}>
-              <strong>Entity Name:</strong> WIDETECHNOS Academy<br />
-              <strong>Platform URL:</strong> <a href="https://widetech.in" target="_blank" rel="noopener noreferrer">https://widetech.in</a><br />
-              <strong>Jurisdiction:</strong> Kerala, India<br />
-              <strong>Grievance Redressal:</strong> All grievances are acknowledged within 24 business hours and resolved within 7 working days.
+            <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.7' }}>
+              <strong>Trade / Legal Entity Name:</strong> WIDE VENTURES<br />
+              <strong>Operating Trade Names:</strong> WIDE TECH, BROFFY, WIDETECHNOS Academy<br />
+              <strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>32FBEPK9712B1Z0</span><br />
+              <strong>Registered Principal Place of Business:</strong> 8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731, India<br />
+              <strong>Website / Platform:</strong> <a href="https://widetech.in" target="_blank" rel="noopener noreferrer">https://widetech.in</a><br />
+              <strong>Jurisdiction:</strong> Wayanad, Kerala, India<br />
+              <strong>Grievance Redressal:</strong> All inquiries and grievances are acknowledged within 24 business hours and resolved within 7 working days.
             </p>
           </div>
         </article>
