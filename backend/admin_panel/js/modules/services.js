@@ -182,6 +182,15 @@ window.ServicesModule = {
                                     </button>
                                     <input type="text" id="svc-thumbnail" placeholder="or paste Image URL / uploads path..." style="flex:1; padding:0.6rem 0.8rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem; color:#0f172a; background:#fff;" onchange="ServicesModule.previewThumbnail(this.value)" />
                                 </div>
+                                <div id="svc-thumbnail-progress-box" style="display:none; margin-top:8px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:3px;">
+                                        <span id="svc-thumbnail-progress-label" style="color:#64748b;">Uploading image...</span>
+                                        <span id="svc-thumbnail-progress-pct" style="font-weight:700; color:#0284c7;">0%</span>
+                                    </div>
+                                    <div style="width:100%; height:6px; background:#e2e8f0; border-radius:10px; overflow:hidden;">
+                                        <div id="svc-thumbnail-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #0284c7, #10b981); transition:width 0.15s ease;"></div>
+                                    </div>
+                                </div>
                                 <div id="svc-thumbnail-status" style="margin-top:6px; font-size:0.8rem; color:#64748b;"></div>
                                 <div id="svc-thumbnail-preview-container" style="margin-top:6px; display:none;">
                                     <img id="svc-thumbnail-preview" src="" alt="Thumbnail Preview" style="width:100px; height:68px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1;" />
@@ -314,31 +323,51 @@ window.ServicesModule = {
         const previewEl = document.getElementById('svc-thumbnail-preview');
         const previewContainer = document.getElementById('svc-thumbnail-preview-container');
         const inputEl = document.getElementById('svc-thumbnail');
+        const progressBox = document.getElementById('svc-thumbnail-progress-box');
+        const progressBar = document.getElementById('svc-thumbnail-progress-bar');
+        const percentText = document.getElementById('svc-thumbnail-progress-pct');
+        const labelText = document.getElementById('svc-thumbnail-progress-label');
+
+        if (progressBox) progressBox.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentText) percentText.textContent = '0%';
+        if (labelText) labelText.textContent = `Uploading ${file.name}...`;
 
         try {
-            if (statusEl) statusEl.innerHTML = '⏳ Uploading thumbnail image to server...';
             const formData = new FormData();
             formData.append('thumbnail', file);
 
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload/thumbnail', true);
             const token = localStorage.getItem('adminToken') || (window.API && window.API.token);
-            const res = await fetch('/api/upload/thumbnail', {
-                method: 'POST',
-                headers: {
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: formData
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (percentText) percentText.textContent = `${percent}%`;
+                }
+            };
+
+            const data = await new Promise((resolve, reject) => {
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+                    } else {
+                        reject(new Error(`Upload failed (${xhr.status})`));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.send(formData);
             });
 
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || 'Image upload failed');
-            }
-
-            const data = await res.json();
             const url = data.url || data.downloadUrl;
             if (inputEl) inputEl.value = url;
             if (previewEl) previewEl.src = url;
             if (previewContainer) previewContainer.style.display = 'block';
+            if (percentText) percentText.textContent = '100%';
+            if (progressBar) progressBar.style.background = '#10b981';
             if (statusEl) statusEl.innerHTML = `✅ Uploaded successfully: <strong>${data.fileName || file.name}</strong>`;
         } catch (err) {
             console.error('Thumbnail upload error:', err);

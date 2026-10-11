@@ -74,10 +74,37 @@ window.CoursesModule = {
                             </select>
                         </div>
                         
-                        <div class="form-group">
-                            <label class="form-label">Thumbnail URL</label>
-                            <input type="url" id="course-thumbnail" class="form-control" 
-                                   value="${course?.thumbnail || ''}">
+                        <div class="form-group full-width">
+                            <label class="form-label" style="font-weight:700;">🖼️ Course Thumbnail Image</label>
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                <input type="file" id="course-thumb-file" accept="image/*" style="display:none;" 
+                                       onchange="CoursesModule.handleThumbnailUpload(this.files[0])">
+                                <button type="button" class="btn btn-secondary" style="padding:9px 16px; display:inline-flex; align-items:center; gap:6px; font-size:0.88rem;"
+                                        onclick="document.getElementById('course-thumb-file').click()">
+                                    📁 Upload Thumbnail File
+                                </button>
+                                <input type="text" id="course-thumbnail" class="form-control" style="flex:1; min-width:240px;" 
+                                       value="${course?.thumbnail || ''}" placeholder="or paste Image URL / server path..."
+                                       oninput="CoursesModule.previewThumbnail(this.value)">
+                            </div>
+
+                            <!-- Live Upload Progress Bar -->
+                            <div id="course-thumb-progress-box" style="display:none; margin-top:8px;">
+                                <div style="display:flex; justify-content:space-between; font-size:0.78rem; margin-bottom:4px;">
+                                    <span id="course-thumb-status-text" style="color:var(--text-muted);">Uploading image to server...</span>
+                                    <span id="course-thumb-percent-text" style="font-weight:700; color:var(--primary);">0%</span>
+                                </div>
+                                <div style="width:100%; height:7px; background:var(--bg-hover, #e2e8f0); border-radius:10px; overflow:hidden;">
+                                    <div id="course-thumb-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.15s ease;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Image Preview -->
+                            <div id="course-thumb-preview-wrap" style="margin-top:10px; ${course?.thumbnail ? '' : 'display:none;'}">
+                                <img id="course-thumb-preview" src="${course?.thumbnail || ''}" alt="Course Thumbnail" 
+                                     style="max-width:220px; height:120px; object-fit:cover; border-radius:8px; border:1px solid var(--border);"
+                                     onerror="this.parentElement.style.display='none'">
+                            </div>
                         </div>
                         
                         <!-- Pricing -->
@@ -206,6 +233,209 @@ window.CoursesModule = {
         const discountEl = document.getElementById('course-discount');
         if (priceEl) priceEl.disabled = isFree;
         if (discountEl) discountEl.disabled = isFree;
+    },
+
+    uploadWithProgress(url, formData, onProgress) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            const token = localStorage.getItem('adminToken') || (window.API && window.API.token);
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable && onProgress) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    onProgress(percent, e.loaded, e.total);
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        resolve(JSON.parse(xhr.responseText));
+                    } catch {
+                        resolve({ success: true });
+                    }
+                } else {
+                    try {
+                        const err = JSON.parse(xhr.responseText);
+                        reject(new Error(err.message || 'Upload failed'));
+                    } catch {
+                        reject(new Error(`Upload failed (${xhr.status})`));
+                    }
+                }
+            };
+
+            xhr.onerror = () => reject(new Error('Network error during file upload'));
+            xhr.send(formData);
+        });
+    },
+
+    previewThumbnail(url) {
+        const previewEl = document.getElementById('course-thumb-preview');
+        const wrapEl = document.getElementById('course-thumb-preview-wrap');
+        if (url && previewEl && wrapEl) {
+            previewEl.src = url;
+            wrapEl.style.display = 'block';
+        } else if (wrapEl) {
+            wrapEl.style.display = 'none';
+        }
+    },
+
+    async handleThumbnailUpload(file) {
+        if (!file) return;
+
+        const progressBox = document.getElementById('course-thumb-progress-box');
+        const progressBar = document.getElementById('course-thumb-progress-bar');
+        const percentText = document.getElementById('course-thumb-percent-text');
+        const statusText = document.getElementById('course-thumb-status-text');
+        const inputEl = document.getElementById('course-thumbnail');
+
+        if (progressBox) progressBox.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentText) percentText.textContent = '0%';
+        if (statusText) statusText.textContent = `Uploading ${file.name}...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('thumbnail', file);
+
+            const data = await this.uploadWithProgress(
+                '/api/upload/thumbnail',
+                formData,
+                (percent) => {
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (percentText) percentText.textContent = `${percent}%`;
+                }
+            );
+
+            const fileUrl = data.url || data.fullUrl;
+            if (inputEl) inputEl.value = fileUrl;
+            this.previewThumbnail(fileUrl);
+
+            if (statusText) {
+                statusText.innerHTML = `✅ Uploaded successfully: <strong>${data.fileName || file.name}</strong>`;
+            }
+            if (percentText) percentText.textContent = '100%';
+            if (progressBar) progressBar.style.background = '#10b981';
+        } catch (err) {
+            console.error('Thumbnail upload error:', err);
+            if (statusText) {
+                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+            }
+            alert('Thumbnail upload failed: ' + err.message);
+        }
+    },
+
+    async handleChapterFileUpload(inputEl) {
+        const file = inputEl.files && inputEl.files[0];
+        if (!file) return;
+
+        const formGroup = inputEl.closest('.form-group');
+        const targetInput = formGroup ? formGroup.querySelector('.chapter-drive') : null;
+        const progressBox = formGroup ? formGroup.querySelector('.chapter-upload-progress') : null;
+        const progressBar = formGroup ? formGroup.querySelector('.chapter-progress-fill') : null;
+        const percentText = formGroup ? formGroup.querySelector('.chapter-progress-pct') : null;
+        const statusText = formGroup ? formGroup.querySelector('.chapter-progress-label') : null;
+
+        if (progressBox) progressBox.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentText) percentText.textContent = '0%';
+        if (statusText) statusText.textContent = `Uploading ${file.name}...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('material', file);
+
+            const data = await this.uploadWithProgress(
+                '/api/upload/material',
+                formData,
+                (percent) => {
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (percentText) percentText.textContent = `${percent}%`;
+                }
+            );
+
+            const fileUrl = data.url || data.fullUrl;
+            if (targetInput) targetInput.value = fileUrl;
+
+            if (statusText) {
+                statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+            }
+            if (percentText) percentText.textContent = '100%';
+            if (progressBar) progressBar.style.background = '#10b981';
+        } catch (err) {
+            console.error('Chapter file upload error:', err);
+            if (statusText) {
+                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+            }
+            alert('File upload failed: ' + err.message);
+        }
+    },
+
+    async handleMaterialFileUpload(inputEl) {
+        const file = inputEl.files && inputEl.files[0];
+        if (!file) return;
+
+        const row = inputEl.closest('.material-row');
+        const titleInput = row ? row.querySelector('.material-title') : null;
+        const linkInput = row ? row.querySelector('.material-link') : null;
+        const typeSelect = row ? row.querySelector('.material-type') : null;
+        const progressBox = row ? row.querySelector('.material-upload-progress') : null;
+        const progressBar = row ? row.querySelector('.material-progress-fill') : null;
+        const percentText = row ? row.querySelector('.material-progress-pct') : null;
+        const statusText = row ? row.querySelector('.material-progress-label') : null;
+
+        // Auto-detect type
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (typeSelect) {
+            if (ext === '.pdf') typeSelect.value = 'pdf';
+            else if (['.ppt', '.pptx'].includes(ext)) typeSelect.value = 'slides';
+            else if (['.txt', '.doc', '.docx'].includes(ext)) typeSelect.value = 'notes';
+            else if (['.mp4', '.mov', '.webm', '.mkv'].includes(ext)) typeSelect.value = 'video';
+            else typeSelect.value = 'other';
+        }
+
+        // Auto-fill title if empty
+        if (titleInput && !titleInput.value.trim()) {
+            titleInput.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        }
+
+        if (progressBox) progressBox.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentText) percentText.textContent = '0%';
+        if (statusText) statusText.textContent = `Uploading ${file.name}...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('material', file);
+
+            const data = await this.uploadWithProgress(
+                '/api/upload/material',
+                formData,
+                (percent) => {
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (percentText) percentText.textContent = `${percent}%`;
+                }
+            );
+
+            const fileUrl = data.url || data.fullUrl;
+            if (linkInput) linkInput.value = fileUrl;
+
+            if (statusText) {
+                statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+            }
+            if (percentText) percentText.textContent = '100%';
+            if (progressBar) progressBar.style.background = '#10b981';
+        } catch (err) {
+            console.error('Material upload error:', err);
+            if (statusText) {
+                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+            }
+            alert('File upload failed: ' + err.message);
+        }
     },
 
     setupForm(courseId) {
@@ -353,8 +583,26 @@ window.CoursesModule = {
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Drive Link</label>
-                    <input type="url" class="form-control chapter-drive" value="${ch.driveLink || ''}">
+                    <label class="form-label" style="font-weight:600;">📄 Chapter Document / Notes / Drive Link</label>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="file" class="chapter-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,image/*" style="display:none;" 
+                               onchange="CoursesModule.handleChapterFileUpload(this)">
+                        <button type="button" class="btn btn-secondary" style="padding:8px 14px; font-size:0.84rem; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"
+                                onclick="this.previousElementSibling.click()">
+                            📁 Upload File / PDF
+                        </button>
+                        <input type="text" class="form-control chapter-drive" value="${ch.driveLink || ''}" placeholder="or paste Drive / Material URL" style="flex:1; min-width:220px;">
+                    </div>
+                    <!-- Upload Progression -->
+                    <div class="chapter-upload-progress" style="display:none; margin-top:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:3px;">
+                            <span class="chapter-progress-label" style="color:var(--text-muted);">Uploading document...</span>
+                            <span class="chapter-progress-pct" style="font-weight:700; color:var(--primary);">0%</span>
+                        </div>
+                        <div style="width:100%; height:6px; background:var(--bg-hover, #e2e8f0); border-radius:10px; overflow:hidden;">
+                            <div class="chapter-progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.15s ease;"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Materials -->
@@ -374,18 +622,35 @@ window.CoursesModule = {
 
     renderMaterialRow(material = {}) {
         return `
-            <div class="flex gap-2 items-center material-row" style="background:var(--bg-primary);padding:8px;border-radius:6px;">
-                <select class="form-control material-type" style="width:120px;">
-                    <option value="video" ${material.type === 'video' ? 'selected' : ''}>Video</option>
-                    <option value="pdf" ${material.type === 'pdf' ? 'selected' : ''}>PDF</option>
-                    <option value="notes" ${material.type === 'notes' ? 'selected' : ''}>Notes</option>
-                    <option value="slides" ${material.type === 'slides' ? 'selected' : ''}>Slides</option>
-                    <option value="other" ${material.type === 'other' ? 'selected' : ''}>Other</option>
+            <div class="flex gap-2 items-center material-row" style="background:var(--bg-primary);padding:10px;border-radius:8px; flex-wrap:wrap; border:1px solid var(--border);">
+                <select class="form-control material-type" style="width:110px; font-size:0.85rem;">
+                    <option value="pdf" ${material.type === 'pdf' ? 'selected' : ''}>📄 PDF</option>
+                    <option value="notes" ${material.type === 'notes' ? 'selected' : ''}>📝 Notes</option>
+                    <option value="slides" ${material.type === 'slides' ? 'selected' : ''}>📊 Slides</option>
+                    <option value="video" ${material.type === 'video' ? 'selected' : ''}>🎬 Video</option>
+                    <option value="other" ${material.type === 'other' ? 'selected' : ''}>📎 Other</option>
                 </select>
-                <input type="text" class="form-control material-title" placeholder="Title" value="${material.title || ''}" style="flex:1;">
-                <input type="url" class="form-control material-link" placeholder="Drive link" value="${material.link || ''}" style="flex:2;">
-                <button type="button" class="btn btn-danger" style="padding:8px;" 
-                        onclick="this.parentElement.remove()">✕</button>
+                <input type="text" class="form-control material-title" placeholder="Document Title" value="${material.title || ''}" style="flex:1; min-width:140px;">
+                
+                <input type="file" class="material-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,image/*" style="display:none;" 
+                       onchange="CoursesModule.handleMaterialFileUpload(this)">
+                <button type="button" class="btn btn-secondary" style="padding:7px 12px; font-size:0.82rem; white-space:nowrap; display:inline-flex; align-items:center; gap:5px;"
+                        onclick="this.previousElementSibling.click()">
+                    📁 Upload PDF / File
+                </button>
+                <input type="text" class="form-control material-link" placeholder="Material URL / Server path" value="${material.link || ''}" style="flex:2; min-width:200px;">
+                <button type="button" class="btn btn-danger" style="padding:8px 12px;" onclick="this.closest('.material-row').remove()">✕</button>
+
+                <!-- Real-time Progress Bar for Material -->
+                <div class="material-upload-progress" style="display:none; width:100%; margin-top:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:3px;">
+                        <span class="material-progress-label" style="color:var(--text-muted);">Uploading file to server...</span>
+                        <span class="material-progress-pct" style="font-weight:700; color:var(--primary);">0%</span>
+                    </div>
+                    <div style="width:100%; height:6px; background:var(--bg-hover, #e2e8f0); border-radius:10px; overflow:hidden;">
+                        <div class="material-progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.15s ease;"></div>
+                    </div>
+                </div>
             </div>
         `;
     },
@@ -420,8 +685,26 @@ window.CoursesModule = {
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Drive Link</label>
-                    <input type="url" class="form-control chapter-drive">
+                    <label class="form-label" style="font-weight:600;">📄 Chapter Document / Notes / Drive Link</label>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="file" class="chapter-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,image/*" style="display:none;" 
+                               onchange="CoursesModule.handleChapterFileUpload(this)">
+                        <button type="button" class="btn btn-secondary" style="padding:8px 14px; font-size:0.84rem; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"
+                                onclick="this.previousElementSibling.click()">
+                            📁 Upload File / PDF
+                        </button>
+                        <input type="text" class="form-control chapter-drive" placeholder="or paste Drive / Material URL" style="flex:1; min-width:220px;">
+                    </div>
+                    <!-- Upload Progression -->
+                    <div class="chapter-upload-progress" style="display:none; margin-top:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:3px;">
+                            <span class="chapter-progress-label" style="color:var(--text-muted);">Uploading document...</span>
+                            <span class="chapter-progress-pct" style="font-weight:700; color:var(--primary);">0%</span>
+                        </div>
+                        <div style="width:100%; height:6px; background:var(--bg-hover, #e2e8f0); border-radius:10px; overflow:hidden;">
+                            <div class="chapter-progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.15s ease;"></div>
+                        </div>
+                    </div>
                 </div>
                 <div style="margin-top:12px;">
                     <div class="flex justify-between items-center" style="margin-bottom:8px;">

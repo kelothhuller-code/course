@@ -14,10 +14,10 @@ const __dirname = path.dirname(__filename);
 const uploadBaseDir = path.join(__dirname, '..', 'public', 'uploads');
 const thumbnailDir = path.join(uploadBaseDir, 'thumbnails');
 const softwareDir = path.join(uploadBaseDir, 'software');
-// Protected Materials stored OUTSIDE public static folder to prevent direct unauthenticated access
-const materialsDir = path.join(__dirname, '..', 'private_storage', 'materials');
+const materialsDir = path.join(uploadBaseDir, 'materials');
+const legacyMaterialsDir = path.join(__dirname, '..', 'private_storage', 'materials');
 
-[uploadBaseDir, thumbnailDir, softwareDir, materialsDir].forEach(dir => {
+[uploadBaseDir, thumbnailDir, softwareDir, materialsDir, legacyMaterialsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -160,8 +160,10 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
 router.get('/material/download/:filename', protect, async (req, res) => {
   try {
     // Sanitize against directory traversal (e.g. ../../)
-    const safeFilename = path.basename(req.params.filename);
-    const filePath = path.join(materialsDir, safeFilename);
+    let filePath = path.join(materialsDir, safeFilename);
+    if (!fs.existsSync(filePath) && fs.existsSync(path.join(legacyMaterialsDir, safeFilename))) {
+      filePath = path.join(legacyMaterialsDir, safeFilename);
+    }
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'Requested material file not found on server.' });

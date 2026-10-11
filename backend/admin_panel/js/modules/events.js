@@ -108,9 +108,36 @@ window.EventsModule = {
                     </div>
                     
                     <div class="form-group full-width">
-                        <label class="form-label">Thumbnail URL</label>
-                        <input type="url" id="event-thumbnail" class="form-control" 
-                               value="${event?.thumbnail || ''}">
+                        <label class="form-label" style="font-weight:700;">🖼️ Event Thumbnail Image</label>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <input type="file" id="event-thumb-file" accept="image/*" style="display:none;" 
+                                   onchange="EventsModule.handleThumbnailUpload(this.files[0])">
+                            <button type="button" class="btn btn-secondary" style="padding:9px 16px; display:inline-flex; align-items:center; gap:6px; font-size:0.88rem;"
+                                    onclick="document.getElementById('event-thumb-file').click()">
+                                📁 Upload Thumbnail File
+                            </button>
+                            <input type="text" id="event-thumbnail" class="form-control" style="flex:1; min-width:240px;" 
+                                   value="${event?.thumbnail || ''}" placeholder="or paste Image URL / server path..."
+                                   oninput="EventsModule.previewThumbnail(this.value)">
+                        </div>
+
+                        <!-- Live Upload Progress Bar -->
+                        <div id="event-thumb-progress-box" style="display:none; margin-top:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.78rem; margin-bottom:4px;">
+                                <span id="event-thumb-status-text" style="color:var(--text-muted);">Uploading image to server...</span>
+                                <span id="event-thumb-percent-text" style="font-weight:700; color:var(--primary);">0%</span>
+                            </div>
+                            <div style="width:100%; height:7px; background:var(--bg-hover, #e2e8f0); border-radius:10px; overflow:hidden;">
+                                <div id="event-thumb-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.15s ease;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div id="event-thumb-preview-wrap" style="margin-top:10px; ${event?.thumbnail ? '' : 'display:none;'}">
+                            <img id="event-thumb-preview" src="${event?.thumbnail || ''}" alt="Event Thumbnail" 
+                                 style="max-width:220px; height:120px; object-fit:cover; border-radius:8px; border:1px solid var(--border);"
+                                 onerror="this.parentElement.style.display='none'">
+                        </div>
                     </div>
 
                     <div style="margin-top:32px;display:flex;justify-content:flex-end;gap:12px;">
@@ -120,6 +147,74 @@ window.EventsModule = {
                 </form>
             </div>
         `;
+    },
+
+    previewThumbnail(url) {
+        const previewEl = document.getElementById('event-thumb-preview');
+        const wrapEl = document.getElementById('event-thumb-preview-wrap');
+        if (url && previewEl && wrapEl) {
+            previewEl.src = url;
+            wrapEl.style.display = 'block';
+        } else if (wrapEl) {
+            wrapEl.style.display = 'none';
+        }
+    },
+
+    async handleThumbnailUpload(file) {
+        if (!file) return;
+
+        const progressBox = document.getElementById('event-thumb-progress-box');
+        const progressBar = document.getElementById('event-thumb-progress-bar');
+        const percentText = document.getElementById('event-thumb-percent-text');
+        const statusText = document.getElementById('event-thumb-status-text');
+        const inputEl = document.getElementById('event-thumbnail');
+
+        if (progressBox) progressBox.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentText) percentText.textContent = '0%';
+        if (statusText) statusText.textContent = `Uploading ${file.name}...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('thumbnail', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload/thumbnail', true);
+            const token = localStorage.getItem('adminToken') || (window.API && window.API.token);
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (percentText) percentText.textContent = `${percent}%`;
+                }
+            };
+
+            const data = await new Promise((resolve, reject) => {
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+                    } else {
+                        reject(new Error(`Upload failed (${xhr.status})`));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.send(formData);
+            });
+
+            const fileUrl = data.url || data.fullUrl;
+            if (inputEl) inputEl.value = fileUrl;
+            this.previewThumbnail(fileUrl);
+
+            if (statusText) statusText.innerHTML = `✅ Uploaded successfully: <strong>${data.fileName || file.name}</strong>`;
+            if (percentText) percentText.textContent = '100%';
+            if (progressBar) progressBar.style.background = '#10b981';
+        } catch (err) {
+            console.error('Event thumbnail upload error:', err);
+            if (statusText) statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+            alert('Upload failed: ' + err.message);
+        }
     },
 
     setupForm(eventId) {
