@@ -78,7 +78,7 @@ router.post('/thumbnail', protect, admin, upload.single('thumbnail'), (req, res)
       return res.status(400).json({ message: 'No image file uploaded' });
     }
 
-    const publicUrl = `/uploads/thumbnails/${req.file.filename}`;
+    const publicUrl = `/api/uploads/thumbnails/${req.file.filename}`;
     const fullUrl = `${req.protocol}://${req.get('host')}${publicUrl}`;
 
     res.json({
@@ -106,7 +106,7 @@ router.post('/software', protect, admin, upload.single('softwareFile'), (req, re
       return res.status(400).json({ message: 'No software package file uploaded' });
     }
 
-    const publicUrl = `/uploads/software/${req.file.filename}`;
+    const publicUrl = `/api/uploads/software/${req.file.filename}`;
     const fullUrl = `${req.protocol}://${req.get('host')}${publicUrl}`;
 
     res.json({
@@ -135,7 +135,7 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
       return res.status(400).json({ message: 'No document file uploaded' });
     }
 
-    const publicUrl = `/uploads/materials/${req.file.filename}`;
+    const publicUrl = `/api/uploads/materials/${req.file.filename}`;
     const fullUrl = `${req.protocol}://${req.get('host')}${publicUrl}`;
 
     res.json({
@@ -159,6 +159,8 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
 // @access  Private (Enrolled students or admin)
 router.get('/material/download/:filename', protect, async (req, res) => {
   try {
+    const filename = req.params.filename;
+    const safeFilename = path.basename(filename);
     // Sanitize against directory traversal (e.g. ../../)
     let filePath = path.join(materialsDir, safeFilename);
     if (!fs.existsSync(filePath) && fs.existsSync(path.join(legacyMaterialsDir, safeFilename))) {
@@ -180,7 +182,7 @@ router.get('/material/download/:filename', protect, async (req, res) => {
       return res.status(403).json({ message: 'Access denied: You must be enrolled in the course to download this study material.' });
     }
 
-    res.download(filePath, filename);
+    res.download(filePath, safeFilename);
   } catch (error) {
     console.error('Download material error:', error);
     res.status(500).json({ message: 'Error downloading material', error: error.message });
@@ -199,7 +201,7 @@ router.post('/multiple', protect, admin, upload.array('files', 10), (req, res) =
     const uploadedList = req.files.map(f => {
       const isThumb = f.destination.includes('thumbnails');
       const folder = isThumb ? 'thumbnails' : 'materials';
-      const publicUrl = `/uploads/${folder}/${f.filename}`;
+      const publicUrl = `/api/uploads/${folder}/${f.filename}`;
       return {
         fileName: f.filename,
         originalName: f.originalname,

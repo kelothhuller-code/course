@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './AllCoursesPage.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
@@ -170,10 +171,7 @@ export default function AllCoursesPage({ user, onLogout }) {
 
           {/* Course Grid */}
           {loading ? (
-            <div className="loading-spinner-container">
-              <div className="loading-spinner"></div>
-              <p>Loading courses...</p>
-            </div>
+            <LoadingSpinner />
           ) : courses.length === 0 ? (
             <div className="no-results">
               <span className="no-results-icon">📚</span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import TrustBadges from '../components/TrustBadges';
 import CourseReviews from '../components/CourseReviews';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
@@ -87,11 +88,7 @@ export default function CourseSalesPage({ user }) {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc', color: '#0f172a' }}>
-        <div className="logo-text" style={{ fontSize: '1.8rem', animation: 'pulse 1.5s infinite' }}>LOADING SALES PAGE...</div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   const course = data?.course;

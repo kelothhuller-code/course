@@ -43,5 +43,20 @@ window.Helpers = {
 
     getInitials(name) {
         return name?.substring(0, 2).toUpperCase() || 'U';
+    },
+
+    getMediaUrl(path) {
+        if (!path) return '';
+        let trimmed = String(path).trim();
+        if (!trimmed) return '';
+        trimmed = trimmed.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i, '');
+        if (/^(?:https?:)?\/\/|^data:|^blob:/i.test(trimmed)) {
+            return trimmed;
+        }
+        let clean = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+        if (clean.startsWith('/uploads/')) {
+            clean = `/api${clean}`;
+        }
+        return clean;
     }
 };

@@ -5,7 +5,7 @@ export default function FinalCTA({ user, handleEnroll, featuredCourse }) {
   return (
     <section className="final-cta">
       <div className="container">
-        <h2>Your AI Journey Can Start Today.</h2>
+        <h2>Your Journey Can Start Today.</h2>
         <p>You don't need to know everything before you start. You just need to start.</p>
         <div className="cta-buttons">
           {featuredCourse ? (

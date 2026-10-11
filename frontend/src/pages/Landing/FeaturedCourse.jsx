@@ -26,15 +26,26 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
     return (
       <section className="featured-section" id="featured-program">
         <div className="container">
-          <div className="section-label">FEATURED PROGRAM</div>
-          <h2 className="section-title">Your First Step Into AI-Powered Coding</h2>
+          <div className="section-label" style={{ marginBottom: '1.25rem' }}>FEATURED PROGRAM</div>
           
           <div className="featured-card">
             <div className="featured-badge">⭐ {course.packageType ? `${course.packageType.toUpperCase()} PROGRAM` : 'HIGHLIGHTED COURSE'}</div>
             
             <div className="featured-grid">
               <div className="featured-info">
-                <h3 className="featured-title">{course.title}</h3>
+                <h3 className="featured-title" style={{
+                  fontSize: 'clamp(1.25rem, 3.5vw, 1.85rem)',
+                  lineHeight: 1.3,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  margin: '0.25rem 0 0.75rem 0'
+                }}>
+                  {course.title}
+                </h3>
                 <div className="featured-price" style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem' }}>
                   <span>{displayPrice}</span>
                   {originalPrice && (

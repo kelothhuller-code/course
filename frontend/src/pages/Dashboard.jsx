@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import DashboardTabs from './dashboard/DashboardTabs';
 import CertificateModal from './dashboard/CertificateModal';
 
@@ -183,9 +184,7 @@ export default function Dashboard({ user, onRefreshUser }) {
     return (
       <>
         <NavHeader user={user} onLogout={handleLogout} />
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <div className="logo-text" style={{ fontSize: '2rem', animation: 'pulse 1.5s infinite' }}>LOADING DASHBOARD...</div>
-        </div>
+        <LoadingSpinner />
       </>
     );
   }

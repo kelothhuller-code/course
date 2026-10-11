@@ -4,6 +4,7 @@ import { api } from '../api';
 
 // Import sub-components
 import Navbar from './Landing/Navbar';
+import LoadingSpinner from '../components/LoadingSpinner';
 import Hero from './Landing/Hero';
 import TrustStrip from './Landing/TrustStrip';
 import FeaturedCourse from './Landing/FeaturedCourse';
@@ -179,24 +180,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#F8FAFC'
-      }}>
-        <div style={{
-          fontSize: '1.5rem',
-          fontWeight: 700,
-          color: '#4F46E5',
-          animation: 'pulse 1.5s infinite'
-        }}>
-          WIDETECHNOS ACADEMY
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (

@@ -17,4 +17,5 @@ backend/.env.*
 uploads/
 backend/public/uploads/*
 !backend/public/uploads/.gitkeep
-
+!backend/public/uploads/*/
+!backend/public/uploads/*/.gitkeep

@@ -19,16 +19,14 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
             <div className="hero-ctas">
               {featuredCourse ? (
                 <Link 
-                  to={user ? '/dashboard' : '/auth'} 
-                  className="btn btn-primary btn-lg"
-                  onClick={(e) => {
-                    if (user && featuredCourse) {
-                      e.preventDefault();
-                      handleEnroll(featuredCourse, 'course');
-                    }
-                  }}
+                  to={user && user.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === featuredCourse._id?.toString()) ? '/dashboard' : `/sale/${featuredCourse._id}`} 
+                  className="btn btn-primary btn-lg hero-course-btn"
+                  title={featuredCourse.title}
                 >
-                  {featuredCourse.title} — {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
+                  <span className="hero-btn-title">{featuredCourse.title}</span>
+                  <span className="hero-btn-badge">
+                    {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
+                  </span>
                 </Link>
               ) : (
                 <Link to="/all-courses" className="btn btn-primary btn-lg">

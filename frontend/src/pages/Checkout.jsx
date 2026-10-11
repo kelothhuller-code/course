@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 
 export default function Checkout({ user, onRefreshUser }) {
@@ -256,9 +257,7 @@ export default function Checkout({ user, onRefreshUser }) {
     return (
       <>
         <NavHeader user={user} onLogout={handleLogout} />
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>LOADING CHECKOUT...</div>
-        </div>
+        <LoadingSpinner />
       </>
     );
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 
 export default function CourseViewer({ user, onRefreshUser }) {
@@ -377,9 +378,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
     return (
       <>
         <NavHeader user={user} onLogout={handleLogout} />
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <div className="logo-text" style={{ fontSize: '2rem', animation: 'pulse 1.5s infinite' }}>ENTERING CLASSROOM...</div>
-        </div>
+        <LoadingSpinner />
       </>
     );
   }
