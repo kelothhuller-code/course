@@ -81,7 +81,7 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
       const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
       setCourses(courseList);
-      
+
       // Determine highlighted course: explicit backend featured course, or one marked isFeatured
       if (featuredData && featuredData.featuredCourse) {
         setFeaturedCourse(featuredData.featuredCourse);
@@ -185,25 +185,25 @@ export default function LandingPage({ user, onOpenMockPayment }) {
 
   return (
     <div className="landing-page">
-      <Navbar 
-        user={user} 
-        featuredCourse={featuredCourse} 
+      <Navbar
+        user={user}
+        featuredCourse={featuredCourse}
         hasSoftware={hasSoftware}
         hasServices={hasServices}
         onLogout={() => {
           localStorage.removeItem('token');
           navigate('/');
-        }} 
+        }}
       />
 
       <main>
-        <Hero 
-          user={user} 
-          handleEnroll={handleEnroll} 
-          featuredCourse={featuredCourse} 
+        <Hero
+          user={user}
+          handleEnroll={handleEnroll}
+          featuredCourse={featuredCourse}
           hasSoftware={hasSoftware}
         />
-        <TrustStrip />
+        {/* <TrustStrip /> */}
 
         {/* ── Courses Section (Seen 2nd on Landing Page) ── */}
         <CourseGrid

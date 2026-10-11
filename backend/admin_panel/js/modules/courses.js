@@ -392,6 +392,8 @@ window.CoursesModule = {
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
         if (typeSelect) {
             if (ext === '.pdf') typeSelect.value = 'pdf';
+            else if (['.xlsx', '.xls', '.csv', '.ods', '.tsv'].includes(ext)) typeSelect.value = 'sheet';
+            else if (['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.bmp'].includes(ext)) typeSelect.value = 'image';
             else if (['.ppt', '.pptx'].includes(ext)) typeSelect.value = 'slides';
             else if (['.txt', '.doc', '.docx'].includes(ext)) typeSelect.value = 'notes';
             else if (['.mp4', '.mov', '.webm', '.mkv'].includes(ext)) typeSelect.value = 'video';
@@ -583,13 +585,13 @@ window.CoursesModule = {
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" style="font-weight:600;">📄 Chapter Document / Notes / Drive Link</label>
+                    <label class="form-label" style="font-weight:600;">📄 Chapter Document / Sheet / Notes / Drive Link</label>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <input type="file" class="chapter-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,image/*" style="display:none;" 
+                        <input type="file" class="chapter-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,.xlsx,.xls,.csv,.ods,image/*" style="display:none;" 
                                onchange="CoursesModule.handleChapterFileUpload(this)">
                         <button type="button" class="btn btn-secondary" style="padding:8px 14px; font-size:0.84rem; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"
                                 onclick="this.previousElementSibling.click()">
-                            📁 Upload File / PDF
+                            📁 Upload File / PDF / Sheet
                         </button>
                         <input type="text" class="form-control chapter-drive" value="${ch.driveLink || ''}" placeholder="or paste Drive / Material URL" style="flex:1; min-width:220px;">
                     </div>
@@ -623,20 +625,22 @@ window.CoursesModule = {
     renderMaterialRow(material = {}) {
         return `
             <div class="flex gap-2 items-center material-row" style="background:var(--bg-primary);padding:10px;border-radius:8px; flex-wrap:wrap; border:1px solid var(--border);">
-                <select class="form-control material-type" style="width:110px; font-size:0.85rem;">
+                <select class="form-control material-type" style="width:130px; font-size:0.85rem;">
                     <option value="pdf" ${material.type === 'pdf' ? 'selected' : ''}>📄 PDF</option>
-                    <option value="notes" ${material.type === 'notes' ? 'selected' : ''}>📝 Notes</option>
+                    <option value="sheet" ${material.type === 'sheet' ? 'selected' : ''}>📈 Sheet (Excel/CSV)</option>
+                    <option value="image" ${material.type === 'image' ? 'selected' : ''}>🖼️ Image</option>
+                    <option value="notes" ${material.type === 'notes' ? 'selected' : ''}>📝 Notes / Doc</option>
                     <option value="slides" ${material.type === 'slides' ? 'selected' : ''}>📊 Slides</option>
                     <option value="video" ${material.type === 'video' ? 'selected' : ''}>🎬 Video</option>
                     <option value="other" ${material.type === 'other' ? 'selected' : ''}>📎 Other</option>
                 </select>
                 <input type="text" class="form-control material-title" placeholder="Document Title" value="${material.title || ''}" style="flex:1; min-width:140px;">
                 
-                <input type="file" class="material-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,image/*" style="display:none;" 
+                <input type="file" class="material-file-picker" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.zip,.xlsx,.xls,.csv,.ods,image/*" style="display:none;" 
                        onchange="CoursesModule.handleMaterialFileUpload(this)">
                 <button type="button" class="btn btn-secondary" style="padding:7px 12px; font-size:0.82rem; white-space:nowrap; display:inline-flex; align-items:center; gap:5px;"
                         onclick="this.previousElementSibling.click()">
-                    📁 Upload PDF / File
+                    📁 Upload File
                 </button>
                 <input type="text" class="form-control material-link" placeholder="Material URL / Server path" value="${material.link || ''}" style="flex:2; min-width:200px;">
                 <button type="button" class="btn btn-danger" style="padding:8px 12px;" onclick="this.closest('.material-row').remove()">✕</button>

@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 
 const MaterialSchema = new mongoose.Schema({
-  type: { type: String, enum: ['video', 'pdf', 'notes', 'slides', 'other'], required: true },
+  type: { type: String, enum: ['video', 'pdf', 'notes', 'slides', 'sheet', 'image', 'document', 'other'], default: 'other' },
   title: { type: String },
-  link: { type: String, required: true } // Drive link
+  link: { type: String, required: true } // Drive link or server file URL
 });
 
 const ChapterSchema = new mongoose.Schema({

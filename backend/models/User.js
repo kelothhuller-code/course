@@ -55,6 +55,16 @@ const UserSchema = new mongoose.Schema({
   tokenVersion: {
     type: Number,
     default: 0
+  },
+  forgotPasswordOTP: {
+    type: String,
+    sparse: true
+  },
+  forgotPasswordExpires: {
+    type: Date
+  },
+  lastForgotAttempt: {
+    type: Date
   }
 }, {
   timestamps: true,

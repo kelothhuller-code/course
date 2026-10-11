@@ -2431,22 +2431,217 @@ h4 {
   transform: none;
 }
 
-@media (max-width: 640px) {
+/* ===== 3 NAVIGATION BUTTONS ON THE EXACT SAME LINE ===== */
+.lesson-nav-bar-container {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 0.45rem;
+  align-items: center;
+  width: 100%;
+  margin: 0.75rem 0 0.85rem 0;
+  padding: 0.45rem 0.6rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: 0 4px 15px -3px rgba(15, 23, 42, 0.05);
+}
+
+.lesson-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.lesson-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.lesson-nav-btn.prev-btn {
+  background: var(--background-white, #fff);
+  color: var(--text-secondary, #475569);
+  border-color: var(--border, #e2e8f0);
+}
+
+.lesson-nav-btn.prev-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: var(--primary, #4f46e5);
+  color: var(--primary, #4f46e5);
+  transform: translateX(-1px);
+}
+
+.lesson-nav-btn.complete-btn.not-completed {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.lesson-nav-btn.complete-btn.not-completed:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.lesson-nav-btn.complete-btn.is-completed {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #10b981;
+  font-weight: 700;
+}
+
+.lesson-nav-btn.complete-btn.is-completed:hover {
+  background: #d1fae5;
+  transform: translateY(-1px);
+}
+
+.lesson-nav-btn.next-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+}
+
+.lesson-nav-btn.next-btn:hover:not(:disabled) {
+  transform: translateX(1px);
+}
+
+.lesson-nav-btn.next-btn.is-locked {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+  box-shadow: none;
+  opacity: 0.85;
+}
+
+/* Bottom Attached Material Bar (Desktop: hidden, Mobile: visible attached to bottom of screen) */
+.material-bottom-bar-attached {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  /* Hide crowded top bar actions on mobile */
+  .material-top-actions-desktop {
+    display: none !important;
+  }
+
+  /* Show small compact buttons attached directly to the bottom of the viewing screen on mobile */
+  .material-bottom-bar-attached {
+    display: flex !important;
+  }
+
+  /* 3 Nav Buttons: Prev and Next small, center Complete button fits nicely */
+  .lesson-nav-bar-container {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.25rem;
+    padding: 0.22rem 0.3rem;
+    margin: 0.45rem 0 0.6rem 0;
+    border-radius: 10px;
+  }
+
+  .lesson-nav-btn {
+    min-height: 28px;
+    border-radius: 7px;
+    font-weight: 600;
+  }
+
+  /* Prev and Next buttons made small and compact */
+  .lesson-nav-btn.prev-btn,
+  .lesson-nav-btn.next-btn {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.45rem;
+    flex-shrink: 0;
+  }
+
+  .lesson-nav-btn.complete-btn {
+    font-size: 0.68rem;
+    padding: 0.26rem 0.35rem;
+  }
+
+  /* Smooth scrollable tabs on mobile so titles are clearly visible and never cut off */
   .viewer-tabs-nav {
-    padding: 0.35rem 0.45rem;
-    gap: 0.35rem;
-    border-radius: 12px;
-    margin: 1rem 0;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0.35rem 0.5rem;
+    gap: 0.45rem;
+    border-radius: 14px;
+    margin: 0.85rem 0;
     top: 60px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+  .viewer-tabs-nav::-webkit-scrollbar {
+    display: none;
   }
   .viewer-tab-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
     padding: 0.5rem 0.85rem;
     font-size: 0.82rem;
-    gap: 0.4rem;
+    gap: 0.35rem;
     border-radius: 10px;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
   }
   .viewer-tab-btn .tab-icon {
     font-size: 0.95rem;
+  }
+  .viewer-tab-btn .tab-title {
+    display: inline-block;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .viewer-tab-btn .tab-pill-badge {
+    padding: 0.12rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 480px) {
+  .material-mobile-actions-below {
+    gap: 0.35rem;
+  }
+  .material-below-btn {
+    padding: 0.4rem 0.35rem;
+    font-size: 0.71rem;
+  }
+
+  .lesson-nav-bar-container {
+    gap: 0.2rem;
+    padding: 0.2rem 0.25rem;
+    margin: 0.35rem 0 0.5rem 0;
+  }
+  .lesson-nav-btn.prev-btn,
+  .lesson-nav-btn.next-btn {
+    font-size: 0.62rem;
+    padding: 0.22rem 0.35rem;
+    min-height: 25px;
+    border-radius: 6px;
+  }
+  .lesson-nav-btn.complete-btn {
+    font-size: 0.64rem;
+    padding: 0.24rem 0.25rem;
+    min-height: 25px;
+    border-radius: 6px;
   }
 }
 

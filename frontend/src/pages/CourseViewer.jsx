@@ -24,6 +24,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const [videoProgressTimer, setVideoProgressTimer] = useState(null);
   const [commentTab, setCommentTab] = useState('public'); // 'public' or 'my'
   const [activeViewerTab, setActiveViewerTab] = useState('chapters'); // 'chapters' | 'discussion' | 'followup' | 'resources'
+  const [selectedResourceIndex, setSelectedResourceIndex] = useState(0);
   const [userComments, setUserComments] = useState([]);
   const iframeRef = useRef(null);
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
           
           if (progressData) {
             progressData.completedLessons = Array.isArray(progressData.completedLessons) 
-              ? progressData.completedLessons 
+              ? progressData.completedLessons.map(i => (i?._id || i).toString())
               : [];
             progressData.completedChapters = Array.isArray(progressData.completedChapters)
               ? progressData.completedChapters
@@ -185,10 +186,29 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const handleToggleComplete = async () => {
     if (!activeLesson || !course) return;
     try {
-      const isCurrentlyCompleted = isLessonCompleted(activeLesson._id);
-      const targetLessonId = activeLesson._id;
+      const activeId = (activeLesson._id || activeLesson).toString();
+      const isCurrentlyCompleted = isLessonCompleted(activeId);
 
-      const res = await api.updateVideoProgress(id, targetLessonId, {
+      // Optimistically update local progress state so UI reflects change immediately
+      setCourseProgress(prev => {
+        if (!prev) return prev;
+        const currentCompleted = Array.isArray(prev.completedLessons) ? [...prev.completedLessons] : [];
+        let updated;
+        if (isCurrentlyCompleted) {
+          updated = currentCompleted.filter(id => (id?._id || id || '').toString() !== activeId);
+        } else {
+          updated = [...currentCompleted, activeId];
+        }
+        const total = lessonsList.length || 1;
+        const newPct = Math.min(100, Math.round((updated.length / total) * 100));
+        return {
+          ...prev,
+          completedLessons: updated,
+          progress: newPct
+        };
+      });
+
+      const res = await api.updateVideoProgress(id, activeId, {
         completed: !isCurrentlyCompleted,
         videoProgressPercent: !isCurrentlyCompleted ? 100 : 0,
         chapterId: activeChapter?._id
@@ -198,7 +218,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
       const progress = await api.getCourseProgress(id);
       if (progress) {
         progress.completedLessons = Array.isArray(progress.completedLessons)
-          ? progress.completedLessons
+          ? progress.completedLessons.map(i => (i?._id || i).toString())
           : [];
         setCourseProgress(progress);
         setProgressPercent(progress?.progress || 0);
@@ -227,6 +247,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
       console.log('First lesson:', firstLesson);
       setActiveChapter(firstLesson);
       setActiveLesson(firstLesson);
+      setSelectedResourceIndex(0);
     } else {
       console.log('No chapters found for language:', lang);
       setActiveChapter(null);
@@ -245,6 +266,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
     
     setActiveChapter(lesson);
     setActiveLesson(lesson);
+    setSelectedResourceIndex(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -387,9 +409,82 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const lessonsList = currentLanguageContent?.chapters || [];
 
   const isLessonCompleted = (lessonId) => {
-    if (!courseProgress?.completedLessons) return false;
-    if (!Array.isArray(courseProgress.completedLessons)) return false;
-    return courseProgress.completedLessons.includes(lessonId);
+    if (!lessonId) return false;
+    const strId = (lessonId._id || lessonId).toString();
+    const list = courseProgress?.completedLessons;
+    if (!list || !Array.isArray(list)) return false;
+    return list.some(item => (item?._id || item || '').toString() === strId);
+  };
+
+  // Extract all attached materials / documents for the active lesson
+  const lessonResources = (() => {
+    if (!activeLesson) return [];
+    const list = [];
+    if (activeLesson.driveLink) {
+      const link = activeLesson.driveLink;
+      const clean = link.split('?')[0].toLowerCase();
+      let type = 'other';
+      if (clean.endsWith('.pdf')) type = 'pdf';
+      else if (['.xlsx', '.xls', '.csv', '.ods', '.tsv'].some(ext => clean.endsWith(ext))) type = 'sheet';
+      else if (['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.bmp'].some(ext => clean.endsWith(ext))) type = 'image';
+      else if (['.ppt', '.pptx'].some(ext => clean.endsWith(ext))) type = 'slides';
+      else if (['.doc', '.docx', '.txt'].some(ext => clean.endsWith(ext))) type = 'notes';
+
+      list.push({
+        title: activeLesson.title ? `${activeLesson.title} - Main File` : 'Lesson Study File',
+        link,
+        type
+      });
+    }
+
+    if (Array.isArray(activeLesson.materials)) {
+      activeLesson.materials.forEach((m, idx) => {
+        const link = m.link || m.url || '';
+        if (!link) return;
+        const clean = link.split('?')[0].toLowerCase();
+        let type = m.type || 'other';
+        if (type === 'other' || !type) {
+          if (clean.endsWith('.pdf')) type = 'pdf';
+          else if (['.xlsx', '.xls', '.csv', '.ods', '.tsv'].some(ext => clean.endsWith(ext))) type = 'sheet';
+          else if (['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.bmp'].some(ext => clean.endsWith(ext))) type = 'image';
+          else if (['.ppt', '.pptx'].some(ext => clean.endsWith(ext))) type = 'slides';
+          else if (['.doc', '.docx', '.txt'].some(ext => clean.endsWith(ext))) type = 'notes';
+        }
+        list.push({
+          title: m.title || `Resource ${idx + 1}`,
+          link,
+          type
+        });
+      });
+    }
+    return list;
+  })();
+
+  // Construct secure material download or view URL with auth token for logged in students
+  const getSecureMaterialUrl = (rawUrl, isInline = false) => {
+    if (!rawUrl) return '';
+    const token = localStorage.getItem('token');
+    const base = getMediaUrl(rawUrl);
+    if (base.includes('/uploads/materials') || base.includes('/upload/material')) {
+      const sep = base.includes('?') ? '&' : '?';
+      return `${base}${sep}token=${encodeURIComponent(token || '')}${isInline ? '&inline=true' : ''}`;
+    }
+    return base;
+  };
+
+  const handleDownloadSecureMaterial = (rawUrl, title) => {
+    if (!user && !localStorage.getItem('token')) {
+      alert('Please log in to download course materials.');
+      return;
+    }
+    const secureUrl = getSecureMaterialUrl(rawUrl, false);
+    const a = document.createElement('a');
+    a.href = secureUrl;
+    a.download = title || 'material';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // Helper to render a single comment with its replies
@@ -499,7 +594,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
             <section className="player-section">
               {activeLesson ? (
                 <>
-                  {/* Cinema Video Player */}
+                  {/* Cinema Video Player or Interactive Document/Sheet/Image Viewer */}
                   <div className="video-wrapper">
                     {activeLesson.videoUrl ? (
                       <iframe
@@ -509,6 +604,279 @@ export default function CourseViewer({ user, onRefreshUser }) {
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       ></iframe>
+                    ) : lessonResources.length > 0 ? (
+                      (() => {
+                        const currentRes = lessonResources[selectedResourceIndex] || lessonResources[0];
+                        const isPdf = currentRes.type === 'pdf';
+                        const isImg = currentRes.type === 'image';
+                        const isSheet = currentRes.type === 'sheet';
+
+                        return (
+                          <div className="material-cinema-container" style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: '#0b0f19',
+                            color: '#fff',
+                            overflow: 'hidden'
+                          }}>
+                            {/* Top Resource Bar: selected material selector & download actions */}
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '0.45rem 0.75rem',
+                              background: 'rgba(15, 23, 42, 0.96)',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+                              fontSize: '0.8rem',
+                              zIndex: 10,
+                              gap: '0.5rem'
+                            }}>
+                              {/* Left: Selected Material display or dropdown selector */}
+                              {lessonResources.length > 1 ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: '1 1 auto' }}>
+                                  <span style={{ fontSize: '1.05rem', flexShrink: 0 }}>
+                                    {currentRes.type === 'pdf' ? '📄' : currentRes.type === 'sheet' ? '📈' : currentRes.type === 'image' ? '🖼️' : '📁'}
+                                  </span>
+                                  <select
+                                    value={selectedResourceIndex}
+                                    onChange={(e) => setSelectedResourceIndex(Number(e.target.value))}
+                                    style={{
+                                      background: 'rgba(30, 41, 59, 0.95)',
+                                      color: '#ffffff',
+                                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                                      borderRadius: '8px',
+                                      padding: '0.25rem 0.5rem',
+                                      fontSize: '0.76rem',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      maxWidth: '190px',
+                                      outline: 'none',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="Select material to view"
+                                  >
+                                    {lessonResources.map((res, rIdx) => (
+                                      <option key={rIdx} value={rIdx} style={{ background: '#0f172a', color: '#fff' }}>
+                                        {res.title} ({res.type.toUpperCase()})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: '1 1 auto' }}>
+                                  <span style={{ fontSize: '1.05rem', flexShrink: 0 }}>
+                                    {currentRes.type === 'pdf' ? '📄' : currentRes.type === 'sheet' ? '📈' : currentRes.type === 'image' ? '🖼️' : '📁'}
+                                  </span>
+                                  <span style={{
+                                    fontWeight: '600',
+                                    fontSize: '0.78rem',
+                                    color: '#f8fafc',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '200px'
+                                  }}>
+                                    {currentRes.title}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '0.64rem',
+                                    padding: '0.1rem 0.35rem',
+                                    background: 'rgba(255,255,255,0.15)',
+                                    borderRadius: '4px',
+                                    color: '#cbd5e1',
+                                    fontWeight: '700',
+                                    flexShrink: 0
+                                  }}>
+                                    {currentRes.type.toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Right: Download & View Tab Actions (Desktop) */}
+                              <div className="material-top-actions-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadSecureMaterial(currentRes.link, currentRes.title)}
+                                  className="btn btn-sm btn-primary"
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    padding: '0.25rem 0.55rem',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  📥 Download
+                                </button>
+                                <a
+                                  href={getSecureMaterialUrl(currentRes.link, true)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm"
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    padding: '0.25rem 0.55rem',
+                                    background: 'rgba(255, 255, 255, 0.16)',
+                                    color: '#ffffff',
+                                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                    textDecoration: 'none',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ↗ View Tab
+                                </a>
+                              </div>
+                            </div>
+
+                            {/* Material Body */}
+                            <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+                              {isPdf ? (
+                                <iframe
+                                  src={getSecureMaterialUrl(currentRes.link, true)}
+                                  title={currentRes.title}
+                                  style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+                                />
+                              ) : isImg ? (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+                                  <img
+                                    src={getSecureMaterialUrl(currentRes.link, true)}
+                                    alt={currentRes.title}
+                                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+                                  />
+                                </div>
+                              ) : isSheet ? (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 100%)' }}>
+                                  <div style={{ textAlign: 'center', maxWidth: '480px' }}>
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 0.75rem auto' }}>
+                                      📈
+                                    </div>
+                                    <span className="badge" style={{ background: '#10b981', color: '#fff', fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: '700' }}>
+                                      EXCEL / CSV SPREADSHEET
+                                    </span>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', margin: '0.75rem 0 0.5rem 0', color: '#fff' }}>
+                                      {currentRes.title}
+                                    </h3>
+                                    <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                                      This practical lesson includes workbook spreadsheets. Download or open below to complete the exercises.
+                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadSecureMaterial(currentRes.link, currentRes.title)}
+                                        className="btn btn-primary btn-sm"
+                                        style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: '600' }}
+                                      >
+                                        📥 Download Sheet
+                                      </button>
+                                      {currentRes.link.includes('drive.google.com') && (
+                                        <a
+                                          href={currentRes.link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                                        >
+                                          ↗ Open in Sheets
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 100%)' }}>
+                                  <div style={{ textAlign: 'center', maxWidth: '480px' }}>
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 0.75rem auto' }}>
+                                      📑
+                                    </div>
+                                    <span className="badge" style={{ background: 'var(--primary)', color: '#fff', fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: '700' }}>
+                                      STUDY MATERIAL FILE
+                                    </span>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', margin: '0.75rem 0 0.5rem 0', color: '#fff' }}>
+                                      {currentRes.title}
+                                    </h3>
+                                    <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                                      Download or view the study resource file below.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadSecureMaterial(currentRes.link, currentRes.title)}
+                                      className="btn btn-primary btn-sm"
+                                      style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: '600' }}
+                                    >
+                                      📥 Download File
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom Attached Bar: Small buttons attached to viewing screen on mobile */}
+                            <div className="material-bottom-bar-attached" style={{
+                              display: 'flex',
+                              justifyContent: 'flex-end',
+                              alignItems: 'center',
+                              padding: '0.3rem 0.65rem',
+                              background: 'rgba(15, 23, 42, 0.96)',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+                              gap: '0.35rem',
+                              zIndex: 10
+                            }}>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadSecureMaterial(currentRes.link, currentRes.title)}
+                                className="btn btn-sm btn-primary"
+                                style={{
+                                  fontSize: '0.72rem',
+                                  padding: '0.22rem 0.55rem',
+                                  fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.2rem',
+                                  whiteSpace: 'nowrap',
+                                  borderRadius: '6px'
+                                }}
+                              >
+                                📥 Download
+                              </button>
+                              <a
+                                href={getSecureMaterialUrl(currentRes.link, true)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm"
+                                style={{
+                                  fontSize: '0.72rem',
+                                  padding: '0.22rem 0.55rem',
+                                  background: 'rgba(255, 255, 255, 0.16)',
+                                  color: '#ffffff',
+                                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                                  borderRadius: '6px',
+                                  fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.2rem',
+                                  textDecoration: 'none',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                ↗ View Tab
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div style={{ 
                         position: 'absolute', 
@@ -520,11 +888,62 @@ export default function CourseViewer({ user, onRefreshUser }) {
                         alignItems: 'center', 
                         justifyContent: 'center',
                         color: '#fff',
-                        background: '#1a1a1a'
+                        background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+                        padding: '2rem',
+                        textAlign: 'center'
                       }}>
-                        <p>No video URL available for this lesson</p>
+                        <div style={{ maxWidth: '500px' }}>
+                          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📖</div>
+                          <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.15)', color: '#fff', fontSize: '0.72rem', padding: '0.2rem 0.65rem', borderRadius: '20px', fontWeight: '600' }}>
+                            LECTURE & READING MODULE
+                          </span>
+                          <h2 style={{ fontSize: '1.3rem', fontWeight: '700', margin: '0.6rem 0 0.4rem 0', color: '#fff' }}>
+                            {activeLesson.title}
+                          </h2>
+                          <p style={{ color: '#cbd5e1', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '1rem' }}>
+                            {activeLesson.description || 'Review the lesson curriculum details below.'}
+                          </p>
+                        </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* 3 Nav Buttons: Single line on all screen sizes */}
+                  <div className="lesson-nav-bar-container">
+                    <button
+                      type="button"
+                      onClick={() => prevLesson && handleLessonSelect(prevLesson)}
+                      disabled={!prevLesson}
+                      className="btn btn-secondary lesson-nav-btn prev-btn"
+                      title="Previous lesson"
+                    >
+                      ← Prev
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleComplete}
+                      className={`btn lesson-nav-btn complete-btn ${isLessonCompleted(activeLesson._id) ? 'is-completed' : 'not-completed'}`}
+                    >
+                      {isLessonCompleted(activeLesson._id) ? '✓ Completed' : 'Mark as Complete'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!nextLesson) return;
+                        if (isNextLocked) {
+                          alert('🔒 Next Lesson Locked: Please mark the current lesson as complete to unlock.');
+                          return;
+                        }
+                        handleLessonSelect(nextLesson);
+                      }}
+                      disabled={!nextLesson}
+                      className={`btn lesson-nav-btn next-btn ${isNextLocked ? 'btn-secondary is-locked' : 'btn-primary'}`}
+                      title={isNextLocked ? 'Complete current lesson to unlock next' : 'Next lesson'}
+                    >
+                      Next → {isNextLocked ? '🔒' : ''}
+                    </button>
                   </div>
 
                   {/* Lesson Meta Header */}
@@ -565,68 +984,6 @@ export default function CourseViewer({ user, onRefreshUser }) {
                           {activeLesson.title}
                         </h1>
                       </div>
-
-                      {/* Action Bar: Prev, Mark Complete, Next */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {prevLesson && (
-                          <button
-                            type="button"
-                            onClick={() => handleLessonSelect(prevLesson)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ 
-                              fontSize: '0.8rem', 
-                              padding: '0.4rem 0.75rem', 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '0.3rem' 
-                            }}
-                            title="Previous lesson"
-                          >
-                            ← Prev
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleToggleComplete}
-                          className={`btn btn-sm ${isLessonCompleted(activeLesson._id) ? 'btn-secondary' : 'btn-primary'}`}
-                          style={{
-                            fontSize: '0.82rem',
-                            padding: '0.4rem 0.95rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            borderColor: isLessonCompleted(activeLesson._id) ? '#10b981' : undefined,
-                            color: isLessonCompleted(activeLesson._id) ? '#10b981' : undefined,
-                            fontWeight: '600'
-                          }}
-                        >
-                          {isLessonCompleted(activeLesson._id) ? '✓ Completed' : 'Mark as Complete'}
-                        </button>
-                        {nextLesson && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isNextLocked) {
-                                alert('🔒 Next Lesson Locked: Please finish and mark the current lesson as complete to unlock.');
-                                return;
-                              }
-                              handleLessonSelect(nextLesson);
-                            }}
-                            className={`btn btn-sm ${isNextLocked ? 'btn-secondary' : 'btn-primary'}`}
-                            style={{ 
-                              fontSize: '0.8rem', 
-                              padding: '0.4rem 0.75rem', 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '0.3rem',
-                              opacity: isNextLocked ? 0.75 : 1
-                            }}
-                            title={isNextLocked ? 'Complete current lesson to unlock next' : 'Next lesson'}
-                          >
-                            Next → {isNextLocked ? '🔒' : ''}
-                          </button>
-                        )}
-                      </div>
                     </div>
 
                     <p className="learn-desc" style={{ 
@@ -652,6 +1009,18 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
                       <button
                         type="button"
+                        onClick={() => setActiveViewerTab('resources')}
+                        className={`viewer-tab-btn ${activeViewerTab === 'resources' ? 'active' : ''}`}
+                      >
+                        <span className="tab-icon">📂</span>
+                        <span className="tab-title">Materials</span>
+                        {lessonResources.length > 0 && (
+                          <span className="tab-pill-badge">{lessonResources.length}</span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setActiveViewerTab('discussion')}
                         className={`viewer-tab-btn ${activeViewerTab === 'discussion' ? 'active' : ''}`}
                       >
@@ -671,20 +1040,6 @@ export default function CourseViewer({ user, onRefreshUser }) {
                           <span className="tab-pill-badge highlight">{course.continuationCourses.length}</span>
                         )}
                       </button>
-
-                      {(activeLesson.driveLink || (activeLesson.materials && activeLesson.materials.length > 0)) && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveViewerTab('resources')}
-                          className={`viewer-tab-btn ${activeViewerTab === 'resources' ? 'active' : ''}`}
-                        >
-                          <span className="tab-icon">📂</span>
-                          <span className="tab-title">Study Materials</span>
-                          {activeLesson.materials?.length > 0 && (
-                            <span className="tab-pill-badge">{activeLesson.materials.length}</span>
-                          )}
-                        </button>
-                      )}
                     </div>
 
                     {/* Tab 1: Chapters & Curriculum */}
@@ -853,7 +1208,80 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       </div>
                     )}
 
-                    {/* Tab 2: Discussion & Q&A */}
+                    {/* Tab 2: Study Materials & Worksheets */}
+                    {activeViewerTab === 'resources' && (
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
+                        <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px' }}>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>📂</span> Lesson Study Materials & Worksheets
+                          </h3>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                            Reference materials, project source files, spreadsheets, notes and cheatsheets for <strong>{activeLesson?.title}</strong>.
+                          </p>
+
+                          {lessonResources.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              {lessonResources.map((mat, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.85rem 1.15rem',
+                                    borderRadius: '12px',
+                                    background: 'var(--background-white, #fff)',
+                                    border: '1px solid var(--border, #e2e8f0)',
+                                    gap: '0.75rem',
+                                    flexWrap: 'wrap',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                                    <span style={{ fontSize: '1.4rem' }}>
+                                      {mat.type === 'pdf' ? '📄' : mat.type === 'sheet' ? '📈' : mat.type === 'image' ? '🖼️' : '📁'}
+                                    </span>
+                                    <div>
+                                      <div style={{ fontWeight: '600', fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                                        {mat.title}
+                                      </div>
+                                      <span className="badge" style={{ fontSize: '0.68rem', padding: '0.15rem 0.5rem', background: '#f1f5f9', color: '#475569', borderRadius: '6px' }}>
+                                        {mat.type.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadSecureMaterial(mat.link, mat.title)}
+                                      className="btn btn-primary btn-sm"
+                                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                    >
+                                      📥 Download
+                                    </button>
+                                    <a
+                                      href={getSecureMaterialUrl(mat.link, true)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+                                    >
+                                      ↗ View
+                                    </a>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)' }}>
+                              <p>No downloadable materials currently uploaded for this lesson.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 3: Discussion & Q&A */}
                     {activeViewerTab === 'discussion' && (
                       <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
                         <div style={{ 
@@ -1145,72 +1573,6 @@ export default function CourseViewer({ user, onRefreshUser }) {
                             </Link>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* Tab 4: Study Materials & Resources */}
-                    {activeViewerTab === 'resources' && (activeLesson?.driveLink || (activeLesson?.materials && activeLesson.materials.length > 0)) && (
-                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
-                        <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px' }}>
-                          <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>📂</span> Lesson Study Materials & Resources
-                          </h3>
-                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
-                            Reference materials, project source files, spreadsheets, notes and cheatsheets for <strong>{activeLesson.title}</strong>.
-                          </p>
-
-                          {activeLesson.driveLink && (
-                            <div style={{ marginBottom: activeLesson.materials?.length > 0 ? '1.25rem' : 0 }}>
-                              <a
-                                href={getMediaUrl(activeLesson.driveLink)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-primary"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  padding: '0.75rem 1.25rem',
-                                  fontSize: '0.95rem',
-                                  fontWeight: '600',
-                                  textDecoration: 'none'
-                                }}
-                                onClick={handleMaterialOpen}
-                              >
-                                📥 Open Lesson File / Notes (Drive or Server)
-                              </a>
-                            </div>
-                          )}
-
-                          {activeLesson.materials && activeLesson.materials.length > 0 && (
-                            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                              <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>Attached Documents:</h4>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                {activeLesson.materials.map((mat, i) => (
-                                  <a
-                                    key={i}
-                                    href={getMediaUrl(mat.url)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn btn-secondary"
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '0.6rem 1rem',
-                                      borderRadius: '10px',
-                                      fontSize: '0.88rem',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    <span>📄 {mat.title || `Resource File ${i + 1}`}</span>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Download / View ↗</span>
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
                   </div>

@@ -149,6 +149,13 @@ export default function LeadMagnet() {
           border-radius: 8px;
           font-size: 0.82rem;
           color: #c4c9d8;
+          flex: 0 0 48%;
+          text-align: center;
+        }
+        @media (max-width: 480px) {
+          .lead-magnet-perk {
+            font-size: 0.7rem;
+          }
         }
         .lead-magnet-form {
           display: flex;

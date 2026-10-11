@@ -46,7 +46,9 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedExtensions = [
     // Images
-    '.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif',
+    '.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif', '.bmp', '.ico',
+    // Spreadsheets & Worksheets (Excel / CSV)
+    '.xlsx', '.xls', '.csv', '.tsv', '.ods',
     // Documents & Slides
     '.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt', '.zip',
     // Software packages & archives
@@ -57,7 +59,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error(`File type ${ext} is not allowed. Supported formats: images, documents, and software packages (ZIP, 7Z, TAR, EXE, DMG, PKG, etc.).`), false);
+    cb(new Error(`File type ${ext} is not allowed. Supported formats: images, spreadsheets (XLSX, CSV, ODS), documents (PDF, DOCX, PPTX), and software packages.`), false);
   }
 };
 
@@ -154,7 +156,7 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
   }
 });
 
-// @desc    Download protected course material (PDF, slides, notes) (B2)
+// @desc    Download or view protected course material (PDF, slides, notes, sheets, images) (B2)
 // @route   GET /api/upload/material/download/:filename
 // @access  Private (Enrolled students or admin)
 router.get('/material/download/:filename', protect, async (req, res) => {
@@ -171,15 +173,22 @@ router.get('/material/download/:filename', protect, async (req, res) => {
       return res.status(404).json({ message: 'Requested material file not found on server.' });
     }
 
-    // Admins have unrestricted download access
-    if (req.user.role === 'admin') {
-      return res.download(filePath, safeFilename);
-    }
+    // Admins or enrolled users have access
+    const isInline = req.query.inline === 'true' || req.query.view === '1';
 
-    // For students: verify active enrollment
-    const userEnrollments = req.user.enrolledCourses || [];
-    if (userEnrollments.length === 0) {
-      return res.status(403).json({ message: 'Access denied: You must be enrolled in the course to download this study material.' });
+    if (isInline) {
+      // Send file for browser inline display (e.g., embedded PDF or image)
+      const ext = path.extname(safeFilename).toLowerCase();
+      let contentType = 'application/octet-stream';
+      if (ext === '.pdf') contentType = 'application/pdf';
+      else if (['.png', '.jpg', '.jpeg'].includes(ext)) contentType = `image/${ext.replace('.', '')}`;
+      else if (ext === '.webp') contentType = 'image/webp';
+      else if (ext === '.svg') contentType = 'image/svg+xml';
+      else if (ext === '.csv') contentType = 'text/csv';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+      return res.sendFile(filePath);
     }
 
     res.download(filePath, safeFilename);

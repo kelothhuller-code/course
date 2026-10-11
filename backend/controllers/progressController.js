@@ -115,7 +115,8 @@ export const getCourseProgress = async (req, res) => {
 
     res.json({
       progress: progress.progress,
-      completedLessons: progress.completedLessons.length,
+      completedLessons: (progress.completedLessons || []).map(id => id.toString()),
+      completedLessonsCount: (progress.completedLessons || []).length,
       totalLessons,
       completed: progress.completed || progress.progress === 100,
       completedAt: progress.completedAt,
@@ -183,22 +184,38 @@ export const updateVideoProgress = async (req, res) => {
 
     // Check if video or lesson is complete
     const completionThreshold = 90;
+    const isExplicitlyUncompleted = completed === false;
     const isMarkedCompleted = completed === true;
-    if (isMarkedCompleted || (videoProgressPercent >= completionThreshold && !lessonProgress.videoCompleted)) {
-      lessonProgress.videoCompleted = true;
-    }
 
-    // Mark lesson as completed if video is complete or explicitly marked completed
-    if (isMarkedCompleted || (lessonProgress.videoCompleted && !lessonProgress.completed)) {
-      lessonProgress.completed = true;
-      lessonProgress.completedAt = new Date();
-
-      // Add to completed lessons if not already there
-      const isAlreadyCompleted = progress.completedLessons.some(
-        l => l && l.toString() === lessonId.toString()
+    if (isExplicitlyUncompleted) {
+      lessonProgress.completed = false;
+      lessonProgress.videoCompleted = false;
+      lessonProgress.videoProgressPercent = 0;
+      // Remove from completedLessons
+      progress.completedLessons = (progress.completedLessons || []).filter(
+        l => l && l.toString() !== lessonId.toString()
       );
-      if (!isAlreadyCompleted) {
-        progress.completedLessons.push(lessonId);
+      if (progress.completed && progress.completedLessons.length < totalLessons) {
+        progress.completed = false;
+        progress.completedAt = null;
+      }
+    } else {
+      if (isMarkedCompleted || (videoProgressPercent >= completionThreshold && !lessonProgress.videoCompleted)) {
+        lessonProgress.videoCompleted = true;
+      }
+
+      // Mark lesson as completed if video is complete or explicitly marked completed
+      if (isMarkedCompleted || (lessonProgress.videoCompleted && !lessonProgress.completed)) {
+        lessonProgress.completed = true;
+        lessonProgress.completedAt = new Date();
+
+        // Add to completed lessons if not already there
+        const isAlreadyCompleted = (progress.completedLessons || []).some(
+          l => l && l.toString() === lessonId.toString()
+        );
+        if (!isAlreadyCompleted) {
+          progress.completedLessons.push(lessonId);
+        }
       }
     }
 
@@ -222,7 +239,11 @@ export const updateVideoProgress = async (req, res) => {
       userEnrollment.progress = progress.progress;
       if (progress.progress >= 100) {
         userEnrollment.completed = true;
-        userEnrollment.completedAt = new Date();
+        if (!userEnrollment.completedAt) {
+          userEnrollment.completedAt = new Date();
+        }
+      } else {
+        userEnrollment.completed = false;
       }
       await user.save();
     }
@@ -245,6 +266,9 @@ export const updateVideoProgress = async (req, res) => {
     res.json({
       message: 'Progress updated',
       progress: progress.progress,
+      completedLessons: (progress.completedLessons || []).map(id => id.toString()),
+      completedLessonsCount: (progress.completedLessons || []).length,
+      totalLessons,
       completed: progress.completed,
       completedAt: progress.completedAt,
       lessonCompleted: lessonProgress.completed,

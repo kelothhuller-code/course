@@ -26,6 +26,7 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { sanitizeNoSql } from './middleware/noSqlSanitizer.js';
+import { protect } from './middleware/auth.js';
 
 // Setup for __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -123,12 +124,15 @@ app.use('/api/payment', paymentLimiter);
 
 
 
+// Protected Course Materials: require login/token to view or download course files
+app.use(['/uploads/materials', '/api/uploads/materials'], protect);
+
 // Serve uploaded files (thumbnails, software packages, materials) with CORS headers
 const serveUploads = express.static(path.join(__dirname, 'public', 'uploads'), {
   setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
   }
 });
 app.use('/uploads', serveUploads);

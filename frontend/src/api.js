@@ -47,6 +47,25 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Forgot Password Flow
+  forgotPassword: async (email) => {
+    const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(res);
+  },
+
+  resetPassword: async (email, otp, newPassword) => {
+    const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email, otp, newPassword }),
+    });
+    return handleResponse(res);
+  },
+
   // Courses
   getCourses: async (page = 1, limit = 9, showAll = false) => {
     const res = await fetch(`${BASE_URL}/courses?page=${page}&limit=${limit}&showAll=${showAll}`, {
