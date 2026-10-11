@@ -10,16 +10,20 @@ export default function FinalCTA({ user, handleEnroll, featuredCourse }) {
         <div className="cta-buttons">
           {featuredCourse ? (
             <Link 
-              to={user ? '/dashboard' : '/auth'} 
-              className="btn btn-primary btn-lg"
+              to={user && user.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === featuredCourse._id?.toString()) ? '/dashboard' : `/sale/${featuredCourse._id}`} 
+              className="btn btn-primary btn-lg final-cta-course-btn"
+              title={featuredCourse.title}
               onClick={(e) => {
-                if (user && featuredCourse) {
+                if (user && user.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === featuredCourse._id?.toString())) {
                   e.preventDefault();
-                  handleEnroll(featuredCourse, 'course');
+                  window.location.href = '/dashboard';
                 }
               }}
             >
-              {featuredCourse.title} — {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
+              <span className="final-cta-btn-title">{featuredCourse.title}</span>
+              <span className="final-cta-btn-badge">
+                {featuredCourse.isFree ? 'Free' : `₹${featuredCourse.discountedPrice || featuredCourse.price}`}
+              </span>
             </Link>
           ) : (
             <Link to="/all-courses" className="btn btn-primary btn-lg">

@@ -7,14 +7,14 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
       <div className="container">
         <div className="hero-grid">
           <div className="hero-content">
-            <div className="hero-badge">🚀 AI EDUCATION • SOFTWARE PRODUCTS • BOT AUTOMATION</div>
+            <div className="hero-badge">🚀 AI EDUCATION • BUSINESS SOLUTIONS • BOT AUTOMATION</div>
             <h1 className="hero-title">
-              Build & Automate with AI.
+              Build, Automate & Grow with AI.
               <br />
-              <span className="hero-highlight">Learn the Tech or Let Us Build It for You.</span>
+              <span className="hero-highlight">Scale Your Business or Learn the Tech Yourself.</span>
             </h1>
             <p className="hero-description">
-              Master cutting-edge AI prompts, coding workflows, and bot automations — or deploy WideTech's ready-to-run commercial software systems and bespoke app engineering.
+              Master cutting-edge AI prompts, coding workflows, and business automations to launch products — or deploy WideTech's ready-to-run commercial software systems and custom bot engineering to power your business.
             </p>
             <div className="hero-ctas">
               {featuredCourse ? (
@@ -38,7 +38,7 @@ export default function Hero({ user, handleEnroll, featuredCourse }) {
               </Link>
             </div>
             <div className="hero-trust">
-              <span>✓ Practical AI Masterclasses</span>
+              <span>✓ Practical AI & Business Skills</span>
               <span>✓ Ready-to-Deploy Software</span>
               <span>✓ Custom Bot Engineering</span>
             </div>

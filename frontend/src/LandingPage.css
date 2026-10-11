@@ -1335,6 +1335,44 @@ body.menu-open-scroll-lock {
   margin-bottom: 1.5rem;
 }
 
+/* Final CTA Course Button - Multi-line responsive support */
+.final-cta-course-btn {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  padding: 0.85rem 1.4rem !important;
+  text-align: center !important;
+  line-height: 1.35 !important;
+}
+
+.final-cta-btn-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-weight: 700;
+  font-size: 1.05rem;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.final-cta-btn-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .final-cta .trust-tags {
   display: flex;
   justify-content: center;
@@ -1922,6 +1960,8 @@ body.menu-open-scroll-lock {
   .final-cta .cta-buttons .btn {
     width: 100%;
     justify-content: center;
+    white-space: normal !important;
+    word-break: break-word !important;
   }
 
   .final-cta .trust-tags {
@@ -2149,6 +2189,64 @@ body.menu-open-scroll-lock {
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* Hide hero visual preview card on mobile */
+  .hero-visual {
+    display: none !important;
+  }
+
+  .final-cta {
+    padding: 3rem 0 !important;
+  }
+
+  .final-cta h2 {
+    font-size: 1.75rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .final-cta p {
+    font-size: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .final-cta .cta-buttons {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    gap: 0.75rem !important;
+  }
+
+  .final-cta .cta-buttons .btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+  }
+
+  .final-cta-course-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.85rem 1rem !important;
+    border-radius: 14px !important;
+  }
+
+  .final-cta-btn-title {
+    font-size: 0.95rem !important;
+    line-height: 1.35 !important;
+    text-align: center !important;
+  }
+
+  .final-cta-btn-badge {
+    font-size: 0.8rem !important;
+    padding: 0.15rem 0.55rem !important;
+  }
+
   .course-grid-header {
     flex-direction: column;
     align-items: stretch;
