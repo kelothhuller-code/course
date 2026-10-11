@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
 
 export default function TrialTutorials({ trials, onPlayVideo }) {
   if (!trials || trials.length === 0) return null;
@@ -16,9 +17,13 @@ export default function TrialTutorials({ trials, onPlayVideo }) {
             <div key={trial._id} className="trial-card">
               <div className="trial-thumbnail">
                 <img 
-                  src={trial.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80'} 
+                  src={getMediaUrl(trial.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                   alt={trial.title}
                   loading="lazy"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                  }}
                 />
                 <button 
                   className="trial-play"

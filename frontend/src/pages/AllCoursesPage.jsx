@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import './AllCoursesPage.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
@@ -185,54 +186,81 @@ export default function AllCoursesPage({ user, onLogout }) {
           ) : (
             <>
               <div className="course-grid">
-                {courses.map(course => (
-                  <div key={course._id} className="course-card">
-                    <div className="card-img">
-                      <img
-                        src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'}
-                        alt={course.title}
-                        loading="lazy"
-                      />
-                      {course.category && (
-                        <span className="card-tag">{course.category}</span>
-                      )}
-                      {course.isPopular && (
-                        <span className="card-badge popular">⭐ Popular</span>
-                      )}
-                    </div>
-                    <div className="course-card-content">
-                      <h3 className="card-title">{course.title}</h3>
-                      <p className="card-desc">{course.description}</p>
-                      <div className="card-languages">
-                        {course.languages?.slice(0, 3).map(lang => (
-                          <span key={lang} className="language-pill">🌐 {lang}</span>
-                        ))}
+                {courses.map(course => {
+                  const isEnrolled = user?.enrolledCourses?.some(c => 
+                    (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
+                  );
+
+                  const handleCardClick = () => {
+                    if (isEnrolled) {
+                      navigate(`/course/${course._id}`);
+                    } else {
+                      navigate(`/sale/${course._id}`);
+                    }
+                  };
+
+                  return (
+                    <div 
+                      key={course._id} 
+                      className="course-card"
+                      onClick={handleCardClick}
+                      style={{ cursor: 'pointer' }}
+                      title={`View ${course.title || 'Course'} details`}
+                    >
+                      <div className="card-img">
+                        <img
+                          src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
+                          alt={course.title}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                          }}
+                        />
+                        {course.category && (
+                          <span className="card-tag">{course.category}</span>
+                        )}
+                        {course.isPopular && (
+                          <span className="card-badge popular">⭐ Popular</span>
+                        )}
                       </div>
-                      <div className="card-meta">
-                        <div className="card-price">
-                          {course.discountedPrice && course.discountedPrice < course.price ? (
-                            <span>
-                              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.35rem' }}>
-                                ₹{course.price}
-                              </span>
-                              ₹{course.discountedPrice}
-                            </span>
-                          ) : (
-                            <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price}`}</span>
-                          )}
+                      <div className="course-card-content">
+                        <h3 className="card-title">{course.title}</h3>
+                        <p className="card-desc">{course.description}</p>
+                        <div className="card-languages">
+                          {course.languages?.slice(0, 3).map(lang => (
+                            <span key={lang} className="language-pill">🌐 {lang}</span>
+                          ))}
                         </div>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleEnroll(course)}
-                        >
-                          {user?.enrolledCourses?.some(c => (c.courseId?._id || c.courseId)?.toString() === course._id.toString())
-                            ? '📖 Continue'
-                            : (course.isFree || course.price === 0 ? '🎯 Enroll Free' : '🛒 Enroll Now')}
-                        </button>
+                        <div className="card-meta">
+                          <div className="card-price">
+                            {course.discountedPrice && course.discountedPrice < course.price ? (
+                              <span>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.35rem' }}>
+                                  ₹{course.price}
+                                </span>
+                                ₹{course.discountedPrice}
+                              </span>
+                            ) : (
+                              <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price}`}</span>
+                            )}
+                          </div>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEnroll(course);
+                            }}
+                          >
+                            {isEnrolled
+                              ? '📖 Continue'
+                              : (course.isFree || course.price === 0 ? '🎯 Enroll Free' : '🛒 View Details')}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination */}

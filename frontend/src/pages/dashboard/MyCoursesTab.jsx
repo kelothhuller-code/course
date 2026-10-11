@@ -1,5 +1,5 @@
-// src/pages/dashboard/MyCoursesTab.jsx
 import React from 'react';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
 
 export default function MyCoursesTab({ 
   enrolledCourses, 
@@ -46,9 +46,13 @@ export default function MyCoursesTab({
                   {course.price === 0 || course.isFree ? 'FREE' : 'PAID'}
                 </span>
                 <img 
-                  src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'} 
+                  src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                   alt={course.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                  }}
                 />
               </div>
               <div style={{ padding: '1.25rem' }}>

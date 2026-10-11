@@ -53,16 +53,12 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                 </ul>
                 <div className="featured-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '1.25rem' }}>
                   <Link 
-                    to={user ? (isEnrolled ? '/dashboard' : `/checkout/${course._id}`) : '/auth'} 
+                    to={isEnrolled ? '/dashboard' : `/sale/${course._id}`} 
                     className="btn btn-primary btn-lg"
                     onClick={(e) => {
-                      if (user) {
+                      if (isEnrolled) {
                         e.preventDefault();
-                        if (isEnrolled) {
-                          window.location.href = '/dashboard';
-                        } else {
-                          handleEnroll(course, 'course');
-                        }
+                        window.location.href = '/dashboard';
                       }
                     }}
                   >

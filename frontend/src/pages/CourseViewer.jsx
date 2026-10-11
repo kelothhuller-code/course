@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 
 export default function CourseViewer({ user, onRefreshUser }) {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const [replyText, setReplyText] = useState('');
   const [videoProgressTimer, setVideoProgressTimer] = useState(null);
   const [commentTab, setCommentTab] = useState('public'); // 'public' or 'my'
+  const [activeViewerTab, setActiveViewerTab] = useState('chapters'); // 'chapters' | 'discussion' | 'followup' | 'resources'
   const [userComments, setUserComments] = useState([]);
   const iframeRef = useRef(null);
   const navigate = useNavigate();
@@ -457,38 +459,49 @@ export default function CourseViewer({ user, onRefreshUser }) {
     );
   };
 
-  console.log('Current Language:', activeLanguage);
-  console.log('Lessons List:', lessonsList);
-  console.log('Active Lesson:', activeLesson);
-  console.log('Completed Lessons:', courseProgress?.completedLessons);
+  const currentLessonIdx = lessonsList.findIndex(l => (l._id || l) === (activeLesson?._id || activeLesson));
+  const prevLesson = currentLessonIdx > 0 ? lessonsList[currentLessonIdx - 1] : null;
+  const nextLesson = currentLessonIdx >= 0 && currentLessonIdx < lessonsList.length - 1 ? lessonsList[currentLessonIdx + 1] : null;
+  const isAdmin = user?.role === 'admin';
+  const isNextLocked = !isAdmin && nextLesson && !isLessonCompleted(activeLesson?._id);
 
   return (
     <>
       <NavHeader user={user} onLogout={handleLogout} />
       <div className="landing-page" style={{ paddingTop: '0.5rem' }}>
-        <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
-          {/* Course Breadcrumb */}
+        <div className="container" style={{ flexGrow: 1, paddingBottom: '2.5rem' }}>
+          {/* Breadcrumb Navigation - Clean and non-redundant */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: '0.5rem', 
             marginBottom: '1rem',
             fontSize: '0.85rem',
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap'
           }}>
             <Link to="/" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Home</Link>
             <span>›</span>
-            <Link to="/dashboard" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Dashboard</Link>
+            <Link to="/all-courses" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Courses</Link>
             <span>›</span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{course?.title || 'Course'}</span>
+            <span style={{ 
+              color: 'var(--text-primary)', 
+              fontWeight: '600',
+              maxWidth: '320px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {course?.title || 'Course'}
+            </span>
           </div>
 
           <div className="course-viewer-layout">
-            {/* Left Side: Video Player & Details */}
             <section className="player-section">
               {activeLesson ? (
                 <>
-                  <div className="video-wrapper" style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 'var(--radius)', background: '#000' }}>
+                  {/* Cinema Video Player */}
+                  <div className="video-wrapper">
                     {activeLesson.videoUrl ? (
                       <iframe
                         ref={iframeRef}
@@ -496,7 +509,6 @@ export default function CourseViewer({ user, onRefreshUser }) {
                         title={activeLesson.title}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
-                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                       ></iframe>
                     ) : (
                       <div style={{ 
@@ -515,24 +527,72 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       </div>
                     )}
                   </div>
-                  <div className="learn-details" style={{ marginTop: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <h1 className="learn-title" style={{ fontSize: '1.5rem', fontWeight: '700' }}>{activeLesson.title}</h1>
+
+                  {/* Lesson Meta Header */}
+                  <div className="learn-details" style={{ marginTop: '0.5rem' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'flex-start', 
+                      marginBottom: '0.75rem', 
+                      flexWrap: 'wrap', 
+                      gap: '0.75rem' 
+                    }}>
+                      <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                          <span className="badge" style={{ 
+                            background: 'var(--primary)',
+                            color: '#fff',
+                            padding: '0.2rem 0.65rem',
+                            borderRadius: '40px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600'
+                          }}>
+                            ⏱️ {activeLesson.duration ? (activeLesson.duration.toLowerCase().includes('m') ? activeLesson.duration : `${activeLesson.duration} mins`) : 'Video Lesson'}
+                          </span>
+                          {currentLessonIdx >= 0 && (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                              Lesson {currentLessonIdx + 1} of {lessonsList.length}
+                            </span>
+                          )}
+                        </div>
+                        <h1 className="learn-title" style={{ 
+                          fontSize: 'clamp(1.25rem, 2.5vw, 1.65rem)', 
+                          fontWeight: '700', 
+                          margin: 0,
+                          lineHeight: '1.3',
+                          wordBreak: 'break-word'
+                        }}>
+                          {activeLesson.title}
+                        </h1>
+                      </div>
+
+                      {/* Action Bar: Prev, Mark Complete, Next */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span className="badge" style={{ 
-                          background: 'var(--primary)',
-                          color: '#fff',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '40px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600'
-                        }}>{activeLesson.duration || 'Video'}</span>
+                        {prevLesson && (
+                          <button
+                            type="button"
+                            onClick={() => handleLessonSelect(prevLesson)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ 
+                              fontSize: '0.8rem', 
+                              padding: '0.4rem 0.75rem', 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '0.3rem' 
+                            }}
+                            title="Previous lesson"
+                          >
+                            ← Prev
+                          </button>
+                        )}
                         <button
+                          type="button"
                           onClick={handleToggleComplete}
                           className={`btn btn-sm ${isLessonCompleted(activeLesson._id) ? 'btn-secondary' : 'btn-primary'}`}
                           style={{
-                            fontSize: '0.8rem',
-                            padding: '0.35rem 0.85rem',
+                            fontSize: '0.82rem',
+                            padding: '0.4rem 0.95rem',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.35rem',
@@ -543,348 +603,626 @@ export default function CourseViewer({ user, onRefreshUser }) {
                         >
                           {isLessonCompleted(activeLesson._id) ? '✓ Completed' : 'Mark as Complete'}
                         </button>
+                        {nextLesson && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isNextLocked) {
+                                alert('🔒 Next Lesson Locked: Please finish and mark the current lesson as complete to unlock.');
+                                return;
+                              }
+                              handleLessonSelect(nextLesson);
+                            }}
+                            className={`btn btn-sm ${isNextLocked ? 'btn-secondary' : 'btn-primary'}`}
+                            style={{ 
+                              fontSize: '0.8rem', 
+                              padding: '0.4rem 0.75rem', 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '0.3rem',
+                              opacity: isNextLocked ? 0.75 : 1
+                            }}
+                            title={isNextLocked ? 'Complete current lesson to unlock next' : 'Next lesson'}
+                          >
+                            Next → {isNextLocked ? '🔒' : ''}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <p className="learn-desc" style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.7' }}>
-                      {activeLesson.description || 'No description available.'}
+
+                    <p className="learn-desc" style={{ 
+                      color: 'var(--text-secondary)', 
+                      fontSize: '0.98rem', 
+                      lineHeight: '1.7',
+                      margin: '0.5rem 0 1rem 0'
+                    }}>
+                      {activeLesson.description || 'No description provided for this lesson.'}
                     </p>
 
-                    {/* Mapped Continuation Course Funnel Banner */}
-                    {course?.continuationCourses && course.continuationCourses.length > 0 && (
-                      <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08))', border: '1px solid rgba(168,85,247,0.3)', margin: '1.5rem 0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                          <div>
-                            <h4 style={{ margin: '0 0 0.25rem 0', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem' }}>
-                              <span>🚀</span> Mapped Continuation / Next Step Course
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                              Ready for what's next? Upgrade your skill set with the mapped continuation program!
-                            </p>
+                    {/* Navigation Bar under Course Description */}
+                    <div className="viewer-tabs-nav">
+                      <button
+                        type="button"
+                        onClick={() => setActiveViewerTab('chapters')}
+                        className={`viewer-tab-btn ${activeViewerTab === 'chapters' ? 'active' : ''}`}
+                      >
+                        <span className="tab-icon">📑</span>
+                        <span className="tab-title">Curriculum</span>
+                        <span className="tab-pill-badge">{lessonsList.length}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveViewerTab('discussion')}
+                        className={`viewer-tab-btn ${activeViewerTab === 'discussion' ? 'active' : ''}`}
+                      >
+                        <span className="tab-icon">💬</span>
+                        <span className="tab-title">Discussion & Q&A</span>
+                        {comments.length > 0 && <span className="tab-pill-badge">{comments.length}</span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveViewerTab('followup')}
+                        className={`viewer-tab-btn ${activeViewerTab === 'followup' ? 'active' : ''}`}
+                      >
+                        <span className="tab-icon">🚀</span>
+                        <span className="tab-title">Follow-up Paths</span>
+                        {course?.continuationCourses?.length > 0 && (
+                          <span className="tab-pill-badge highlight">{course.continuationCourses.length}</span>
+                        )}
+                      </button>
+
+                      {(activeLesson.driveLink || (activeLesson.materials && activeLesson.materials.length > 0)) && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveViewerTab('resources')}
+                          className={`viewer-tab-btn ${activeViewerTab === 'resources' ? 'active' : ''}`}
+                        >
+                          <span className="tab-icon">📂</span>
+                          <span className="tab-title">Study Materials</span>
+                          {activeLesson.materials?.length > 0 && (
+                            <span className="tab-pill-badge">{activeLesson.materials.length}</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Tab 1: Chapters & Curriculum */}
+                    {activeViewerTab === 'chapters' && (
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
+                        {/* Course Progress & Language Header Card */}
+                        <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.25rem', borderRadius: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                            {/* Course Progress */}
+                            <div style={{ flex: '1 1 260px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Course Completion</span>
+                                <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{progressPercent}%</span>
+                              </div>
+                              <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                  width: `${progressPercent}%`, 
+                                  height: '100%', 
+                                  background: 'linear-gradient(90deg, var(--primary), #8b5cf6)', 
+                                  borderRadius: '6px', 
+                                  transition: 'width 0.4s ease' 
+                                }}></div>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                                {courseProgress?.completedLessons?.length || 0} of {lessonsList.length} lessons finished
+                                {progressPercent === 100 && (
+                                  <span style={{ marginLeft: '0.5rem', color: '#10b981', fontWeight: '600' }}>
+                                    🏆 All Lessons Completed!
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Language Version Selector */}
+                            {course?.languages && course.languages.length > 1 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                  Language:
+                                </span>
+                                {course.languages.map(lang => (
+                                  <button
+                                    key={lang}
+                                    type="button"
+                                    className={`btn btn-sm ${activeLanguage === lang ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => handleLanguageChange(lang)}
+                                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', borderRadius: '20px' }}
+                                  >
+                                    {lang}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            {course.continuationCourses.map(nextC => (
-                              <Link key={nextC._id || nextC} to={`/sale/${nextC._id || nextC}`} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', padding: '0.4rem 0.9rem' }}>
-                                <span>{nextC.title || 'View Next Course'}</span> →
-                              </Link>
-                            ))}
-                          </div>
+                        </div>
+
+                        {/* Interactive Lesson List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                          {lessonsList && lessonsList.length > 0 ? (
+                            lessonsList.map((lesson, idx) => {
+                              const isActive = activeLesson && activeLesson._id === lesson._id;
+                              const isCompleted = isLessonCompleted(lesson._id);
+                              // Chapter Drip Gating: Lesson 0 is unlocked; lesson N requires lesson N-1 completed
+                              const isLocked = !isAdmin && idx > 0 && !isLessonCompleted(lessonsList[idx - 1]._id);
+
+                              return (
+                                <div
+                                  key={lesson._id || idx}
+                                  className={`lesson-card-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                  onClick={() => {
+                                    if (isLocked) {
+                                      alert('🔒 Lesson Locked: Please finish and mark the previous lesson as complete to unlock this chapter.');
+                                      return;
+                                    }
+                                    handleLessonSelect(lesson);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.9rem 1.15rem',
+                                    borderRadius: '12px',
+                                    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                                    background: isActive 
+                                      ? 'rgba(99, 102, 241, 0.08)' 
+                                      : (isLocked ? 'rgba(15, 23, 42, 0.02)' : 'var(--bg-card)'),
+                                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                                    opacity: isLocked ? 0.6 : 1,
+                                    gap: '1rem',
+                                    flexWrap: 'wrap'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1 1 240px', minWidth: 0 }}>
+                                    <div style={{
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '50%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.8rem',
+                                      fontWeight: '700',
+                                      flexShrink: 0,
+                                      background: isCompleted ? '#10b981' : (isActive ? 'var(--primary)' : 'var(--border-color)'),
+                                      color: (isCompleted || isActive) ? '#fff' : 'var(--text-muted)'
+                                    }}>
+                                      {isCompleted ? '✓' : (isLocked ? '🔒' : (idx + 1))}
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{
+                                        fontSize: '0.95rem',
+                                        fontWeight: isActive ? '700' : '500',
+                                        color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                                        wordBreak: 'break-word',
+                                        lineHeight: '1.4'
+                                      }}>
+                                        {lesson.title || `Lesson ${idx + 1}`}
+                                      </div>
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span>⏱️ {lesson.duration || 'Video'}</span>
+                                        {isLocked && <span style={{ color: '#ef4444' }}>• Prerequisite required</span>}
+                                        {isActive && <span style={{ color: 'var(--primary)', fontWeight: '600' }}>• Currently Watching</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                                    {isCompleted && (
+                                      <span style={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        color: '#10b981',
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '20px'
+                                      }}>
+                                        ✓ Completed
+                                      </span>
+                                    )}
+                                    {isActive && (
+                                      <span style={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        color: 'var(--primary)',
+                                        background: 'rgba(99, 102, 241, 0.12)',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '20px'
+                                      }}>
+                                        ▶ Playing
+                                      </span>
+                                    )}
+                                    {!isActive && !isLocked && !isCompleted && (
+                                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                        Play →
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              No lessons found for this language version.
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {activeLesson.driveLink && (
-                      <a
-                        href={activeLesson.driveLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-secondary"
-                        style={{ 
-                          marginTop: '1rem', 
-                          display: 'inline-flex', 
-                          fontSize: '1rem', 
-                          gap: '0.5rem', 
-                          border: '2px solid var(--secondary)', 
-                          padding: '0.85rem 1.5rem',
-                          textDecoration: 'none'
-                        }}
-                        onClick={handleMaterialOpen}
-                      >
-                        📂 Open Study Materials & Resources
-                      </a>
-                    )}
-                    
-                    <div className="glass-card" style={{ marginTop: '2rem', padding: '1rem 1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', marginBottom: '0.25rem' }}>STUDYING COURSE</h4>
-                      <h3 style={{ fontSize: '1.25rem' }}>{course?.title}</h3>
-                    </div>
-
-                    {/* Comments Section with Tabs */}
-                    <div className="comments-section" style={{ marginTop: '2rem' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        marginBottom: '1rem',
-                        borderBottom: '1px solid var(--border)'
-                      }}>
-                        <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>💬 Questions & Discussion</h3>
-                      </div>
-
-                      {/* Tab Navigation */}
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '0.5rem',
-                        marginBottom: '1.5rem',
-                        borderBottom: '1px solid var(--border)'
-                      }}>
-                        <button
-                          onClick={() => setCommentTab('public')}
-                          style={{
-                            padding: '0.5rem 1rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: commentTab === 'public' ? '2px solid var(--primary)' : 'none',
-                            color: commentTab === 'public' ? 'var(--primary)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                            fontWeight: commentTab === 'public' ? '600' : '400',
-                            fontSize: '0.9rem'
-                          }}
-                        >
-                          Public Discussion
-                        </button>
-                        <button
-                          onClick={() => setCommentTab('my')}
-                          style={{
-                            padding: '0.5rem 1rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: commentTab === 'my' ? '2px solid var(--primary)' : 'none',
-                            color: commentTab === 'my' ? 'var(--primary)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                            fontWeight: commentTab === 'my' ? '600' : '400',
-                            fontSize: '0.9rem'
-                          }}
-                        >
-                          My Comments & Replies
-                        </button>
-                      </div>
-
-                      {/* Comment Form - Only show in Public tab */}
-                      {commentTab === 'public' && (
-                        <form onSubmit={handleCommentSubmit} style={{ marginBottom: '1.5rem' }}>
-                          <textarea
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Ask a question or share your thoughts..."
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              borderRadius: 'var(--radius)',
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'var(--background)',
-                              color: 'var(--text-primary)',
-                              minHeight: '80px',
-                              resize: 'vertical',
-                              fontFamily: 'inherit',
-                              fontSize: '0.95rem'
-                            }}
-                          />
-                          <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
-                            Post Comment
-                          </button>
-                        </form>
-                      )}
-
-                      {/* Reply Form - Show in both tabs when replying */}
-                      {replyingTo && (
+                    {/* Tab 2: Discussion & Q&A */}
+                    {activeViewerTab === 'discussion' && (
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
                         <div style={{ 
-                          marginBottom: '1.5rem', 
-                          padding: '1rem', 
-                          border: '1px solid var(--border)', 
-                          borderRadius: 'var(--radius)',
-                          backgroundColor: 'var(--background)'
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          marginBottom: '1rem',
+                          borderBottom: '1px solid var(--border-color)',
+                          paddingBottom: '0.75rem',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem'
                         }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontWeight: 'bold' }}>Replying to comment</span>
-                            <button 
-                              onClick={() => setReplyingTo(null)} 
-                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}
+                          <div>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>💬 Questions & Discussion</h3>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              Discuss concepts and ask instructor questions for this lesson.
+                            </p>
+                          </div>
+
+                          {/* Sub Tabs: Public vs My */}
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => setCommentTab('public')}
+                              style={{
+                                padding: '0.4rem 0.85rem',
+                                background: commentTab === 'public' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                                border: '1px solid',
+                                borderColor: commentTab === 'public' ? 'var(--primary)' : 'var(--border-color)',
+                                borderRadius: '20px',
+                                color: commentTab === 'public' ? 'var(--primary)' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontWeight: commentTab === 'public' ? '600' : '400',
+                                fontSize: '0.85rem'
+                              }}
                             >
-                              Cancel
+                              Public Discussion
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCommentTab('my')}
+                              style={{
+                                padding: '0.4rem 0.85rem',
+                                background: commentTab === 'my' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                                border: '1px solid',
+                                borderColor: commentTab === 'my' ? 'var(--primary)' : 'var(--border-color)',
+                                borderRadius: '20px',
+                                color: commentTab === 'my' ? 'var(--primary)' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontWeight: commentTab === 'my' ? '600' : '400',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              My Questions & Replies
                             </button>
                           </div>
-                          <form onSubmit={handleReplySubmit}>
+                        </div>
+
+                        {/* Comment Form - In Public tab */}
+                        {commentTab === 'public' && (
+                          <form onSubmit={handleCommentSubmit} style={{ marginBottom: '1.5rem' }}>
                             <textarea
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              placeholder="Write your reply..."
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                              placeholder="Ask a question or share your insights on this lesson..."
                               style={{
                                 width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: 'var(--radius)',
-                                border: '1px solid var(--border)',
-                                backgroundColor: 'var(--background-white)',
+                                boxSizing: 'border-box',
+                                padding: '0.85rem',
+                                borderRadius: '12px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--background)',
                                 color: 'var(--text-primary)',
-                                minHeight: '60px',
+                                minHeight: '80px',
                                 resize: 'vertical',
                                 fontFamily: 'inherit',
                                 fontSize: '0.95rem'
                               }}
                             />
-                            <button type="submit" className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }}>
-                              Post Reply
+                            <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem', padding: '0.5rem 1.25rem' }}>
+                              Post Question / Comment
                             </button>
                           </form>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Render Comments based on active tab */}
-                      {commentTab === 'public' ? (
-                        // Public Discussion Tab
-                        <>
-                          {commentsLoading && commentPage === 1 ? (
-                            <div style={{ textAlign: 'center', padding: '2rem' }}>
-                              <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>Loading comments...</div>
+                        {/* Reply Form */}
+                        {replyingTo && (
+                          <div style={{ 
+                            marginBottom: '1.5rem', 
+                            padding: '1rem', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--background)'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Replying to comment</span>
+                              <button 
+                                type="button"
+                                onClick={() => setReplyingTo(null)} 
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}
+                              >
+                                Cancel
+                              </button>
                             </div>
-                          ) : (
-                            <>
-                              {comments.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                                  No comments yet. Be the first to ask a question!
+                            <form onSubmit={handleReplySubmit}>
+                              <textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Write your reply..."
+                                style={{
+                                  width: '100%',
+                                  boxSizing: 'border-box',
+                                  padding: '0.75rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--border-color)',
+                                  backgroundColor: 'var(--background-white)',
+                                  color: 'var(--text-primary)',
+                                  minHeight: '60px',
+                                  resize: 'vertical',
+                                  fontFamily: 'inherit',
+                                  fontSize: '0.95rem'
+                                }}
+                              />
+                              <button type="submit" className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }}>
+                                Post Reply
+                              </button>
+                            </form>
+                          </div>
+                        )}
+
+                        {/* Comment Threads */}
+                        {commentTab === 'public' ? (
+                          <>
+                            {commentsLoading && commentPage === 1 ? (
+                              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>Loading comments...</div>
+                              </div>
+                            ) : (
+                              <>
+                                {comments.length === 0 ? (
+                                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                    No questions or discussions yet. Be the first to start the conversation!
+                                  </div>
+                                ) : (
+                                  comments.map(comment => renderCommentWithReplies(comment))
+                                )}
+                                
+                                {commentPage < totalCommentPages && (
+                                  <button 
+                                    type="button"
+                                    onClick={() => loadComments(commentPage + 1)}
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', marginTop: '1rem' }}
+                                    disabled={commentsLoading}
+                                  >
+                                    {commentsLoading ? 'Loading...' : 'Load More Comments'}
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {userComments.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                You haven't made any comments or replies yet.
+                              </div>
+                            ) : (
+                              userComments.map(comment => renderCommentWithReplies(comment))
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tab 3: Follow-up & Next Steps ("with follow up screen at last") */}
+                    {activeViewerTab === 'followup' && (
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: '0 0 0.35rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>🚀</span> Follow-up & Next Step Programs
+                          </h3>
+                          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            Upgrade your skillset with our mapped continuation pathways designed to take your practical knowledge to the next level.
+                          </p>
+                        </div>
+
+                        {course?.continuationCourses && course.continuationCourses.length > 0 ? (
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                            gap: '1.25rem'
+                          }}>
+                            {course.continuationCourses.map(nextC => (
+                              <div
+                                key={nextC._id || nextC}
+                                className="glass-card"
+                                style={{
+                                  borderRadius: '16px',
+                                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                                  background: 'linear-gradient(135deg, rgba(99,102,241,0.06), rgba(168,85,247,0.08))',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  minWidth: 0,
+                                  overflow: 'hidden'
+                                }}
+                              >
+                                {nextC.thumbnail && (
+                                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', background: '#0f172a' }}>
+                                    <img
+                                      src={getMediaUrl(nextC.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
+                                      alt={nextC.title || 'Course thumbnail'}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <div style={{ padding: '1.25rem' }}>
+                                  <div style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '700',
+                                    color: '#7c3aed',
+                                    background: 'rgba(124, 58, 237, 0.1)',
+                                    padding: '0.25rem 0.65rem',
+                                    borderRadius: '20px',
+                                    marginBottom: '0.75rem'
+                                  }}>
+                                    Recommended Next Step
+                                  </div>
+                                  <h4 style={{
+                                    fontSize: '1.15rem',
+                                    fontWeight: '700',
+                                    margin: '0 0 0.5rem 0',
+                                    color: 'var(--text-primary)',
+                                    lineHeight: '1.4',
+                                    wordBreak: 'break-word',
+                                    overflowWrap: 'break-word'
+                                  }}>
+                                    {nextC.title || 'Advanced Masterclass'}
+                                  </h4>
+                                  <p style={{
+                                    fontSize: '0.85rem',
+                                    color: 'var(--text-secondary)',
+                                    lineHeight: '1.5',
+                                    margin: '0 0 1.25rem 0'
+                                  }}>
+                                    {nextC.subtitle || nextC.description?.substring(0, 110) || 'Step-by-step follow-up curriculum mapped to accelerate your practical implementation.'}
+                                  </p>
+
+                                  <Link
+                                    to={`/sale/${nextC._id || nextC}`}
+                                    className="btn btn-primary"
+                                    style={{
+                                      width: '100%',
+                                      boxSizing: 'border-box',
+                                      textAlign: 'center',
+                                      justifyContent: 'center',
+                                      padding: '0.65rem 1rem',
+                                      borderRadius: '10px',
+                                      fontWeight: '600',
+                                      fontSize: '0.9rem',
+                                      textDecoration: 'none',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.4rem',
+                                      wordBreak: 'break-word'
+                                    }}
+                                  >
+                                    <span>Explore Program</span> →
+                                  </Link>
                                 </div>
-                              ) : (
-                                comments.map(comment => renderCommentWithReplies(comment))
-                              )}
-                              
-                              {commentPage < totalCommentPages && (
-                                <button 
-                                  onClick={() => loadComments(commentPage + 1)}
-                                  className="btn btn-secondary"
-                                  style={{ width: '100%', marginTop: '1rem' }}
-                                  disabled={commentsLoading}
-                                >
-                                  {commentsLoading ? 'Loading...' : 'Load More Comments'}
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        // My Comments Tab
-                        <>
-                          {userComments.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                              You haven't made any comments or replies yet.
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="glass-card" style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🎓</div>
+                            <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>You're On The Right Track!</h4>
+                            <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.5rem auto', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                              You are currently studying the main curriculum. Complete all chapters to earn your verified certificate. Check our course catalog for complementary programs.
+                            </p>
+                            <Link to="/all-courses" className="btn btn-secondary" style={{ textDecoration: 'none' }}>
+                              Browse All Available Courses
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tab 4: Study Materials & Resources */}
+                    {activeViewerTab === 'resources' && (activeLesson?.driveLink || (activeLesson?.materials && activeLesson.materials.length > 0)) && (
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
+                        <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px' }}>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>📂</span> Lesson Study Materials & Resources
+                          </h3>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                            Reference materials, project source files, spreadsheets, notes and cheatsheets for <strong>{activeLesson.title}</strong>.
+                          </p>
+
+                          {activeLesson.driveLink && (
+                            <div style={{ marginBottom: activeLesson.materials?.length > 0 ? '1.25rem' : 0 }}>
+                              <a
+                                href={getMediaUrl(activeLesson.driveLink)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-primary"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem 1.25rem',
+                                  fontSize: '0.95rem',
+                                  fontWeight: '600',
+                                  textDecoration: 'none'
+                                }}
+                                onClick={handleMaterialOpen}
+                              >
+                                📥 Open Lesson File / Notes (Drive or Server)
+                              </a>
                             </div>
-                          ) : (
-                            userComments.map(comment => renderCommentWithReplies(comment))
                           )}
-                        </>
-                      )}
-                    </div>
+
+                          {activeLesson.materials && activeLesson.materials.length > 0 && (
+                            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                              <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>Attached Documents:</h4>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                {activeLesson.materials.map((mat, i) => (
+                                  <a
+                                    key={i}
+                                    href={getMediaUrl(mat.url)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-secondary"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      padding: '0.6rem 1rem',
+                                      borderRadius: '10px',
+                                      fontSize: '0.88rem',
+                                      textDecoration: 'none'
+                                    }}
+                                  >
+                                    <span>📄 {mat.title || `Resource File ${i + 1}`}</span>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Download / View ↗</span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
                 <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
                   <h3>No lessons loaded</h3>
-                  <p style={{ color: 'var(--text-secondary)' }}>Please select a lesson from the list to start studying.</p>
+                  <p style={{ color: 'var(--text-secondary)' }}>Please select a lesson to start studying.</p>
                 </div>
               )}
             </section>
-
-            {/* Right Side: Lesson List Sidebar */}
-            <aside className="sidebar-chapters">
-              <Link to="/dashboard" className="btn btn-secondary btn-sm" style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                marginBottom: '1rem',
-                width: '100%',
-                justifyContent: 'center',
-                textDecoration: 'none'
-              }}>
-                ← Back to Dashboard
-              </Link>
-
-              <div className="lang-selector-container" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)' }}>LANGUAGE VERSION</label>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  {course?.languages?.map(lang => (
-                    <button
-                      key={lang}
-                      className={`btn btn-sm ${activeLanguage === lang ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => handleLanguageChange(lang)}
-                      style={{ flexGrow: 1, fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Course Progress</span>
-                  <span className="progress-percentage" style={{ fontWeight: '600', color: 'var(--primary)' }}>{progressPercent}%</span>
-                </div>
-                <div className="progress-bar-container" style={{ margin: 0, height: '6px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div className="progress-bar-fill" style={{ width: `${progressPercent}%`, height: '100%', background: 'var(--primary)', borderRadius: '4px', transition: 'width 0.5s' }}></div>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  {courseProgress?.completedLessons?.length || 0} / {courseProgress?.totalLessons || lessonsList.length} lessons completed
-                </div>
-              </div>
-
-              <h3 className="sidebar-title" style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '0.75rem' }}>Course Lessons</h3>
-
-              <div className="lesson-list" style={{ maxHeight: 'calc(100vh - 350px)', overflowY: 'auto' }}>
-                {lessonsList && lessonsList.length > 0 ? (
-                  lessonsList.map((lesson, idx) => {
-                    const isActive = activeLesson && activeLesson._id === lesson._id;
-                    const isCompleted = isLessonCompleted(lesson._id);
-                    const isAdmin = user?.role === 'admin';
-                    // Chapter Drip Gating: Lesson 0 is unlocked; lesson N requires lesson N-1 completed
-                    const isLocked = !isAdmin && idx > 0 && !isLessonCompleted(lessonsList[idx - 1]._id);
-
-                    return (
-                      <div 
-                        key={lesson._id || idx}
-                        className={`lesson-item ${isActive ? 'active' : ''}`}
-                        onClick={() => {
-                          if (isLocked) {
-                            alert('🔒 Lesson Locked: Please finish and mark the previous lesson as complete to unlock this chapter.');
-                            return;
-                          }
-                          handleLessonSelect(lesson);
-                        }}
-                        style={{
-                          padding: '0.75rem',
-                          margin: '0.25rem 0',
-                          borderRadius: 'var(--radius)',
-                          cursor: isLocked ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          backgroundColor: isActive ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-                          opacity: isLocked ? 0.55 : 1,
-                          transition: 'background-color 0.2s',
-                          borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent'
-                        }}
-                      >
-                        <span style={{ fontSize: '0.75rem', color: isLocked ? '#64748b' : 'var(--text-muted)', minWidth: '24px' }}>
-                          {isLocked ? '🔒' : `${idx + 1}.`}
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ 
-                            color: isLocked ? '#64748b' : (isActive ? 'var(--primary)' : 'var(--text-primary)'),
-                            fontSize: '0.85rem',
-                            fontWeight: isActive ? '600' : '400',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {lesson.title || `Lesson ${idx + 1}`}
-                          </div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                            {isLocked ? 'Prerequisite Required' : `⏱️ ${lesson.duration || 'N/A'}`}
-                          </div>
-                        </div>
-                        {isCompleted && (
-                          <span style={{ color: '#10b981', fontSize: '1rem', flexShrink: 0 }}>✓</span>
-                        )}
-                        {isLocked && (
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>🔒</span>
-                        )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div style={{ padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    No lessons available for this language
-                  </div>
-                )}
-              </div>
-            </aside>
           </div>
         </div>
       </div>

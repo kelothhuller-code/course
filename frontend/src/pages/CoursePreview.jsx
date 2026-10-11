@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import './CoursePreview.css';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 
 export default function CoursePreview({ user }) {
   const { id } = useParams();
@@ -125,9 +126,13 @@ export default function CoursePreview({ user }) {
           <div className="cp-hero-visual">
             <div className="cp-vsl-card">
               <img
-                src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80'}
+                src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
                 alt={course.title}
                 className="cp-thumbnail"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                }}
               />
               <div className="cp-vsl-overlay">
                 <div className="cp-play-btn">▶</div>

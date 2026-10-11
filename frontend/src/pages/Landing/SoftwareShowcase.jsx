@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import { getMediaUrl, FALLBACK_SOFTWARE_THUMBNAIL } from '../../utils/media';
 
 export default function SoftwareShowcase() {
   const [softwares, setSoftwares] = useState([]);
@@ -116,9 +117,13 @@ export default function SoftwareShowcase() {
                     </span>
                   )}
                   <img 
-                    src={item.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'} 
+                    src={getMediaUrl(item.thumbnail) || FALLBACK_SOFTWARE_THUMBNAIL} 
                     alt={item.title} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_SOFTWARE_THUMBNAIL;
+                    }}
                   />
                 </div>
 

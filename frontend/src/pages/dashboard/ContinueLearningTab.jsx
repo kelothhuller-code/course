@@ -1,6 +1,6 @@
-// src/pages/dashboard/ContinueLearningTab.jsx
 import React from 'react';
 import DashboardSummary from './DashboardSummary';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
 
 export default function ContinueLearningTab({ 
   profile,
@@ -161,9 +161,13 @@ export default function ContinueLearningTab({
                     background: '#0f172a'
                   }}>
                     <img 
-                      src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'} 
+                      src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                       alt={course.title}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                      }}
                     />
                   </div>
                   <div style={{ flex: 1, minWidth: '220px' }}>

@@ -1,0 +1,168 @@
+/* CourseReviews Responsive Design */
+.reviews-container {
+  margin: 2.5rem 0;
+  padding: 2rem 1.5rem;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.reviews-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.reviews-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0.2rem 0 0 0;
+}
+
+.reviews-btn-write {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reviews-btn-write:hover {
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.reviews-stats-card {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 2rem;
+  align-items: center;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #f1f5f9;
+  margin-bottom: 1.5rem;
+  box-sizing: border-box;
+}
+
+.reviews-score-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.reviews-score-num {
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.reviews-score-stars {
+  color: #f59e0b;
+  font-size: 1.25rem;
+  margin: 0.4rem 0 0.2rem 0;
+  letter-spacing: 2px;
+}
+
+.reviews-score-count {
+  font-size: 0.84rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.reviews-bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.reviews-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.reviews-bar-label {
+  width: 32px;
+  font-weight: 700;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.reviews-bar-track {
+  flex: 1;
+  height: 9px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.reviews-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.reviews-bar-pct {
+  width: 42px;
+  text-align: right;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .reviews-container {
+    padding: 1.5rem 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .reviews-stats-card {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1.25rem 1rem;
+  }
+
+  .reviews-score-num {
+    font-size: 2.75rem;
+  }
+
+  .reviews-bars-list {
+    gap: 0.45rem;
+  }
+
+  .reviews-bar-row {
+    gap: 0.5rem;
+  }
+
+  .reviews-bar-track {
+    height: 8px;
+  }
+}

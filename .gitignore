@@ -12,3 +12,9 @@ backend/.env.*
 !backend/.env.example
 *.log
 .DS_Store
+
+# Uploaded media and files
+uploads/
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
+

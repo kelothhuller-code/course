@@ -79,7 +79,7 @@ export default function NavHeader({ user, onLogout }) {
                 <img 
                   src="/logo.svg" 
                   alt="WideTech Logo" 
-                  style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} 
+                  className="navbar-brand-logo" 
                 />
                 <span className="brand-name">WIDETECH</span>
               </Link>

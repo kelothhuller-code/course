@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import { getMediaUrl, FALLBACK_SOFTWARE_THUMBNAIL } from '../../utils/media';
 
 export default function MySoftwareTab({ profile, setActiveTab }) {
   const [allSoftwares, setAllSoftwares] = useState([]);
@@ -134,9 +135,13 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <img 
-                      src={sw.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80'} 
+                      src={getMediaUrl(sw.thumbnail) || FALLBACK_SOFTWARE_THUMBNAIL} 
                       alt={sw.title || 'Software'} 
                       style={{ width: '80px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = FALLBACK_SOFTWARE_THUMBNAIL;
+                      }}
                     />
                     <div>
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '4px' }}>
@@ -236,9 +241,13 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                     </span>
                   )}
                   <img 
-                    src={sw.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'} 
+                    src={getMediaUrl(sw.thumbnail) || FALLBACK_SOFTWARE_THUMBNAIL} 
                     alt={sw.title} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_SOFTWARE_THUMBNAIL;
+                    }}
                   />
                 </div>
 

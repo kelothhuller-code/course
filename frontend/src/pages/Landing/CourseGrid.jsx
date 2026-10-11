@@ -1,6 +1,7 @@
 // Landing/CourseGrid.jsx - Update the view all button
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
 
 export default function CourseGrid({ 
   courses = [], 
@@ -55,13 +56,33 @@ export default function CourseGrid({
             const isEnrolled = user && user.enrolledCourses?.some(c => 
               c.courseId?._id === course._id || c.courseId === course._id
             );
+            const hasDiscount = course.discountedPrice && course.discountedPrice < course.price;
+
+            const handleCardClick = () => {
+              if (isEnrolled) {
+                navigate(`/course/${course._id}`);
+              } else {
+                navigate(`/sale/${course._id}`);
+              }
+            };
+
             return (
-              <div key={course._id || Math.random()} className="course-card">
+              <div 
+                key={course._id || Math.random()} 
+                className="course-card"
+                onClick={handleCardClick}
+                style={{ cursor: 'pointer' }}
+                title={`View ${course.title || 'Course'} details`}
+              >
                 <div className="card-img">
                   <img 
-                    src={course.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'} 
+                    src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                     alt={course.title || 'Course'} 
                     loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                    }}
                   />
                   {course.category && (
                     <span className="card-tag">{course.category}</span>
@@ -76,12 +97,26 @@ export default function CourseGrid({
                     ))}
                   </div>
                   <div className="card-meta">
-                    <div className="card-price">₹{course.price || 0}</div>
+                    <div className="card-price">
+                      {hasDiscount ? (
+                        <span>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.35rem' }}>
+                            ₹{course.price}
+                          </span>
+                          ₹{course.discountedPrice}
+                        </span>
+                      ) : (
+                        <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price || 0}`}</span>
+                      )}
+                    </div>
                     <button 
                       className="btn btn-primary btn-sm" 
-                      onClick={() => handleEnroll(course, 'course')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEnroll(course, 'course');
+                      }}
                     >
-                      {isEnrolled ? '📖 Continue' : '🎯 Enroll'}
+                      {isEnrolled ? '📖 Continue' : (course.isFree || course.price === 0 ? '🎯 Enroll Free' : '🛒 View Details')}
                     </button>
                   </div>
                 </div>

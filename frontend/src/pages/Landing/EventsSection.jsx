@@ -1,4 +1,5 @@
 import React from 'react';
+import { getMediaUrl, FALLBACK_EVENT_THUMBNAIL } from '../../utils/media';
 
 export default function EventsSection({ events, user, handleEnroll }) {
   if (!events || events.length === 0) return null;
@@ -17,7 +18,15 @@ export default function EventsSection({ events, user, handleEnroll }) {
             return (
               <div key={event._id} className="event-card">
                 <div className="event-img">
-                  <img src={event.thumbnail || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80'} alt={event.title} loading="lazy" />
+                  <img 
+                    src={getMediaUrl(event.thumbnail) || FALLBACK_EVENT_THUMBNAIL} 
+                    alt={event.title} 
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_EVENT_THUMBNAIL;
+                    }}
+                  />
                 </div>
                 <div className="event-date">📅 {dateStr} ({event.duration || '1hr'})</div>
                 <h3 className="event-title">{event.title}</h3>

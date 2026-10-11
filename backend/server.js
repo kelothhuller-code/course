@@ -125,7 +125,17 @@ app.use('/api/payment', paymentLimiter);
 
 // Serve static files from 'public' (js, css, images) without 301 redirects
 app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
+// Serve uploaded files (thumbnails, software packages, materials) with CORS headers
+const serveUploads = express.static(path.join(__dirname, 'public', 'uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+});
+app.use('/uploads', serveUploads);
+app.use('/api/uploads', serveUploads);
 
 // Configurable Secret Admin Portal Route (defaults to 'wide-hq-portal')
 const rawAdminPath = (process.env.ADMIN_SECRET_PATH || 'wide-hq-portal').replace(/^\/+|\/+$/g, '');

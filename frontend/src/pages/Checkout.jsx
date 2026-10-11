@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
+import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 
 export default function Checkout({ user, onRefreshUser }) {
   const { id } = useParams();
@@ -342,9 +343,13 @@ export default function Checkout({ user, onRefreshUser }) {
                   flexShrink: 0
                 }}>
                   <img 
-                    src={item.thumbnail || 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=600&q=80'} 
+                    src={getMediaUrl(item.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                     alt={item.title}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_COURSE_THUMBNAIL;
+                    }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
