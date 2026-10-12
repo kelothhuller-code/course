@@ -44,33 +44,141 @@ router.post('/courses/:courseId/comments/:commentId/reply', protect, admin, admi
 // Event analytics
 router.get('/events/:eventId/analytics', protect, admin, getEventAnalytics);
 router.post('/events/:eventId/broadcast', protect, admin, broadcastEventEmail);
-// @desc    Get all users list
+// @desc    Get all users list with pagination and search
 // @route   GET /api/admin/users
 // @access  Private/Admin
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find({})
+    const isPaginated = Boolean(req.query.page || req.query.limit || req.query.search || req.query.role || req.query.courseId);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    const search = req.query.search;
+    if (search && typeof search === 'string') {
+      const safeSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (safeSearch) {
+        query.$or = [
+          { name: { $regex: safeSearch, $options: 'i' } },
+          { email: { $regex: safeSearch, $options: 'i' } },
+          { referralCode: { $regex: safeSearch, $options: 'i' } }
+        ];
+      }
+    }
+
+    if (req.query.role) {
+      query.role = req.query.role;
+    }
+
+    if (req.query.courseId) {
+      query['enrolledCourses.courseId'] = req.query.courseId;
+    }
+
+    if (isPaginated) {
+      const total = await User.countDocuments(query);
+      const users = await User.find(query)
+        .select('-password')
+        .populate('enrolledCourses.courseId', 'title category price')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.json({
+        success: true,
+        users,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit) || 1,
+          totalItems: total,
+          itemsPerPage: limit,
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1
+        }
+      });
+    }
+
+    const users = await User.find(query)
       .select('-password')
-      .populate('enrolledCourses.courseId', 'title category price');
+      .populate('enrolledCourses.courseId', 'title category price')
+      .sort({ createdAt: -1 });
+
     res.json(users);
   } catch (error) {
     console.error('Admin fetch users error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// @desc    Get all transaction histories
+// @desc    Get all transaction histories with pagination and search
 // @route   GET /api/admin/transactions
 // @access  Private/Admin
 router.get('/transactions', async (req, res) => {
   try {
-    const txns = await Transaction.find({})
+    const isPaginated = Boolean(req.query.page || req.query.limit || req.query.search || req.query.status || req.query.itemType);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    const search = req.query.search;
+    if (search && typeof search === 'string') {
+      const safeSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (safeSearch) {
+        query.$or = [
+          { txnid: { $regex: safeSearch, $options: 'i' } },
+          { invoiceNo: { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerName': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerEmail': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerGstin': { $regex: safeSearch, $options: 'i' } },
+          { couponCode: { $regex: safeSearch, $options: 'i' } }
+        ];
+      }
+    }
+
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+    if (req.query.itemType) {
+      query.itemType = req.query.itemType;
+    }
+    if (req.query.startDate && req.query.endDate) {
+      query.createdAt = {
+        $gte: new Date(req.query.startDate),
+        $lte: new Date(new Date(req.query.endDate).setHours(23, 59, 59, 999))
+      };
+    }
+
+    if (isPaginated) {
+      const total = await Transaction.countDocuments(query);
+      const txns = await Transaction.find(query)
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.json({
+        success: true,
+        transactions: txns,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit) || 1,
+          totalItems: total,
+          itemsPerPage: limit,
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1
+        }
+      });
+    }
+
+    const txns = await Transaction.find(query)
       .populate('userId', 'name email')
       .sort({ createdAt: -1 });
+
     res.json(txns);
   } catch (error) {
     console.error('Admin fetch transactions error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

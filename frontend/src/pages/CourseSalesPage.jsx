@@ -102,7 +102,11 @@ export default function CourseSalesPage({ user }) {
 
   const ctaLabel = isAlreadyEnrolled
     ? '📖 Continue Learning'
-    : (enrollingFree ? 'Enrolling...' : (config.ctaText || isFree) ? 'Enroll Now - Free' : `Buy Course - ₹  ${basePrice}`);
+    : enrollingFree
+    ? 'Enrolling...'
+    : isFree
+    ? (config.ctaText || 'Enroll Now - Free')
+    : (config.ctaText ? `${config.ctaText} - ₹${basePrice}` : `Buy Course - ₹${basePrice}`);
   return (
     <div className="sales-page-wrapper">
       <NavHeader user={user} />
@@ -343,7 +347,7 @@ export default function CourseSalesPage({ user }) {
             onClick={handleEnrollOrBuy}
             disabled={enrollingFree}
           >
-            {enrollingFree ? 'Enrolling...' : (isFree ? 'Enroll Now - Free' : `Buy Course - ₹${basePrice}`)}
+            {ctaLabel}
           </button>
         </section>
 

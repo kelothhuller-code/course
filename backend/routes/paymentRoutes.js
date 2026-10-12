@@ -1,7 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
-import { protect } from '../middleware/auth.js';
+import { protect, isUserAdmin } from '../middleware/auth.js';
 import Transaction from '../models/Transaction.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
@@ -331,10 +331,15 @@ router.post('/response', async (req, res) => {
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';
 
+    if (process.env.NODE_ENV === 'production' && (!process.env.PAYU_MERCHANT_KEY || key === 'mock_key')) {
+      console.error('Critical Security Error: Live PAYU_MERCHANT_KEY required in production.');
+      return res.status(500).send('Payment gateway configuration error in production');
+    }
+
     let isHashValid = false;
     if (key === 'mock_key') {
-      // In mock mode, we bypass cryptographic check, or verify a simpler signature
-      isHashValid = true;
+      // In non-production dev environments only
+      isHashValid = process.env.NODE_ENV !== 'production';
     } else {
       isHashValid = verifyResponseHash(key, txnid, amount, productinfo, firstname, email, status, salt, hash);
     }
@@ -504,17 +509,60 @@ router.post('/mock-callback', async (req, res) => {
   }
 });
 
-// @desc    Get all transactions/invoices for logged in user
+// @desc    Get all transactions/invoices for logged in user with pagination and search
 // @route   GET /api/payment/my-invoices
 // @access  Private
 router.get('/my-invoices', protect, async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user._id })
-      .sort({ createdAt: -1 });
-    res.json({ transactions });
+    const isPaginated = Boolean(req.query.page || req.query.limit || req.query.search || req.query.status);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
+
+    let query = { userId: req.user._id };
+
+    const search = req.query.search;
+    if (search && typeof search === 'string') {
+      const safeSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (safeSearch) {
+        query.$or = [
+          { txnid: { $regex: safeSearch, $options: 'i' } },
+          { invoiceNo: { $regex: safeSearch, $options: 'i' } },
+          { itemType: { $regex: safeSearch, $options: 'i' } }
+        ];
+      }
+    }
+
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    if (isPaginated) {
+      const total = await Transaction.countDocuments(query);
+      const transactions = await Transaction.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.json({
+        success: true,
+        transactions,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit) || 1,
+          totalItems: total,
+          itemsPerPage: limit,
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1
+        }
+      });
+    }
+
+    const transactions = await Transaction.find(query).sort({ createdAt: -1 });
+    res.json({ success: true, transactions });
   } catch (error) {
     console.error('Fetch my invoices error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -528,8 +576,8 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
-    // Check authorization: must be transaction owner or admin
-    if (txn.userId._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Check authorization: must be transaction owner or authorized .env admin
+    if (txn.userId._id.toString() !== req.user._id.toString() && !isUserAdmin(req.user)) {
       return res.status(403).json({ message: 'Not authorized to view this invoice' });
     }
 
@@ -768,6 +816,11 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction record not found' });
     }
 
+    // Ownership validation: verify user owns the transaction or is authorized admin
+    if (txn.userId.toString() !== req.user._id.toString() && !isUserAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to verify this transaction.' });
+    }
+
     // Idempotency: if already completed, return immediately
     if (txn.status === 'success') {
       return res.json({ success: true, message: 'Payment already completed', txnid: txn.txnid });
@@ -829,14 +882,24 @@ router.post('/razorpay/webhook', async (req, res) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
-    if (webhookSecret && signature) {
-      const shasum = crypto.createHmac('sha256', webhookSecret);
-      shasum.update(JSON.stringify(req.body));
-      const digest = shasum.digest('hex');
+    // 1. Strictly require signature header - reject unsigned requests immediately
+    if (!signature) {
+      return res.status(400).json({ status: 'missing_signature', message: 'x-razorpay-signature header is required.' });
+    }
 
-      if (digest !== signature) {
-        return res.status(400).json({ status: 'invalid_signature' });
-      }
+    if (!webhookSecret) {
+      return res.status(500).json({ status: 'server_configuration_error', message: 'Webhook secret is not configured.' });
+    }
+
+    // 2. Validate cryptographic signature
+    const rawPayload = req.rawBody ? req.rawBody : JSON.stringify(req.body);
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawPayload)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      return res.status(400).json({ status: 'invalid_signature', message: 'Cryptographic signature mismatch.' });
     }
 
     const { event, payload } = req.body;

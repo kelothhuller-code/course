@@ -78,12 +78,88 @@ router.put('/config', protect, admin, async (req, res) => {
   }
 });
 
+// @desc    Get paginated GST bills and tax invoices with search and filters
+// @route   GET /api/admin/gst/bills
+// @access  Private/Admin
+router.get('/bills', protect, admin, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    let query = { status: { $in: ['success', 'refunded'] } };
+
+    if (req.query.status && req.query.status !== 'all') {
+      query.status = req.query.status;
+    }
+
+    if (req.query.isB2B === 'true') {
+      query['billingDetails.isB2B'] = true;
+    } else if (req.query.isB2B === 'false') {
+      query['billingDetails.isB2B'] = { $ne: true };
+    }
+
+    const { startDate, endDate, month, year, search } = req.query;
+
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+      };
+    } else if (month && year) {
+      const m = parseInt(month) - 1;
+      const y = parseInt(year);
+      query.createdAt = {
+        $gte: new Date(y, m, 1),
+        $lte: new Date(y, m + 1, 0, 23, 59, 59, 999)
+      };
+    }
+
+    if (search && typeof search === 'string') {
+      const safeSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (safeSearch) {
+        query.$or = [
+          { txnid: { $regex: safeSearch, $options: 'i' } },
+          { invoiceNo: { $regex: safeSearch, $options: 'i' } },
+          { creditNoteNo: { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerName': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerEmail': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerGstin': { $regex: safeSearch, $options: 'i' } }
+        ];
+      }
+    }
+
+    const total = await Transaction.countDocuments(query);
+    const bills = await Transaction.find(query)
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      success: true,
+      bills,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit) || 1,
+        totalItems: total,
+        itemsPerPage: limit,
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Fetch GST bills error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // @desc    Get GST Tax Report for GSTR-1 & GSTR-3B filing (including Credit Notes/Refunds Sec 9B)
 // @route   GET /api/admin/gst/report
 // @access  Private/Admin
 router.get('/report', protect, admin, async (req, res) => {
   try {
-    const { startDate, endDate, month, year } = req.query;
+    const { startDate, endDate, month, year, search } = req.query;
     const gstConfig = await getOrInitGstConfig();
 
     let query = { status: { $in: ['success', 'refunded'] } };
@@ -99,6 +175,20 @@ router.get('/report', protect, admin, async (req, res) => {
       const start = new Date(y, m, 1);
       const end = new Date(y, m + 1, 0, 23, 59, 59, 999);
       query.createdAt = { $gte: start, $lte: end };
+    }
+
+    if (search && typeof search === 'string') {
+      const safeSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (safeSearch) {
+        query.$or = [
+          { txnid: { $regex: safeSearch, $options: 'i' } },
+          { invoiceNo: { $regex: safeSearch, $options: 'i' } },
+          { creditNoteNo: { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerName': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerEmail': { $regex: safeSearch, $options: 'i' } },
+          { 'billingDetails.buyerGstin': { $regex: safeSearch, $options: 'i' } }
+        ];
+      }
     }
 
     const transactions = await Transaction.find(query)

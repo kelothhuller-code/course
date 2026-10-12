@@ -55,8 +55,12 @@ function AppContent() {
     refreshUser();
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (e) {
+      localStorage.removeItem('token');
+    }
     setUser(null);
     navigate('/');
   };
@@ -95,7 +99,7 @@ function AppContent() {
       <main style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <Routes>
           <Route path="/" element={<LandingPage user={user} onOpenMockPayment={setMockPaymentData} />} />
-          <Route path="/auth" element={<AuthPage onLoginSuccess={handleLoginSuccess} />} />
+          <Route path="/auth" element={<AuthPage user={user} onLogout={handleLogout} onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/dashboard" element={<Dashboard user={user} onRefreshUser={refreshUser} />} />
           <Route path="/certificate/verify/:certificateId" element={<CertificateVerify />} />
           <Route 

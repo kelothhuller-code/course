@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Footer from './Landing/Footer';
 import './AllCoursesPage.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
@@ -102,7 +103,7 @@ export default function AllCoursesPage({ user, onLogout }) {
           </Link>
 
           <nav className="nav-links">
-            <Link to="/" className="nav-link">Home</Link>
+            <Link to="/" className="nav-link nav-home-link">Home</Link>
             {user && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
             <a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer" className="nav-link instagram-link">
               Instagram
@@ -314,49 +315,8 @@ export default function AllCoursesPage({ user, onLogout }) {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-grid">
-            <div className="footer-brand">
-              <h3>WIDETECH</h3>
-              <p>
-                Making AI education accessible to everyone — from kids to seniors,
-                beginners to professionals.
-              </p>
-              <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-                Directed by @widetechai
-              </p>
-            </div>
-            <div className="footer-links">
-              <h4>Learn</h4>
-              <ul>
-                <li><Link to="/#courses">Courses</Link></li>
-                <li><Link to="/#events">Workshops</Link></li>
-                <li><Link to="/#trials">Free Tutorials</Link></li>
-              </ul>
-            </div>
-            <div className="footer-links">
-              <h4>Company</h4>
-              <ul>
-                <li><Link to="/#about">About</Link></li>
-                <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-                <li><Link to="/auth">Login</Link></li>
-              </ul>
-            </div>
-            <div className="footer-links">
-              <h4>Connect</h4>
-              <ul>
-                <li><a href="mailto:hello@widetech.in">Email Us</a></li>
-                <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            © {new Date().getFullYear()} WIDETECH Academy. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      {/* Footer identical to landing and login pages */}
+      <Footer />
     </div>
   );
 }

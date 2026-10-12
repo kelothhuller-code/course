@@ -51,4 +51,8 @@ const TransactionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Indexes for fast payment lookups and verification
+TransactionSchema.index({ txnid: 1 });
+TransactionSchema.index({ razorpayOrderId: 1 }, { sparse: true });
+
 export default mongoose.model('Transaction', TransactionSchema);

@@ -83,10 +83,15 @@ export const createReview = async (req, res) => {
       (c.courseId?._id || c.courseId)?.toString() === courseId.toString()
     ) || false;
 
+    const numRating = Math.round(Number(rating));
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      return res.status(400).json({ message: 'Rating must be an integer between 1 and 5' });
+    }
+
     const review = await Review.create({
       courseId,
       userId,
-      rating: Number(rating),
+      rating: numRating,
       headline: headline || '',
       comment,
       isVerifiedPurchase,

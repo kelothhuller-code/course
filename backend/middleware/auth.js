@@ -2,14 +2,26 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { getJwtSecret } from '../utils/jwtSecret.js';
 
-export const protect = async (req, res, next) => {
-  let token;
-
+// Helper to extract JWT token from Authorization header, query, or httpOnly cookie
+export const extractToken = (req) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  } else if (req.query && req.query.token) {
-    token = req.query.token;
+    return req.headers.authorization.split(' ')[1];
   }
+  if (req.query && req.query.token) {
+    return req.query.token;
+  }
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token;
+  }
+  if (req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
+};
+
+export const protect = async (req, res, next) => {
+  const token = extractToken(req);
 
   if (token) {
     try {
@@ -38,11 +50,10 @@ export const protect = async (req, res, next) => {
 
 // Optional auth - doesn't require authentication but sets user if token exists
 export const optionalAuth = async (req, res, next) => {
-  let token;
+  const token = extractToken(req);
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (token) {
     try {
-      token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, getJwtSecret());
       req.user = await User.findById(decoded.id).select('-password');
     } catch (error) {
@@ -53,8 +64,19 @@ export const optionalAuth = async (req, res, next) => {
   next();
 };
 
+export const getAdminEmail = () => {
+  return (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+};
+
+export const isUserAdmin = (user) => {
+  if (!user || !user.email) return false;
+  const adminEmail = getAdminEmail();
+  if (!adminEmail) return false;
+  return user.email.toLowerCase().trim() === adminEmail && user.role === 'admin';
+};
+
 export const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (isUserAdmin(req.user)) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });

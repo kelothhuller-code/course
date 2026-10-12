@@ -8,8 +8,9 @@ window.ReferralsModule = {
             ]);
 
             // Calculate totals
-            const totalCommission = logs.reduce((a, l) => a + l.commissionAmount, 0);
-            const totalOutstanding = users.reduce((a, u) => a + (u.walletBalance || 0), 0);
+            const userList = Array.isArray(users) ? users : (users?.users || []);
+            const totalCommission = (Array.isArray(logs) ? logs : []).reduce((a, l) => a + (l.commissionAmount || 0), 0);
+            const totalOutstanding = userList.reduce((a, u) => a + (u.walletBalance || 0), 0);
             const totalSettled = totalCommission - totalOutstanding;
 
             // Build logs table

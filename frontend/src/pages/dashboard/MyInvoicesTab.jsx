@@ -6,33 +6,51 @@ export default function MyInvoicesTab() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTxn, setSelectedTxn] = useState(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+
+  const fetchInvoices = async (targetPage = page) => {
+    try {
+      setLoading(true);
+      const params = {
+        page: targetPage,
+        limit: 10,
+        search: search.trim(),
+        status: status !== 'all' ? status : undefined
+      };
+      const res = await api.getMyInvoices(params);
+      setTransactions(res.transactions || []);
+      if (res.pagination) {
+        setPagination(res.pagination);
+        setPage(res.pagination.currentPage);
+      }
+    } catch (err) {
+      console.error('Fetch invoices error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        setLoading(true);
-        const res = await api.getMyInvoices();
-        setTransactions(res.transactions || []);
-      } catch (err) {
-        console.error('Fetch invoices error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInvoices();
-  }, []);
+    fetchInvoices(1);
+  }, [status]);
 
-  if (loading) {
-    return (
-      <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-        <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>LOADING YOUR INVOICES...</div>
-      </div>
-    );
-  }
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    fetchInvoices(1);
+  };
 
   return (
     <div className="glass-card" style={{ padding: '1.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <div style={{
           width: '44px',
           height: '44px',
@@ -53,11 +71,81 @@ export default function MyInvoicesTab() {
         </div>
       </div>
 
-      {transactions.length === 0 ? (
+      {/* Search & Filter Controls */}
+      <div style={{
+        display: 'flex',
+        gap: '0.75rem',
+        marginBottom: '1.25rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
+          <input
+            type="text"
+            placeholder="Search invoice number, TXN ID, item..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '0.6rem 0.9rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '0.9rem'
+            }}
+          />
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ padding: '0.6rem 1.1rem', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+          >
+            🔍 Search
+          </button>
+          {search && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => { setSearch(''); fetchInvoices(1); }}
+              style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
+            >
+              Reset
+            </button>
+          )}
+        </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status:</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{
+              padding: '0.55rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '0.88rem'
+            }}
+          >
+            <option value="all">All Statuses</option>
+            <option value="success">Paid / Success</option>
+            <option value="refunded">Refunded (Credit Note)</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '3rem', textAlign: 'center' }}>
+          <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>LOADING INVOICES...</div>
+        </div>
+      ) : transactions.length === 0 ? (
         <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
-          <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No payment invoices found yet</p>
+          <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No payment invoices found</p>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Official GST tax invoices will be automatically generated whenever you purchase courses or products.
+            {search || status !== 'all' ? 'Try adjusting your search criteria or filter options.' : 'Official GST tax invoices will be automatically generated whenever you purchase courses or products.'}
           </p>
         </div>
       ) : (
@@ -194,6 +282,92 @@ export default function MyInvoicesTab() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: '1.5rem',
+          paddingTop: '1rem',
+          borderTop: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Showing page <strong>{pagination.currentPage}</strong> of <strong>{pagination.totalPages}</strong> ({pagination.totalItems} total records)
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={!pagination.hasPrevPage || loading}
+              onClick={() => fetchInvoices(pagination.currentPage - 1)}
+              style={{
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.85rem',
+                opacity: (!pagination.hasPrevPage || loading) ? 0.5 : 1,
+                cursor: (!pagination.hasPrevPage || loading) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              ← Previous
+            </button>
+
+            <div style={{ display: 'flex', gap: '0.35rem' }}>
+              {[...Array(pagination.totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                if (
+                  pageNum === 1 ||
+                  pageNum === pagination.totalPages ||
+                  Math.abs(pageNum - pagination.currentPage) <= 1
+                ) {
+                  const isActive = pagination.currentPage === pageNum;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => fetchInvoices(pageNum)}
+                      className={isActive ? 'btn btn-primary' : 'btn btn-secondary'}
+                      style={{
+                        padding: '0.45rem 0.75rem',
+                        fontSize: '0.85rem',
+                        minWidth: '36px',
+                        fontWeight: isActive ? 700 : 500
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                } else if (
+                  (pageNum === 2 && pagination.currentPage > 3) ||
+                  (pageNum === pagination.totalPages - 1 && pagination.currentPage < pagination.totalPages - 2)
+                ) {
+                  return <span key={pageNum} style={{ padding: '0.45rem 0.3rem', color: 'var(--text-muted)' }}>…</span>;
+                }
+                return null;
+              })}
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={!pagination.hasNextPage || loading}
+              onClick={() => fetchInvoices(pagination.currentPage + 1)}
+              style={{
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.85rem',
+                opacity: (!pagination.hasNextPage || loading) ? 0.5 : 1,
+                cursor: (!pagination.hasNextPage || loading) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Next →
+            </button>
+          </div>
         </div>
       )}
 

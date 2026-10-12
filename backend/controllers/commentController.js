@@ -1,6 +1,7 @@
 import Comment from '../models/Comment.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import { isUserAdmin } from '../middleware/auth.js';
 
 // Get comments for a lesson
 export const getComments = async (req, res) => {
@@ -21,13 +22,13 @@ export const getComments = async (req, res) => {
     // Check if course is free
     const course = await Course.findById(courseId);
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ success: false, message: 'Course not found' });
     }
 
     // Allow access if free or enrolled
     const isFree = course.price === 0 || course.isFree;
     if (!isFree && !isEnrolled) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
     const query = {
@@ -77,7 +78,7 @@ export const getComments = async (req, res) => {
 
   } catch (error) {
     console.error('Get comments error:', error);
-    res.status(500).json({ error: 'Failed to fetch comments' });
+    res.status(500).json({ success: false, message: 'Failed to fetch comments' });
   }
 };
 
@@ -89,7 +90,7 @@ export const createComment = async (req, res) => {
     const { text, parentCommentId, isQuestion } = req.body;
 
     if (!text || text.trim().length === 0) {
-      return res.status(400).json({ error: 'Comment text is required' });
+      return res.status(400).json({ success: false, message: 'Comment text is required' });
     }
 
     // Verify enrollment
@@ -102,7 +103,7 @@ export const createComment = async (req, res) => {
     const isFree = course?.price === 0 || course?.isFree;
 
     if (!isFree && !isEnrolled) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
     // Validate parent comment if replying
@@ -110,13 +111,13 @@ export const createComment = async (req, res) => {
     if (parentCommentId) {
       const parent = await Comment.findById(parentCommentId);
       if (!parent) {
-        return res.status(404).json({ error: 'Parent comment not found' });
+        return res.status(404).json({ success: false, message: 'Parent comment not found' });
       }
       depth = parent.depth + 1;
       
       // Limit nesting depth
       if (depth > 3) {
-        return res.status(400).json({ error: 'Maximum reply depth exceeded' });
+        return res.status(400).json({ success: false, message: 'Maximum reply depth exceeded' });
       }
     }
 
@@ -148,7 +149,7 @@ export const createComment = async (req, res) => {
 
   } catch (error) {
     console.error('Create comment error:', error);
-    res.status(500).json({ error: 'Failed to create comment' });
+    res.status(500).json({ success: false, message: 'Failed to create comment' });
   }
 };
 
@@ -161,12 +162,12 @@ export const updateComment = async (req, res) => {
 
     const comment = await Comment.findById(commentId);
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found' });
+      return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
     // Check ownership
     if (comment.userId.toString() !== userId) {
-      return res.status(403).json({ error: 'Not authorized to edit this comment' });
+      return res.status(403).json({ success: false, message: 'Not authorized to edit this comment' });
     }
 
     comment.text = text.trim();
@@ -179,7 +180,7 @@ export const updateComment = async (req, res) => {
 
   } catch (error) {
     console.error('Update comment error:', error);
-    res.status(500).json({ error: 'Failed to update comment' });
+    res.status(500).json({ success: false, message: 'Failed to update comment' });
   }
 };
 
@@ -191,15 +192,15 @@ export const deleteComment = async (req, res) => {
 
     const comment = await Comment.findById(commentId);
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found' });
+      return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
     // Check ownership or admin
     const user = await User.findById(userId);
-    const isAdmin = user.role === 'admin' || user.role === 'instructor';
+    const isAdmin = isUserAdmin(user);
     
     if (comment.userId.toString() !== userId && !isAdmin) {
-      return res.status(403).json({ error: 'Not authorized to delete this comment' });
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this comment' });
     }
 
     // Delete all replies
@@ -222,7 +223,7 @@ export const deleteComment = async (req, res) => {
 
   } catch (error) {
     console.error('Delete comment error:', error);
-    res.status(500).json({ error: 'Failed to delete comment' });
+    res.status(500).json({ success: false, message: 'Failed to delete comment' });
   }
 };
 
@@ -234,7 +235,7 @@ export const toggleLike = async (req, res) => {
 
     const comment = await Comment.findById(commentId);
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found' });
+      return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
     const likeIndex = comment.likes.indexOf(userId);
@@ -254,7 +255,7 @@ export const toggleLike = async (req, res) => {
 
   } catch (error) {
     console.error('Toggle like error:', error);
-    res.status(500).json({ error: 'Failed to toggle like' });
+    res.status(500).json({ success: false, message: 'Failed to toggle like' });
   }
 };
 
@@ -266,12 +267,12 @@ export const markResolved = async (req, res) => {
 
     const comment = await Comment.findById(commentId);
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found' });
+      return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
     // Check if user owns the question
     if (comment.userId.toString() !== userId) {
-      return res.status(403).json({ error: 'Only the question owner can mark as resolved' });
+      return res.status(403).json({ success: false, message: 'Only the question owner can mark as resolved' });
     }
 
     comment.isResolved = !comment.isResolved;
@@ -284,6 +285,6 @@ export const markResolved = async (req, res) => {
 
   } catch (error) {
     console.error('Mark resolved error:', error);
-    res.status(500).json({ error: 'Failed to update question' });
+    res.status(500).json({ success: false, message: 'Failed to update question' });
   }
 };

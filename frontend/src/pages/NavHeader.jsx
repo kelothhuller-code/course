@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { api } from '../api';
 
 export default function NavHeader({ user, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,9 +23,13 @@ export default function NavHeader({ user, onLogout }) {
     };
   }, [isOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsOpen(false);
-    localStorage.removeItem('token');
+    try {
+      await api.logout();
+    } catch (e) {
+      localStorage.removeItem('token');
+    }
     if (onLogout) onLogout();
     navigate('/');
   };

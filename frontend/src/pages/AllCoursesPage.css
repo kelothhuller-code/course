@@ -516,74 +516,24 @@
   margin: 0 auto;
 }
 
-.all-courses-page .footer-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .all-courses-page .footer-grid {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 900px) {
+  .all-courses-page .footer {
+    padding: 1.5rem 0 1rem 0 !important;
   }
-}
 
-@media (max-width: 480px) {
-  .all-courses-page .footer-grid {
-    grid-template-columns: 1fr;
+  .all-courses-page .footer-grid,
+  .all-courses-page .footer-bottom {
+    display: none !important;
   }
-}
 
-.all-courses-page .footer-brand h3 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  margin: 0 0 0.5rem;
-  color: #fff;
-}
-
-.all-courses-page .footer-brand p {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-  margin: 0 0 0.4rem;
-}
-
-.all-courses-page .footer-links h4 {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.all-courses-page .footer-links ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.all-courses-page .footer-links a {
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  font-size: 0.88rem;
-  transition: color 0.2s;
-}
-
-.all-courses-page .footer-links a:hover {
-  color: #fff;
-}
-
-.all-courses-page .footer-bottom {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 1.5rem;
-  text-align: center;
+  .all-courses-page .footer-mobile-compact {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+  }
 }
 
 /* ── Buttons (scoped) ── */
@@ -630,6 +580,13 @@
 }
 
 /* ── Responsive ── */
+@media (max-width: 768px) {
+  .all-courses-page .nav-home-link,
+  .all-courses-page .instagram-link {
+    display: none !important;
+  }
+}
+
 @media (max-width: 640px) {
   .all-courses-main {
     padding: 1.5rem 0 3rem;

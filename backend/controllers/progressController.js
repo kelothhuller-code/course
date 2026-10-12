@@ -68,7 +68,7 @@ export const getCourseProgress = async (req, res) => {
     );
 
     if (!isEnrolled) {
-      return res.status(403).json({ error: 'Not enrolled in this course' });
+      return res.status(403).json({ success: false, message: 'Not enrolled in this course' });
     }
 
     let progress = await Progress.findOne({ userId, courseId });
@@ -130,7 +130,7 @@ export const getCourseProgress = async (req, res) => {
 
   } catch (error) {
     console.error('Get course progress error:', error);
-    res.status(500).json({ error: 'Failed to fetch course progress' });
+    res.status(500).json({ success: false, message: 'Failed to fetch course progress' });
   }
 };
 
@@ -154,13 +154,20 @@ export const updateVideoProgress = async (req, res) => {
     );
 
     if (!isEnrolled) {
-      return res.status(403).json({ error: 'Not enrolled in this course' });
+      return res.status(403).json({ success: false, message: 'Not enrolled in this course' });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
     }
 
     let progress = await Progress.findOne({ userId, courseId });
     if (!progress) {
       progress = new Progress({ userId, courseId });
     }
+
+    const totalLessons = getTotalLessons(course, progress.activeLanguage);
 
     // Find or create lesson progress
     let lessonProgress = progress.lessonProgress.find(
@@ -226,9 +233,6 @@ export const updateVideoProgress = async (req, res) => {
     progress.lastWatchedAt = new Date();
 
     // Calculate overall progress
-    const course = await Course.findById(courseId);
-    const totalLessons = getTotalLessons(course, progress.activeLanguage);
-
     progress.calculateProgress(totalLessons);
 
     // Sync progress back to user.enrolledCourses for backward compatibility
@@ -277,7 +281,7 @@ export const updateVideoProgress = async (req, res) => {
 
   } catch (error) {
     console.error('Update video progress error:', error);
-    res.status(500).json({ error: 'Failed to update progress' });
+    res.status(500).json({ success: false, message: 'Failed to update progress' });
   }
 };
 
@@ -293,7 +297,7 @@ export const trackMaterialOpen = async (req, res) => {
     );
 
     if (!isEnrolled) {
-      return res.status(403).json({ error: 'Not enrolled in this course' });
+      return res.status(403).json({ success: false, message: 'Not enrolled in this course' });
     }
 
     let progress = await Progress.findOne({ userId, courseId });
@@ -328,7 +332,7 @@ export const trackMaterialOpen = async (req, res) => {
 
   } catch (error) {
     console.error('Track material open error:', error);
-    res.status(500).json({ error: 'Failed to track material access' });
+    res.status(500).json({ success: false, message: 'Failed to track material access' });
   }
 };
 
@@ -348,7 +352,7 @@ export const getMyLearning = async (req, res) => {
       });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     // Get progress for all enrolled courses
@@ -405,7 +409,7 @@ export const getMyLearning = async (req, res) => {
 
   } catch (error) {
     console.error('Get my learning error:', error);
-    res.status(500).json({ error: 'Failed to fetch learning data' });
+    res.status(500).json({ success: false, message: 'Failed to fetch learning data' });
   }
 };
 

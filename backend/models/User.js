@@ -63,6 +63,17 @@ const UserSchema = new mongoose.Schema({
   forgotPasswordExpires: {
     type: Date
   },
+  forgotPasswordAttempts: {
+    type: Number,
+    default: 0
+  },
+  forgotRequestCount: {
+    type: Number,
+    default: 0
+  },
+  forgotRequestWindow: {
+    type: Date
+  },
   lastForgotAttempt: {
     type: Date
   }

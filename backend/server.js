@@ -110,7 +110,11 @@ const paymentLimiter = rateLimit({
 
 // Middleware
 // PayU response comes as urlencoded postback form data, so we must support urlencoded parser
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // NoSQL Operator Injection Sanitizer
@@ -124,19 +128,51 @@ app.use('/api/payment', paymentLimiter);
 
 
 
-// Protected Course Materials: require login/token to view or download course files
-app.use(['/uploads/materials', '/api/uploads/materials'], protect);
+// Standardize API Error Responses to { success: false, message: "..." }
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function (body) {
+    if (res.statusCode >= 400 && body && typeof body === 'object' && !Array.isArray(body)) {
+      if (body.success === undefined) {
+        body.success = false;
+      }
+      if (!body.message && body.error) {
+        body.message = typeof body.error === 'string' ? body.error : 'An error occurred';
+      }
+      if (!body.error && body.message) {
+        body.error = typeof body.message === 'string' ? body.message : 'An error occurred';
+      }
+    }
+    return originalJson.call(this, body);
+  };
+  next();
+});
 
-// Serve uploaded files (thumbnails, software packages, materials) with CORS headers
-const serveUploads = express.static(path.join(__dirname, 'public', 'uploads'), {
+// Private Storage Architecture:
+// 1. Reroute legacy material URL requests to the authenticated streaming controller
+app.get(['/uploads/materials/:filename', '/api/uploads/materials/:filename'], (req, res) => {
+  const inlineQuery = req.query.inline ? `?inline=${req.query.inline}` : '';
+  res.redirect(307, `/api/upload/material/download/${encodeURIComponent(req.params.filename)}${inlineQuery}`);
+});
+
+// 2. Block direct static access to software packages (must use /api/software/:id/download)
+app.all(['/uploads/software*', '/api/uploads/software*'], (req, res) => {
+  res.status(403).json({
+    success: false,
+    message: 'Access denied: Software packages are secured in private storage. Please download via /api/software/:id/download with active credentials.'
+  });
+});
+
+// 3. Static serving restricted strictly to public thumbnails (images)
+const serveThumbnails = express.static(path.join(__dirname, 'public', 'uploads', 'thumbnails'), {
   setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
   }
 });
-app.use('/uploads', serveUploads);
-app.use('/api/uploads', serveUploads);
+app.use('/uploads/thumbnails', serveThumbnails);
+app.use('/api/uploads/thumbnails', serveThumbnails);
 
 // Serve static files from 'public' (js, css, images) without 301 redirects
 app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));

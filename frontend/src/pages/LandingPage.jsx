@@ -190,8 +190,12 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         featuredCourse={featuredCourse}
         hasSoftware={hasSoftware}
         hasServices={hasServices}
-        onLogout={() => {
-          localStorage.removeItem('token');
+        onLogout={async () => {
+          try {
+            await api.logout();
+          } catch (e) {
+            localStorage.removeItem('token');
+          }
           navigate('/');
         }}
       />

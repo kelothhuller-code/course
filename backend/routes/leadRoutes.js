@@ -156,12 +156,18 @@ router.get('/unsubscribe', async (req, res) => {
   }
 
   try {
-    const lead = await Lead.findOne({ email: email.toLowerCase().trim() });
+    const cleanEmail = email.toLowerCase().trim();
+    const lead = await Lead.findOne({ email: cleanEmail });
     if (lead) {
       lead.isSubscribed = false;
       lead.unsubscribedAt = new Date();
       await lead.save();
     }
+
+    // Escape HTML entities to prevent Reflected XSS
+    const safeEmail = String(cleanEmail).replace(/[&<>"']/g, (s) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[s]));
 
     res.send(`
       <!DOCTYPE html>
@@ -181,7 +187,7 @@ router.get('/unsubscribe', async (req, res) => {
       <body>
         <div class="card">
           <h2>✓ You have been unsubscribed</h2>
-          <p>Your email <strong>${email}</strong> has been removed from our active subscriber list. You will no longer receive newsletter announcements or promotional emails from WIDETECHNOS Academy.</p>
+          <p>Your email <strong>${safeEmail}</strong> has been removed from our active subscriber list. You will no longer receive newsletter announcements or promotional emails from WIDETECHNOS Academy.</p>
           <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">Return to Academy Website</a>
         </div>
       </body>

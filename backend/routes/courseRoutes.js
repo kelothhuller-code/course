@@ -4,7 +4,8 @@ import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import TrialTutorial from '../models/TrialTutorial.js';
 import User from '../models/User.js';
-import { protect, admin } from '../middleware/auth.js';
+import { protect, admin, isUserAdmin } from '../middleware/auth.js';
+import { getJwtSecret } from '../utils/jwtSecret.js';
 
 const router = express.Router();
 
@@ -79,13 +80,16 @@ router.get('/paginated', async (req, res) => {
     // Build query
     let query = {};
 
-    // Search filter
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } }
-      ];
+    // Search filter - sanitize regex special characters to prevent ReDoS
+    if (search && typeof search === 'string') {
+      const sanitizedSearch = search.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (sanitizedSearch) {
+        query.$or = [
+          { title: { $regex: sanitizedSearch, $options: 'i' } },
+          { description: { $regex: sanitizedSearch, $options: 'i' } },
+          { category: { $regex: sanitizedSearch, $options: 'i' } }
+        ];
+      }
     }
 
     // Category filter
@@ -173,8 +177,28 @@ router.get('/sales/:slugOrId', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
 
+    // Sanitize course content to prevent leaking paid links on public sales pages
+    const sanitizedCourse = course.toObject();
+    if (sanitizedCourse.content) {
+      sanitizedCourse.content.forEach(lang => {
+        if (lang.chapters) {
+          lang.chapters.forEach(ch => {
+            delete ch.videoUrl;
+            delete ch.driveLink;
+            if (ch.materials && Array.isArray(ch.materials)) {
+              ch.materials = ch.materials.map(m => ({
+                _id: m._id,
+                title: m.title,
+                type: m.type
+              }));
+            }
+          });
+        }
+      });
+    }
+
     res.json({
-      course,
+      course: sanitizedCourse,
       salesPageUrl,
       salesPageConfig: course.salesPageConfig || {
         headline: course.title,
@@ -201,13 +225,21 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    // Create an outline version (hide videoUrl)
+    // Create an outline version (hide videoUrl, driveLink, and downloadable material URLs for unenrolled visitors)
     const outline = course.toObject();
     if (outline.content) {
       outline.content.forEach(lang => {
         if (lang.chapters) {
           lang.chapters.forEach(ch => {
             delete ch.videoUrl;
+            delete ch.driveLink;
+            if (ch.materials && Array.isArray(ch.materials)) {
+              ch.materials = ch.materials.map(m => ({
+                _id: m._id,
+                title: m.title,
+                type: m.type
+              }));
+            }
           });
         }
       });
@@ -235,9 +267,9 @@ router.get('/:id/learn', protect, async (req, res) => {
 
     const user = await User.findById(req.user._id);
     const isEnrolled = user.enrolledCourses.some(
-      (c) => c.courseId.toString() === course._id.toString()
+      (c) => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
     );
-    const isAdmin = user.role === 'admin';
+    const isAdmin = isUserAdmin(user);
 
     if (!isEnrolled && !isAdmin) {
       return res.status(403).json({ message: 'You are not enrolled in this course' });
@@ -517,7 +549,7 @@ router.post('/:id/video-token', protect, async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
-    const isAdmin = user.role === 'admin';
+    const isAdmin = isUserAdmin(user);
     const isEnrolled = user.enrolledCourses?.some(
       (c) => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
     );
@@ -536,7 +568,7 @@ router.post('/:id/video-token', protect, async (req, res) => {
         videoUrl,
         exp: Math.floor(Date.now() / 1000) + (2 * 60 * 60)
       },
-      process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027'
+      getJwtSecret()
     );
 
     res.json({

@@ -6,7 +6,8 @@ window.StudentsModule = {
 
     async render() {
         try {
-            const users = await API.getUsers();
+            const res = await API.getUsers();
+            const users = Array.isArray(res) ? res : (res?.users || []);
             this.state.users = users;
 
             return `

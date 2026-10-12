@@ -16,8 +16,9 @@ router.post('/free', protect, async (req, res) => {
     // Check if it's a course
     let course = await Course.findById(itemId);
     if (course) {
-      // Check if free
-      if (course.price > 0 && !course.isFree) {
+      // Check strictly if free
+      const isCourseFree = course.isFree === true || course.price === 0;
+      if (!isCourseFree) {
         return res.status(400).json({ message: 'This course is not free' });
       }
 
@@ -25,7 +26,7 @@ router.post('/free', protect, async (req, res) => {
       
       // Check if already enrolled
       const alreadyEnrolled = user.enrolledCourses.some(
-        c => c.courseId.toString() === itemId
+        c => (c.courseId?._id || c.courseId)?.toString() === itemId.toString()
       );
       
       if (alreadyEnrolled) {
@@ -50,8 +51,9 @@ router.post('/free', protect, async (req, res) => {
     // Check if it's an event
     let event = await Event.findById(itemId);
     if (event) {
-      // Check if free
-      if (event.price > 0 && !event.isFree) {
+      // Check strictly if free
+      const isEventFree = event.isFree === true || event.price === 0;
+      if (!isEventFree) {
         return res.status(400).json({ message: 'This event is not free' });
       }
 
@@ -59,7 +61,7 @@ router.post('/free', protect, async (req, res) => {
       
       // Check if already registered
       const alreadyRegistered = user.enrolledEvents.some(
-        e => e.eventId.toString() === itemId
+        e => (e.eventId?._id || e.eventId)?.toString() === itemId.toString()
       );
       
       if (alreadyRegistered) {

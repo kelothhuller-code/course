@@ -1,5 +1,20 @@
 const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
 
+// Automatically include credentials (httpOnly cookies) for all API requests
+if (typeof window !== 'undefined' && window.fetch) {
+  const originalFetch = window.fetch;
+  window.fetch = function (resource, init = {}) {
+    const urlStr = typeof resource === 'string' ? resource : resource?.url || '';
+    if (urlStr.includes('/api') || urlStr.startsWith(BASE_URL)) {
+      return originalFetch.call(this, resource, {
+        credentials: 'include',
+        ...init,
+      });
+    }
+    return originalFetch.apply(this, arguments);
+  };
+}
+
 const getHeaders = () => {
   const headers = {
     'Content-Type': 'application/json',
@@ -21,6 +36,18 @@ const handleResponse = async (response) => {
 
 export const api = {
   // Authentication
+  logout: async () => {
+    try {
+      await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+    } catch (e) {
+      // ignore network issues
+    }
+    localStorage.removeItem('token');
+  },
+
   login: async (email, password) => {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
@@ -304,17 +331,40 @@ export const api = {
     return handleResponse(res);
   },
 
-  // Admin: User Management
-  adminGetUsers: async () => {
-    const res = await fetch(`${BASE_URL}/admin/users`, {
+  // Admin: User Management with pagination and search
+  adminGetUsers: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const url = query ? `${BASE_URL}/admin/users?${query}` : `${BASE_URL}/admin/users`;
+    const res = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
     return handleResponse(res);
   },
 
-  adminGetTransactions: async () => {
-    const res = await fetch(`${BASE_URL}/admin/transactions`, {
+  adminGetTransactions: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const url = query ? `${BASE_URL}/admin/transactions?${query}` : `${BASE_URL}/admin/transactions`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  adminGetGstBills: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const url = query ? `${BASE_URL}/admin/gst/bills?${query}` : `${BASE_URL}/admin/gst/bills`;
+    const res = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
@@ -521,8 +571,13 @@ export const api = {
     return handleResponse(res);
   },
 
-  getMyInvoices: async () => {
-    const res = await fetch(`${BASE_URL}/payment/my-invoices`, {
+  getMyInvoices: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const url = query ? `${BASE_URL}/payment/my-invoices?${query}` : `${BASE_URL}/payment/my-invoices`;
+    const res = await fetch(url, {
       headers: getHeaders()
     });
     return handleResponse(res);

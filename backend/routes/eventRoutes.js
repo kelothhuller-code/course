@@ -2,16 +2,17 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import Event from '../models/Event.js';
 import User from '../models/User.js';
-import { protect, admin } from '../middleware/auth.js';
+import { protect, admin, isUserAdmin } from '../middleware/auth.js';
+import { getJwtSecret } from '../utils/jwtSecret.js';
 
 const router = express.Router();
 
 // Helper to check user enrollment / admin and return details
 const processEventForUser = (event, user) => {
   const eventObj = event.toObject();
-  const isAdmin = user && user.role === 'admin';
-  const isEnrolled = user && user.enrolledEvents.some(
-    (e) => e.eventId.toString() === event._id.toString()
+  const isAdmin = isUserAdmin(user);
+  const isEnrolled = user && user.enrolledEvents?.some(
+    (e) => (e?.eventId?._id || e?.eventId)?.toString() === event._id.toString()
   );
 
   // If it's a free event, they still need to register to get the meeting link,
@@ -32,7 +33,7 @@ router.get('/', async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer')) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027');
+        const decoded = jwt.verify(token, getJwtSecret());
         user = await User.findById(decoded.id);
       } catch (err) {
         // Token invalid, treat as guest
@@ -59,7 +60,7 @@ router.get('/:id', async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer')) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkeyforwidetechnos2027');
+        const decoded = jwt.verify(token, getJwtSecret());
         user = await User.findById(decoded.id);
       } catch (err) {
         // Token invalid
@@ -134,9 +135,9 @@ router.get('/:id/access', protect, async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
-    const isAdmin = user.role === 'admin';
-    const isEnrolled = user.enrolledEvents.some(
-      (e) => e.eventId.toString() === event._id.toString()
+    const isAdmin = isUserAdmin(user);
+    const isEnrolled = user && user.enrolledEvents?.some(
+      (e) => (e?.eventId?._id || e?.eventId)?.toString() === event._id.toString()
     );
 
     if (!isEnrolled && !isAdmin) {
@@ -199,8 +200,13 @@ router.post('/:id/register-free', protect, async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.enrolledEvents) user.enrolledEvents = [];
     const isEnrolled = user.enrolledEvents.some(
-      (e) => e.eventId.toString() === event._id.toString()
+      (e) => (e?.eventId?._id || e?.eventId)?.toString() === event._id.toString()
     );
 
     if (isEnrolled) {

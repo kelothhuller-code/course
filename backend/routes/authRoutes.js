@@ -17,22 +17,42 @@ const generateToken = (id, tokenVersion = 0) => {
   });
 };
 
+const setAuthCookie = (res, token) => {
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+};
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 router.post('/register', async (req, res) => {
   const { name, email, password, referralCode } = req.body;
 
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ message: 'Name is required' });
+  }
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ message: 'A valid email address is required' });
+  }
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: cleanEmail });
 
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Check if this is the first user in the system. If so, make them admin.
-    const isFirstUser = (await User.countDocuments({})) === 0;
-    const role = isFirstUser ? 'admin' : 'user';
+    // All publicly registered accounts are strictly regular users
+    const role = 'user';
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -48,8 +68,8 @@ router.post('/register', async (req, res) => {
     const newReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: cleanEmail,
       password: hashedPassword,
       role,
       referralCode: newReferralCode,
@@ -60,12 +80,15 @@ router.post('/register', async (req, res) => {
       // Send welcome email (asynchronous, non-blocking)
       sendRegistrationEmail(user.email, user.name);
 
+      const token = generateToken(user._id);
+      setAuthCookie(res, token);
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
+        token,
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -84,38 +107,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getAdminCredentials = () => {
-  let email = '';
-  let pass = '';
+  let email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  let pass = (process.env.ADMIN_PASSWORD || '').trim();
 
-  // 1. Prioritize reading backend/.env directly from disk to avoid in-memory process.env staleness
-  try {
-    const envPath = path.join(__dirname, '..', '.env');
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, 'utf8');
-      const emailMatch = envContent.match(/^\s*ADMIN_EMAIL\s*=\s*([^\r\n]+)/m);
-      const passMatch = envContent.match(/^\s*ADMIN_PASSWORD\s*=\s*([^\r\n]+)/m);
-      if (emailMatch && emailMatch[1]) {
-        email = emailMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase();
+  // Also read backend/.env directly from disk if process.env is empty
+  if (!email || !pass) {
+    try {
+      const envPath = path.join(__dirname, '..', '.env');
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const emailMatch = envContent.match(/^\s*ADMIN_EMAIL\s*=\s*([^\r\n]+)/m);
+        const passMatch = envContent.match(/^\s*ADMIN_PASSWORD\s*=\s*([^\r\n]+)/m);
+        if (!email && emailMatch && emailMatch[1]) {
+          email = emailMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase();
+        }
+        if (!pass && passMatch && passMatch[1]) {
+          pass = passMatch[1].trim().replace(/^["']|["']$/g, '');
+        }
       }
-      if (passMatch && passMatch[1]) {
-        pass = passMatch[1].trim().replace(/^["']|["']$/g, '');
-      }
+    } catch (e) {
+      console.warn('Could not read backend/.env directly:', e.message);
     }
-  } catch (e) {
-    console.warn('Could not read backend/.env directly:', e.message);
   }
-
-  // 2. Fall back to process.env if not found on disk
-  if (!email && process.env.ADMIN_EMAIL) {
-    email = process.env.ADMIN_EMAIL.trim().replace(/^["']|["']$/g, '').toLowerCase();
-  }
-  if (!pass && process.env.ADMIN_PASSWORD) {
-    pass = process.env.ADMIN_PASSWORD.trim().replace(/^["']|["']$/g, '');
-  }
-
-  // 3. Fall back to configured unguessable master credentials
-  if (!email) email = 'hq-master-control@widetech.in';
-  if (!pass) pass = '7nBKNdCmBGKelOI3mA3CSg!#939';
 
   return { email, pass };
 };
@@ -134,13 +147,13 @@ router.post('/login', async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanPassword = typeof password === 'string' ? password.trim() : password;
 
-    // 1. Check for master super admin credentials (configured, fallback, or legacy)
-    const isMasterAdmin = 
-      (cleanEmail === adminEmail && cleanPassword === adminPassword) ||
-      (cleanEmail === 'hq-master-control@widetech.in' && cleanPassword === '7nBKNdCmBGKelOI3mA3CSg!#939') ||
-      (cleanEmail === 'admin@admin.com' && cleanPassword === 'admin123');
-
-    console.log(`[Admin Login Attempt] Input: "${cleanEmail}" | Configured: "${adminEmail}" | Match: ${isMasterAdmin}`);
+    // Check strictly against configured .env admin credentials
+    const isMasterAdmin = Boolean(
+      adminEmail &&
+      adminPassword &&
+      cleanEmail === adminEmail &&
+      cleanPassword === adminPassword
+    );
 
     if (isMasterAdmin) {
       let superAdmin = await User.findOne({ email: cleanEmail });
@@ -160,28 +173,37 @@ router.post('/login', async (req, res) => {
         await superAdmin.save();
       }
 
+      const token = generateToken(superAdmin._id);
+      setAuthCookie(res, token);
+
       return res.json({
         _id: superAdmin._id,
         name: superAdmin.name,
         email: superAdmin.email,
         role: superAdmin.role,
-        token: generateToken(superAdmin._id),
+        token,
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: cleanEmail });
 
     if (user && (await bcrypt.compare(password, user.password))) {
       // Invalidate any previous concurrent sessions (F2)
       user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save();
 
+      // Admin role is strictly controlled by .env ADMIN_EMAIL
+      const effectiveRole = (cleanEmail === adminEmail && user.role === 'admin') ? 'admin' : 'user';
+
+      const token = generateToken(user._id, user.tokenVersion);
+      setAuthCookie(res, token);
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        token: generateToken(user._id, user.tokenVersion),
+        role: effectiveRole,
+        token,
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -216,24 +238,53 @@ router.get('/profile', protect, async (req, res) => {
   }
 });
 
-// Forgot password: request OTP (max once per 7 days)
+// @desc    Logout user and clear auth cookie
+// @route   POST /api/auth/logout
+// @access  Public
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+  });
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Forgot password: request OTP (60s cooldown, max 5 per hour)
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: 'Email is required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    // Rate limit: allow only once per 7 days
+
     const now = new Date();
-    if (user.lastForgotAttempt && now - user.lastForgotAttempt < 7 * 24 * 60 * 60 * 1000) {
-      return res.status(429).json({ message: 'Password reset already requested. Please try again later.' });
+
+    // 1. Short cooldown: 60 seconds between resend attempts
+    if (user.lastForgotAttempt && (now - user.lastForgotAttempt) < 60 * 1000) {
+      const waitSeconds = Math.ceil((60 * 1000 - (now - user.lastForgotAttempt)) / 1000);
+      return res.status(429).json({ message: `Please wait ${waitSeconds} seconds before requesting another code.` });
     }
+
+    // 2. Hourly rate limit: Max 5 OTP requests per hour
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    if (!user.forgotRequestWindow || user.forgotRequestWindow < oneHourAgo) {
+      user.forgotRequestWindow = now;
+      user.forgotRequestCount = 0;
+    }
+    if (user.forgotRequestCount >= 5) {
+      return res.status(429).json({ message: 'Too many password reset requests. Please try again after an hour.' });
+    }
+    user.forgotRequestCount = (user.forgotRequestCount || 0) + 1;
+
     // Generate 6‑digit numeric OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.forgotPasswordOTP = otp;
     user.forgotPasswordExpires = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
+    user.forgotPasswordAttempts = 0; // Reset failed attempts counter on new OTP
     user.lastForgotAttempt = now;
     await user.save();
+
     // Send OTP email
     const emailHtml = `
       <p>Hi ${user.name || ''},</p>
@@ -252,25 +303,54 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// Reset password with OTP
+// Reset password with OTP (Brute-force protection: Max 5 failed attempts)
 router.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword) return res.status(400).json({ message: 'Missing fields' });
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+  }
   try {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (!user.forgotPasswordOTP || user.forgotPasswordOTP !== otp) {
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
+
+    // Check if OTP attempts exceeded
+    if (user.forgotPasswordAttempts >= 5) {
+      user.forgotPasswordOTP = undefined;
+      user.forgotPasswordExpires = undefined;
+      user.forgotPasswordAttempts = 0;
+      await user.save();
+      return res.status(400).json({ message: 'Maximum OTP verification attempts exceeded. Please request a new code.' });
     }
+
     if (!user.forgotPasswordExpires || user.forgotPasswordExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP has expired' });
+      return res.status(400).json({ message: 'OTP has expired. Please request a new code.' });
     }
+
+    if (!user.forgotPasswordOTP || user.forgotPasswordOTP !== String(otp).trim()) {
+      user.forgotPasswordAttempts = (user.forgotPasswordAttempts || 0) + 1;
+      const reachedMax = user.forgotPasswordAttempts >= 5;
+      if (reachedMax) {
+        user.forgotPasswordOTP = undefined;
+        user.forgotPasswordExpires = undefined;
+      }
+      await user.save();
+      const remaining = 5 - user.forgotPasswordAttempts;
+      return res.status(400).json({
+        message: remaining > 0
+          ? `Invalid OTP code. You have ${remaining} attempts remaining.`
+          : 'Invalid OTP code. Maximum attempts exceeded. The code has been invalidated. Please request a new code.'
+      });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashed = await bcrypt.hash(newPassword, salt);
     user.password = hashed;
-    // Clear OTP fields
+
+    // Clear OTP and rate-limiting fields
     user.forgotPasswordOTP = undefined;
     user.forgotPasswordExpires = undefined;
+    user.forgotPasswordAttempts = 0;
     user.lastForgotAttempt = undefined;
     await user.save();
     res.json({ message: 'Password has been reset successfully' });

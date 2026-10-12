@@ -4,7 +4,7 @@ import Software from '../models/Software.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, isUserAdmin } from '../middleware/auth.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -115,7 +115,17 @@ router.post('/:id/unlock', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Software not found' });
     }
 
-    const user = await User.findById(req.user.id);
+    const isFree = software.price === 0 || software.isFree;
+    const isAdmin = isUserAdmin(req.user);
+
+    if (!isFree && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'This is a commercial software product. Please complete purchase checkout to unlock.'
+      });
+    }
+
+    const user = await User.findById(req.user.id || req.user._id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -145,27 +155,53 @@ router.post('/:id/unlock', authenticateToken, async (req, res) => {
   }
 });
 
-// GET download software package file from server folder
-router.get('/:id/download', async (req, res) => {
+// GET download software package file from server folder (Protected: Requires Purchase, Admin, or Free)
+router.get('/:id/download', authenticateToken, async (req, res) => {
   try {
     const software = await Software.findById(req.params.id);
     if (!software) {
       return res.status(404).json({ success: false, message: 'Software product not found' });
     }
 
+    const user = req.user;
+    const isAdmin = isUserAdmin(user);
+    const isFree = software.price === 0 || software.isFree;
+    const isPurchased = user.purchasedSoftware?.some(
+      p => p.softwareId?.toString() === software._id.toString()
+    );
+
+    if (!isAdmin && !isFree && !isPurchased) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You must purchase or unlock this software product before downloading.'
+      });
+    }
+
+    const privateDir = path.join(__dirname, '..', 'private_storage', 'software');
+    const safeBaseName = (name) => path.basename(name);
+
     if (software.fileName) {
-      const filePath = path.join(softwareUploadDir, path.basename(software.fileName));
-      if (fs.existsSync(filePath)) {
-        return res.download(filePath, software.fileName);
+      const fileName = safeBaseName(software.fileName);
+      const privatePath = path.join(privateDir, fileName);
+      if (fs.existsSync(privatePath)) {
+        return res.download(privatePath, fileName);
+      }
+      const publicPath = path.join(softwareUploadDir, fileName);
+      if (fs.existsSync(publicPath)) {
+        return res.download(publicPath, fileName);
       }
     }
 
     if (software.downloadUrl) {
       if (software.downloadUrl.startsWith('/uploads/software/')) {
-        const localName = path.basename(software.downloadUrl);
-        const filePath = path.join(softwareUploadDir, localName);
-        if (fs.existsSync(filePath)) {
-          return res.download(filePath, localName);
+        const localName = safeBaseName(software.downloadUrl);
+        const privatePath = path.join(privateDir, localName);
+        if (fs.existsSync(privatePath)) {
+          return res.download(privatePath, localName);
+        }
+        const publicPath = path.join(softwareUploadDir, localName);
+        if (fs.existsSync(publicPath)) {
+          return res.download(publicPath, localName);
         }
       }
       return res.redirect(software.downloadUrl);

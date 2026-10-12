@@ -15,7 +15,7 @@ export const getCertificates = async (req, res) => {
 
   } catch (error) {
     console.error('Get certificates error:', error);
-    res.status(500).json({ error: 'Failed to fetch certificates' });
+    res.status(500).json({ success: false, message: 'Failed to fetch certificates' });
   }
 };
 
@@ -27,14 +27,14 @@ export const getCertificateByCourse = async (req, res) => {
 
     const certificate = await Certificate.findOne({ userId, courseId });
     if (!certificate) {
-      return res.status(404).json({ error: 'Certificate not found' });
+      return res.status(404).json({ success: false, message: 'Certificate not found' });
     }
 
     res.json({ certificate });
 
   } catch (error) {
     console.error('Get certificate error:', error);
-    res.status(500).json({ error: 'Failed to fetch certificate' });
+    res.status(500).json({ success: false, message: 'Failed to fetch certificate' });
   }
 };
 
@@ -67,7 +67,7 @@ export const verifyCertificate = async (req, res) => {
 
   } catch (error) {
     console.error('Verify certificate error:', error);
-    res.status(500).json({ error: 'Failed to verify certificate' });
+    res.status(500).json({ success: false, message: 'Failed to verify certificate' });
   }
 };
 
@@ -119,7 +119,7 @@ export const generateCertificate = async (req, res) => {
     const { userId, courseId } = req.body;
 
     if (!userId || !courseId) {
-      return res.status(400).json({ error: 'userId and courseId are required' });
+      return res.status(400).json({ success: false, message: 'userId and courseId are required' });
     }
 
     const certificate = await createCertificateForUser(userId, courseId);
@@ -131,6 +131,6 @@ export const generateCertificate = async (req, res) => {
 
   } catch (error) {
     console.error('Generate certificate error:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate certificate' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to generate certificate' });
   }
 };
