@@ -107,17 +107,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getAdminCredentials = () => {
-  let email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  let pass = (process.env.ADMIN_PASSWORD || '').trim();
+  let email = '';
+  let pass = '';
 
-  // Also read backend/.env directly from disk if process.env is empty
-  if (!email || !pass) {
+  const envPaths = [
+    path.join(__dirname, '..', '.env'),
+    path.join(process.cwd(), 'backend', '.env'),
+    path.join(process.cwd(), '.env'),
+    path.join(__dirname, '..', '..', '.env')
+  ];
+
+  for (const envPath of envPaths) {
     try {
-      const envPath = path.join(__dirname, '..', '.env');
       if (fs.existsSync(envPath)) {
         const envContent = fs.readFileSync(envPath, 'utf8');
-        const emailMatch = envContent.match(/^\s*ADMIN_EMAIL\s*=\s*([^\r\n]+)/m);
-        const passMatch = envContent.match(/^\s*ADMIN_PASSWORD\s*=\s*([^\r\n]+)/m);
+        const emailMatch = envContent.match(/^\s*ADMIN_EMAIL\s*=\s*(.+)$/m);
+        const passMatch = envContent.match(/^\s*ADMIN_PASSWORD\s*=\s*(.+)$/m);
         if (!email && emailMatch && emailMatch[1]) {
           email = emailMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase();
         }
@@ -126,9 +131,13 @@ const getAdminCredentials = () => {
         }
       }
     } catch (e) {
-      console.warn('Could not read backend/.env directly:', e.message);
+      // ignore
     }
+    if (email && pass) break;
   }
+
+  if (!email) email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  if (!pass) pass = (process.env.ADMIN_PASSWORD || '').trim().replace(/^["']|["']$/g, '');
 
   return { email, pass };
 };

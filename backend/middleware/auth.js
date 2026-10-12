@@ -64,8 +64,36 @@ export const optionalAuth = async (req, res, next) => {
   next();
 };
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const getAdminEmail = () => {
-  return (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  let email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  if (!email) {
+    const envPaths = [
+      path.join(__dirname, '..', '.env'),
+      path.join(process.cwd(), 'backend', '.env'),
+      path.join(process.cwd(), '.env'),
+      path.join(__dirname, '..', '..', '.env')
+    ];
+    for (const envPath of envPaths) {
+      try {
+        if (fs.existsSync(envPath)) {
+          const content = fs.readFileSync(envPath, 'utf8');
+          const m = content.match(/^\s*ADMIN_EMAIL\s*=\s*(.+)$/m);
+          if (m && m[1]) {
+            email = m[1].trim().replace(/^["']|["']$/g, '').toLowerCase();
+            if (email) break;
+          }
+        }
+      } catch {}
+    }
+  }
+  return email;
 };
 
 export const isUserAdmin = (user) => {
