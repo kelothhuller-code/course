@@ -19,7 +19,7 @@ window.CoursesModule = {
 
         if (courseId) {
             try {
-                const data = await API.get(`/api/courses/${courseId}`);
+                const data = await API.get(`/api/admin/courses/${courseId}/content`).catch(() => API.get(`/api/courses/${courseId}`));
                 course = data.course || data;
             } catch (error) {
                 return Renderers.errorMessage('Failed to load course: ' + error.message);
@@ -361,6 +361,18 @@ window.CoursesModule = {
             const fileUrl = data.url || data.fullUrl;
             if (targetInput) targetInput.value = fileUrl;
 
+            // Live badge for uploaded file
+            let attachedBadge = formGroup ? formGroup.querySelector('.chapter-attached-badge') : null;
+            if (!attachedBadge && formGroup) {
+                attachedBadge = document.createElement('div');
+                attachedBadge.className = 'chapter-attached-badge';
+                attachedBadge.style = 'font-size:0.78rem; color:var(--text-main); margin-top:5px; background:rgba(99,102,241,0.12); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;';
+                formGroup.appendChild(attachedBadge);
+            }
+            if (attachedBadge) {
+                attachedBadge.innerHTML = `<span>📎 Attached:</span> <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:underline;">${data.fileName || file.name}</a>`;
+            }
+
             if (statusText) {
                 statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
             }
@@ -425,6 +437,18 @@ window.CoursesModule = {
 
             const fileUrl = data.url || data.fullUrl;
             if (linkInput) linkInput.value = fileUrl;
+
+            // Live badge for uploaded material
+            let attachedBadge = row ? row.querySelector('.material-attached-badge') : null;
+            if (!attachedBadge && row) {
+                attachedBadge = document.createElement('div');
+                attachedBadge.className = 'material-attached-badge';
+                attachedBadge.style = 'font-size:0.74rem; color:var(--text-muted); width:100%; margin-top:4px; padding-left:4px;';
+                row.appendChild(attachedBadge);
+            }
+            if (attachedBadge) {
+                attachedBadge.innerHTML = `<span>Attached file:</span> <a href="${fileUrl}" target="_blank" style="color:var(--primary); font-weight:500; text-decoration:underline;">${data.fileName || file.name}</a>`;
+            }
 
             if (statusText) {
                 statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
@@ -508,7 +532,7 @@ window.CoursesModule = {
 
         let course;
         try {
-            const data = await API.get(`/api/courses/${courseId}`);
+            const data = await API.get(`/api/admin/courses/${courseId}/content`).catch(() => API.get(`/api/courses/${courseId}`));
             course = data.course || data;
         } catch (error) {
             return Renderers.errorMessage('Failed to load course: ' + error.message);
@@ -595,6 +619,13 @@ window.CoursesModule = {
                         </button>
                         <input type="text" class="form-control chapter-drive" value="${ch.driveLink || ''}" placeholder="or paste Drive / Material URL" style="flex:1; min-width:220px;">
                     </div>
+                    ${ch.driveLink ? `
+                    <div style="font-size:0.78rem; color:var(--text-main); margin-top:5px; background:rgba(99,102,241,0.12); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;">
+                        <span>📎 Attached:</span>
+                        <a href="${ch.driveLink}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:underline;">
+                            ${decodeURIComponent(ch.driveLink.split('/').pop().split('?')[0])}
+                        </a>
+                    </div>` : ''}
                     <!-- Upload Progression -->
                     <div class="chapter-upload-progress" style="display:none; margin-top:6px;">
                         <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:3px;">
@@ -644,6 +675,13 @@ window.CoursesModule = {
                 </button>
                 <input type="text" class="form-control material-link" placeholder="Material URL / Server path" value="${material.link || ''}" style="flex:2; min-width:200px;">
                 <button type="button" class="btn btn-danger" style="padding:8px 12px;" onclick="this.closest('.material-row').remove()">✕</button>
+                ${material.link ? `
+                <div style="font-size:0.74rem; color:var(--text-muted); width:100%; margin-top:4px; padding-left:4px;">
+                    <span>Attached file:</span>
+                    <a href="${material.link}" target="_blank" style="color:var(--primary); font-weight:500; text-decoration:underline;">
+                        ${decodeURIComponent(material.link.split('/').pop().split('?')[0])}
+                    </a>
+                </div>` : ''}
 
                 <!-- Real-time Progress Bar for Material -->
                 <div class="material-upload-progress" style="display:none; width:100%; margin-top:6px;">
@@ -778,8 +816,8 @@ window.CoursesModule = {
 
             if (result.success || result._id) {
                 alert('Content saved successfully!');
-                // Reload course
-                const data = await API.get(`/api/courses/${courseId}`);
+                // Reload course with full content
+                const data = await API.get(`/api/admin/courses/${courseId}/content`).catch(() => API.get(`/api/courses/${courseId}`));
                 this.state.currentCourse = data.course || data;
                 App.navigateTo('course-content', courseId);
             } else {

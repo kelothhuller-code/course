@@ -225,7 +225,36 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    // Create an outline version (hide videoUrl, driveLink, and downloadable material URLs for unenrolled visitors)
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    // Check if requester is authenticated admin or enrolled student
+    let isAdmin = false;
+    let isEnrolled = false;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, getJwtSecret());
+        const user = await User.findById(decoded.id);
+        if (user) {
+          isAdmin = isUserAdmin(user);
+          isEnrolled = user.enrolledCourses?.some(
+            c => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
+          );
+        }
+      } catch (err) {
+        // Token invalid, treat as guest
+      }
+    }
+
+    // If requester is Admin, enrolled student, or course is completely free: Return full unredacted course!
+    if (isAdmin || isEnrolled || course.isFree) {
+      const fullCourse = course.toObject();
+      fullCourse.salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
+      return res.json(fullCourse);
+    }
+
+    // For unenrolled public visitors: Redact sensitive video/drive/material links
     const outline = course.toObject();
     if (outline.content) {
       outline.content.forEach(lang => {
@@ -244,7 +273,6 @@ router.get('/:id', async (req, res) => {
         }
       });
     }
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     outline.salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
 
     res.json(outline);
