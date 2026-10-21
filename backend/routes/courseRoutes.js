@@ -25,7 +25,6 @@ const router = express.Router();
 // GET /api/courses - Get courses with pagination
 router.get('/', async (req, res) => {
   try {
-    console.log(req.query)
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 9;
     const skip = (page - 1) * limit;

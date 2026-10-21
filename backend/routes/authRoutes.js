@@ -147,7 +147,8 @@ const getAdminCredentials = () => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
+  // Non-string values (e.g. JSON objects) used to crash on email.toLowerCase() with a 500
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ message: 'Please provide both email and password.' });
   }
 

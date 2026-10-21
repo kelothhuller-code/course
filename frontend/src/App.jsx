@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api';
 import tracker from './utils/tracker';
+import LoadingSpinner from './components/LoadingSpinner';
 
-// Pages
+// The landing page is loaded eagerly (first thing most visitors see);
+// every other route is code-split so the landing bundle stays small.
 import LandingPage from './pages/LandingPage';
-import AuthPage from './pages/AuthPage';
-import Dashboard from './pages/Dashboard';
-import CourseViewer from './pages/CourseViewer';
-import Checkout from './pages/Checkout';
-import CertificateVerify from './pages/CertificateVerify';
-import AllCoursesPage from './pages/AllCoursesPage';
-import CoursePreview from './pages/CoursePreview';
-import CourseSalesPage from './pages/CourseSalesPage';
-import EventViewer from './pages/EventViewer';
-import TermsPage from './pages/TermsPage';
-import PrivacyPage from './pages/PrivacyPage';
-import RefundPage from './pages/RefundPage';
-import ContactPage from './pages/ContactPage';
-import WhatsAppButton from './components/WhatsAppButton';
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CourseViewer = lazy(() => import('./pages/CourseViewer'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
+const AllCoursesPage = lazy(() => import('./pages/AllCoursesPage'));
+const CourseSalesPage = lazy(() => import('./pages/CourseSalesPage'));
+const EventViewer = lazy(() => import('./pages/EventViewer'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const RefundPage = lazy(() => import('./pages/RefundPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 
 
 function AppContent() {
@@ -65,7 +65,7 @@ function AppContent() {
   const handleLogout = async () => {
     try {
       await api.logout();
-    } catch (e) {
+    } catch {
       localStorage.removeItem('token');
     }
     setUser(null);
@@ -81,7 +81,7 @@ function AppContent() {
       setMockPaymentData(null);
       await refreshUser();
       const redirectPath = response.redirectUrl 
-        ? response.redirectUrl.replace(/^https?:\/\/[^\/]+/, '') 
+        ? response.redirectUrl.replace(/^https?:\/\/[^/]+/, '') 
         : '/dashboard';
       navigate(redirectPath);
     } catch (err) {
@@ -104,6 +104,7 @@ function AppContent() {
       
 
       <main style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+        <Suspense fallback={<LoadingSpinner fullScreen />}>
         <Routes>
           <Route path="/" element={<LandingPage user={user} onOpenMockPayment={setMockPaymentData} />} />
           <Route path="/auth" element={<AuthPage user={user} onLogout={handleLogout} onLoginSuccess={handleLoginSuccess} />} />
@@ -127,6 +128,7 @@ function AppContent() {
           <Route path="/contact" element={<ContactPage user={user} />} />
 
         </Routes>
+        </Suspense>
       </main>
 
 
@@ -171,8 +173,9 @@ function AppContent() {
         </div>
       )}
 
-      {/* Persistent Floating WhatsApp Desk */}
-      <WhatsAppButton />
+      {/* The floating WhatsApp button was removed on purpose: the owner prefers enquiries
+          via the on-page form/email. A single small WhatsApp link lives in the enquiry
+          section (number configured via VITE_WHATSAPP_NUMBER, see src/config/site.js). */}
     </div>
   );
 }

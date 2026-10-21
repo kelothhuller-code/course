@@ -1,40 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import EnquiryForm from '../components/EnquiryForm';
 import NavHeader from './NavHeader';
 import Footer from './Landing/Footer';
 import './LegalPage.css';
 
 export default function ContactPage({ user }) {
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    subject: 'Course Inquiry',
-    message: ''
-  });
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) return;
-
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      await api.submitContactForm(formData);
-      setSubmitted(true);
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to submit your message. Please try again or email us directly.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="legal-page-wrapper">
@@ -83,79 +57,9 @@ export default function ContactPage({ user }) {
           <h2>Send Us a Message</h2>
           <p>Fill out the form below and our educational advisory team will get back to you promptly:</p>
 
-          {submitted ? (
-            <div className="legal-highlight-box" style={{ background: '#f0fdf4', borderLeftColor: '#22c55e', color: '#166534' }}>
-              <strong>Thank you for reaching out!</strong><br />
-              Your message has been received. Our team will review your inquiry and reply to <strong>{formData.email}</strong> within 24 hours.
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#334155' }}>Your Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Rahul Sharma"
-                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#334155' }}>Your Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="e.g. rahul@example.com"
-                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#334155' }}>Subject / Topic</label>
-                <select
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', background: '#fff' }}
-                >
-                  <option value="Course Inquiry">Course & Curriculum Inquiry</option>
-                  <option value="Payment & Billing">Payment, Invoices & Billing Support</option>
-                  <option value="Workshop Question">Workshop & Live Event Inquiry</option>
-                  <option value="Technical Support">Technical & Login Support</option>
-                  <option value="Partnership">Affiliate & Institutional Partnership</option>
-                  <option value="Other">Other Question</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#334155' }}>Message</label>
-                <textarea
-                  rows="4"
-                  required
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  placeholder="How can we help you today?"
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', resize: 'vertical' }}
-                />
-              </div>
-
-              {errorMsg && (
-                <div style={{ color: '#ef4444', fontSize: '0.85rem', background: '#fef2f2', padding: '0.6rem 0.8rem', borderRadius: '6px' }}>
-                  {errorMsg}
-                </div>
-              )}
-
-              <div>
-                <button type="submit" disabled={loading} className="btn btn-primary btn-md" style={{ padding: '0.75rem 2rem', fontWeight: 700 }}>
-                  {loading ? 'Sending...' : 'Send Inquiry →'}
-                </button>
-              </div>
-            </form>
-          )}
+          <div style={{ marginTop: '1.5rem' }}>
+            <EnquiryForm user={user} source="contact_page" />
+          </div>
 
           <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
             <h3>Registered Business Details</h3>

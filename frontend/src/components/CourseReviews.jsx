@@ -152,14 +152,15 @@ export default function CourseReviews({ courseId, user }) {
         </form>
       )}
 
-      {/* Aggregate Stats Summary */}
+      {/* Aggregate Stats Summary — only shown once real reviews exist (no fake default rating) */}
+      {stats.totalReviews > 0 && (
       <div className="reviews-stats-card">
         <div className="reviews-score-box">
           <div className="reviews-score-num">
-            {stats.avgRating || '4.9'}
+            {stats.avgRating}
           </div>
           <div className="reviews-score-stars">
-            {renderStars(Math.round(stats.avgRating || 5))}
+            {renderStars(Math.round(stats.avgRating || 0))}
           </div>
           <div className="reviews-score-count">
             {stats.totalReviews} Verified Review{stats.totalReviews === 1 ? '' : 's'}
@@ -169,7 +170,7 @@ export default function CourseReviews({ courseId, user }) {
         <div className="reviews-bars-list">
           {[5, 4, 3, 2, 1].map((star) => {
             const count = stats.distribution[star] || 0;
-            const pct = stats.totalReviews > 0 ? Math.round((count / stats.totalReviews) * 100) : (star === 5 ? 100 : 0);
+            const pct = Math.round((count / stats.totalReviews) * 100);
             return (
               <div key={star} className="reviews-bar-row">
                 <span className="reviews-bar-label">{star} ★</span>
@@ -182,6 +183,7 @@ export default function CourseReviews({ courseId, user }) {
           })}
         </div>
       </div>
+      )}
 
       {/* Review Cards List */}
       {loading ? (

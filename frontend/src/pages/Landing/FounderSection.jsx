@@ -42,8 +42,12 @@ export default function FounderSection() {
                 overflow: 'hidden'
               }}>
                 <img 
-                  src="/founder.PNG" 
-                  alt="Founder of WIDETECH" 
+                  src="/founder.webp"
+                  width="140"
+                  height="140"
+                  loading="lazy"
+                  decoding="async" 
+                  alt="Broffy, founder of WIDETECH" 
                   style={{
                     width: '100%',
                     height: '100%',

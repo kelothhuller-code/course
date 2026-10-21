@@ -5,7 +5,7 @@ export default function TrustBadges({ compact = false }) {
     {
       icon: '🛡️',
       title: '100% Secure Checkout',
-      desc: '256-bit SSL encrypted payment via Razorpay / Cards / UPI'
+      desc: 'Encrypted payment via Razorpay — UPI, cards & more'
     },
     {
       icon: '📜',
@@ -15,7 +15,7 @@ export default function TrustBadges({ compact = false }) {
     {
       icon: '🎓',
       title: 'Verifiable Certificate',
-      desc: 'Earn an accredited digital certificate upon 100% completion'
+      desc: 'Earn a verifiable digital certificate upon 100% completion'
     },
     {
       icon: '💬',
@@ -64,7 +64,8 @@ export default function TrustBadges({ compact = false }) {
         marginBottom: '1.5rem',
         letterSpacing: '-0.02em'
       }}>
-        Why 10,000+ Students Trust Our Platform
+        {/* TODO(owner): only add a learner count here if it is a real, verifiable number */}
+        Why Learners Trust WideTech
       </h3>
       <div style={{
         display: 'grid',

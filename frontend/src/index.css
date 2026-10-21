@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+/* Google Fonts are linked from index.html (with preconnect) to avoid a render-blocking @import chain */
 
 :root {
   /* Color Palette - Modern Light Theme */

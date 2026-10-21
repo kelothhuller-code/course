@@ -4,9 +4,7 @@ import { api } from '../api';
 
 // Import sub-components
 import Navbar from './Landing/Navbar';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Hero from './Landing/Hero';
-import TrustStrip from './Landing/TrustStrip';
 import FeaturedCourse from './Landing/FeaturedCourse';
 import BuildJourney from './Landing/BuildJourney';
 import CourseCurriculum from './Landing/CourseCurriculum';
@@ -17,17 +15,19 @@ import EventsSection from './Landing/EventsSection';
 import AudienceSection from './Landing/AudienceSection';
 import HowItWorks from './Landing/HowItWorks';
 import FounderSection from './Landing/FounderSection';
+import Testimonials from './Landing/Testimonials';
 import FAQ from './Landing/FAQ';
 import FinalCTA from './Landing/FinalCTA';
 import Footer from './Landing/Footer';
 import VideoModal from './Landing/VideoModal';
-import AdvancedCourses from './Landing/AdvancedCourses';
 import CourseGrid from './Landing/CourseGrid';
 import LeadMagnet from './Landing/LeadMagnet';
 import SoftwareShowcase from './Landing/SoftwareShowcase';
 import ServicesShowcase from './Landing/ServicesShowcase';
+import EnquirySection from './Landing/EnquirySection';
+import StickyBuyBar from './Landing/StickyBuyBar';
 
-export default function LandingPage({ user, onOpenMockPayment }) {
+export default function LandingPage({ user }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
   const [events, setEvents] = useState([]);
   const [trials, setTrials] = useState([]);
@@ -42,7 +42,6 @@ export default function LandingPage({ user, onOpenMockPayment }) {
   });
   const [showAllCourses, setShowAllCourses] = useState(false);
   const [featuredCourse, setFeaturedCourse] = useState(null);
-  const [hasSoftware, setHasSoftware] = useState(false);
   const [hasServices, setHasServices] = useState(false);
   const navigate = useNavigate();
 
@@ -66,31 +65,30 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     }
   };
 
-  // Fetch all data
+  // Fetch all data. Uses allSettled so one failing endpoint (e.g. events) no longer
+  // wipes out the whole page, and the page renders immediately instead of
+  // blocking behind a full-screen spinner until every request finishes.
   const fetchAllData = async () => {
+    const value = (r, fallback) => (r.status === 'fulfilled' && r.value ? r.value : fallback);
     try {
-      setLoading(true);
-      const [coursesData, eventsData, trialsData, featuredData, swData, svcData] = await Promise.all([
+      const results = await Promise.allSettled([
         api.getCourses(1, 3, false),
         api.getEvents(),
         api.getTrials(),
-        api.getFeaturedCourse().catch(() => ({ featuredCourse: null })),
-        api.getAllSoftware().catch(() => ({ softwares: [] })),
-        api.getAllServices().catch(() => ({ services: [] }))
+        api.getFeaturedCourse(),
+        api.getAllServices(),
       ]);
+      const coursesData = value(results[0], {});
+      const eventsData = value(results[1], []);
+      const trialsData = value(results[2], []);
+      const featuredData = value(results[3], { featuredCourse: null });
+      const svcData = value(results[4], { services: [] });
 
       const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
       setCourses(courseList);
 
       // Determine highlighted course: explicit backend featured course, or one marked isFeatured
-      if (featuredData && featuredData.featuredCourse) {
-        setFeaturedCourse(featuredData.featuredCourse);
-      } else {
-        const found = courseList.find(c => c.isFeatured) || null;
-        setFeaturedCourse(found);
-      }
-
-      setHasSoftware(Array.isArray(swData?.softwares) && swData.softwares.length > 0);
+      setFeaturedCourse(featuredData?.featuredCourse || courseList.find(c => c.isFeatured) || null);
       setHasServices(Array.isArray(svcData?.services) && svcData.services.length > 0);
 
       setPagination(coursesData.pagination || {
@@ -101,18 +99,10 @@ export default function LandingPage({ user, onOpenMockPayment }) {
         hasPrevPage: false
       });
       setShowAllCourses(coursesData.showAll || false);
-
-      // Ensure events and trials are arrays
       setEvents(Array.isArray(eventsData) ? eventsData : []);
       setTrials(Array.isArray(trialsData) ? trialsData : []);
     } catch (err) {
       console.error('Error fetching landing page data:', err);
-      setCourses([]);
-      setEvents([]);
-      setTrials([]);
-      setFeaturedCourse(null);
-      setHasSoftware(false);
-      setHasServices(false);
     } finally {
       setLoading(false);
     }
@@ -179,90 +169,74 @@ export default function LandingPage({ user, onOpenMockPayment }) {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner fullScreen />;
-  }
-
   return (
     <div className="landing-page">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <Navbar
         user={user}
         featuredCourse={featuredCourse}
-        hasSoftware={hasSoftware}
         hasServices={hasServices}
+        hasEvents={events.length > 0}
         onLogout={async () => {
           try {
             await api.logout();
-          } catch (e) {
+          } catch {
             localStorage.removeItem('token');
           }
           navigate('/');
         }}
       />
 
-      <main>
-        <Hero
-          user={user}
-          handleEnroll={handleEnroll}
-          featuredCourse={featuredCourse}
-          hasSoftware={hasSoftware}
-        />
-        {/* <TrustStrip /> */}
+      <main id="main-content">
+        {/* 1. Clear promise + price + buy button above the fold */}
+        <Hero user={user} featuredCourse={featuredCourse} loading={loading} />
 
-        {/* ── Courses Section (Seen 2nd on Landing Page) ── */}
-        <CourseGrid
-          courses={courses}
-          user={user}
-          handleEnroll={handleEnroll}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          onShowAll={handleShowAll}
-          onShowPaginated={handleShowPaginated}
-          showAll={showAllCourses}
-        />
-
+        {/* 2. The offer: what you get, price, curriculum */}
         {featuredCourse && (
-          <FeaturedCourse
-            course={featuredCourse}
-            user={user}
-            handleEnroll={handleEnroll}
-          />
+          <FeaturedCourse course={featuredCourse} user={user} handleEnroll={handleEnroll} />
         )}
+        {featuredCourse && <CourseCurriculum course={featuredCourse} />}
+
+        {/* 3. Why it works / who it's for */}
         <BuildJourney />
-        {featuredCourse && (
-          <CourseCurriculum course={featuredCourse} />
-        )}
         <WhyAI />
-        <TrialTutorials
-          trials={trials}
-          onPlayVideo={setActiveVideo}
-        />
-
-        {/* ── WideTech Software Products & Commercial Tools ── */}
-        <SoftwareShowcase />
-
-        {/* ── WideTech Custom Engineering & AI Bot Automation Services ── */}
-        <ServicesShowcase />
-
-        <LearningPaths />
-        <EventsSection
-          events={events}
-          user={user}
-          handleEnroll={handleEnroll}
-        />
         <AudienceSection />
+        <TrialTutorials trials={trials} onPlayVideo={setActiveVideo} />
         <HowItWorks />
         <FounderSection />
+        <Testimonials />
+
+        {/* 4. Other courses */}
+        {!loading && (
+          <CourseGrid
+            courses={courses}
+            user={user}
+            handleEnroll={handleEnroll}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onShowAll={handleShowAll}
+            onShowPaginated={handleShowPaginated}
+            showAll={showAllCourses}
+          />
+        )}
+
+        {/* 5. Software & services for businesses */}
+        <SoftwareShowcase />
+        <ServicesShowcase />
+
+        <EventsSection events={events} user={user} handleEnroll={handleEnroll} />
+
+        {/* 6. Objection handling, final CTA, enquiries */}
         <FAQ />
-        <FinalCTA
-          user={user}
-          handleEnroll={handleEnroll}
-          featuredCourse={featuredCourse}
-        />
+        <FinalCTA user={user} featuredCourse={featuredCourse} />
+        <EnquirySection user={user} />
+        <LearningPaths />
         <LeadMagnet />
       </main>
 
       <Footer />
+
+      <StickyBuyBar course={featuredCourse} user={user} />
 
       {activeVideo && (
         <VideoModal

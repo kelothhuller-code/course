@@ -1,4 +1,8 @@
 // Inquiries & Support Messages Module
+// All user-submitted fields are HTML-escaped before rendering: the contact form is public,
+// so unescaped values were a stored-XSS risk inside the admin portal.
+const escInquiry = (v) => Helpers.escapeHtml(v);
+
 window.InquiriesModule = {
     messages: [],
 
@@ -33,21 +37,23 @@ window.InquiriesModule = {
                     return `
                         <tr style="${isUnread ? 'background:rgba(59,130,246,0.04);' : ''}">
                             <td style="font-weight:600;">
-                                <div style="color:var(--text-main);font-size:0.95rem;">${Helpers.safeString(m.name, 'Student')}</div>
-                                <a href="mailto:${m.email}" style="color:var(--primary);font-size:0.8rem;text-decoration:none;">${m.email}</a>
+                                <div style="color:var(--text-main);font-size:0.95rem;">${escInquiry(m.name || 'Student')}</div>
+                                <a href="mailto:${escInquiry(encodeURIComponent(m.email || ''))}" style="color:var(--primary);font-size:0.8rem;text-decoration:none;">${escInquiry(m.email)}</a>
+                                ${m.phone ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">📞 ${escInquiry(m.phone)}</div>` : ''}
                             </td>
                             <td>
                                 <span class="badge" style="background:rgba(139,92,246,0.15);color:#c084fc;font-size:0.75rem;">
-                                    ${Helpers.safeString(m.subject, 'Inquiry')}
+                                    ${escInquiry(m.subject || 'Inquiry')}
                                 </span>
+                                ${m.interest ? `<div style="margin-top:4px;font-size:0.72rem;color:var(--text-muted);">Interest: <strong>${escInquiry(m.interest)}</strong>${m.source ? ` · ${escInquiry(m.source)}` : ''}</div>` : ''}
                             </td>
                             <td style="max-width:320px;">
                                 <div style="font-size:0.86rem;color:#cbd5e1;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-                                    ${Helpers.safeString(m.message)}
+                                    ${escInquiry(m.message)}
                                 </div>
                                 ${m.replyMessage ? `
                                     <div style="margin-top:6px;font-size:0.75rem;color:#10b981;background:rgba(16,185,129,0.08);padding:4px 8px;border-radius:4px;border-left:2px solid #10b981;">
-                                        <strong>Your Reply:</strong> ${Helpers.truncate(m.replyMessage, 60)}
+                                        <strong>Your Reply:</strong> ${escInquiry(Helpers.truncate(m.replyMessage, 60))}
                                     </div>
                                 ` : ''}
                             </td>
@@ -58,11 +64,11 @@ window.InquiriesModule = {
                             <td>
                                 <div style="display:flex;gap:6px;align-items:center;">
                                     <button class="btn btn-sm btn-primary" style="padding:6px 12px;font-size:0.8rem;"
-                                            onclick="InquiriesModule.openReplyModal('${m._id}')">
+                                            onclick="InquiriesModule.openReplyModal('${escInquiry(m._id)}')">
                                         ✉️ Reply
                                     </button>
                                     <button class="btn btn-sm" style="padding:6px 8px;font-size:0.8rem;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);"
-                                            onclick="InquiriesModule.deleteMessage('${m._id}', '${m.name}')" title="Delete">
+                                            onclick="InquiriesModule.deleteMessage('${escInquiry(m._id)}')" title="Delete">
                                         🗑️
                                     </button>
                                 </div>
@@ -165,17 +171,17 @@ window.InquiriesModule = {
         document.getElementById('replyMsgId').value = id;
         document.getElementById('inquiryDetails').innerHTML = `
             <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <strong>${Helpers.safeString(msg.name)}</strong>
+                <strong>${escInquiry(msg.name)}</strong>
                 <span style="color:var(--text-muted);">${new Date(msg.createdAt).toLocaleDateString()}</span>
             </div>
-            <div style="color:var(--primary);font-size:0.82rem;margin-bottom:6px;">📧 ${msg.email} | Topic: ${msg.subject}</div>
-            <div style="color:#cbd5e1;margin-top:6px;background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;font-style:italic;">"${msg.message}"</div>
+            <div style="color:var(--primary);font-size:0.82rem;margin-bottom:6px;">📧 ${escInquiry(msg.email)}${msg.phone ? ` | 📞 ${escInquiry(msg.phone)}` : ''} | Topic: ${escInquiry(msg.subject)}${msg.interest ? ` | Interest: ${escInquiry(msg.interest)}` : ''}</div>
+            <div style="color:#cbd5e1;margin-top:6px;background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;font-style:italic;white-space:pre-wrap;">"${escInquiry(msg.message)}"</div>
         `;
 
         document.getElementById('replyText').value = `Hi ${msg.name},\n\nThank you for contacting WIDETECHNOS Academy regarding "${msg.subject}".\n\n\n\nBest regards,\nWIDETECHNOS Academy Support Desk`;
         
         // Mailto prefill
-        const mailto = `mailto:${msg.email}?subject=${encodeURIComponent('Re: ' + msg.subject + ' - WIDETECHNOS Support')}&body=${encodeURIComponent('Hi ' + msg.name + ',\n\n')}`;
+        const mailto = `mailto:${encodeURIComponent(msg.email || '')}?subject=${encodeURIComponent('Re: ' + msg.subject + ' - WIDETECHNOS Support')}&body=${encodeURIComponent('Hi ' + msg.name + ',\n\n')}`;
         document.getElementById('directMailtoBtn').href = mailto;
 
         const modal = document.getElementById('inquiryReplyModal');
@@ -216,7 +222,8 @@ window.InquiriesModule = {
         }
     },
 
-    async deleteMessage(id, name) {
+    async deleteMessage(id) {
+        const name = (this.messages.find(m => m._id === id) || {}).name || 'this sender';
         if (!confirm(`Are you sure you want to delete inquiry from "${name}"?`)) return;
         try {
             await API.deleteInquiry(id);

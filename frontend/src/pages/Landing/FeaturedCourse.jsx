@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { countChapters } from '../../config/site';
 
 export default function FeaturedCourse({ course, user, handleEnroll }) {
   const isEnrolled = course && user && user.enrolledCourses?.some(c => 
@@ -21,12 +22,15 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
     const displayPrice = course.isFree ? 'Free' : (course.discountedPrice ? `₹${course.discountedPrice}` : `₹${course.price || 0}`);
     const originalPrice = (!course.isFree && course.discountedPrice && course.price > course.discountedPrice) ? `₹${course.price}` : null;
     const features = (course.outcomes && course.outcomes.length > 0) ? course.outcomes : defaultFeatures;
-    const chapterCount = (course.content || []).reduce((n, lang) => n + (lang.chapters?.length || 0), 0) || 8;
+    // Real module count only — never show an invented number
+    const chapterCount = countChapters(course);
+    const hasCurriculum = chapterCount > 0 || (course.outcomes && course.outcomes.length > 0);
 
     return (
       <section className="featured-section" id="featured-program">
         <div className="container">
-          <div className="section-label" style={{ marginBottom: '1.25rem' }}>FEATURED PROGRAM</div>
+          <div className="section-label">FEATURED PROGRAM</div>
+          <h2 className="section-title">Everything You Get</h2>
           
           <div className="featured-card">
             <div className="featured-badge">⭐ {course.packageType ? `${course.packageType.toUpperCase()} PROGRAM` : 'HIGHLIGHTED COURSE'}</div>
@@ -54,6 +58,11 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                     </span>
                   )}
                 </div>
+                {!course.isFree && (
+                  <p className="featured-price-note">
+                    Price includes 18% GST · Secure Razorpay checkout · Instant access · Lifetime access
+                  </p>
+                )}
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.25rem', lineHeight: '1.6' }}>
                   {course.description}
                 </p>
@@ -75,9 +84,11 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                   >
                     {isEnrolled ? 'Go to Course →' : (course.isFree ? 'Start Learning — Free' : `Get the Course — ${displayPrice}`)}
                   </Link>
-                  <a href="#curriculum" className="btn btn-secondary btn-lg">
-                    View Curriculum ↓
-                  </a>
+                  {hasCurriculum && (
+                    <a href="#curriculum" className="btn btn-secondary btn-lg">
+                      View Curriculum ↓
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -88,10 +99,12 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                     <span className="stat-number">10+</span>
                     <span className="stat-label">Age</span>
                   </div>
-                  <div className="stat">
-                    <span className="stat-number">{chapterCount}</span>
-                    <span className="stat-label">Modules</span>
-                  </div>
+                  {chapterCount > 0 && (
+                    <div className="stat">
+                      <span className="stat-number">{chapterCount}</span>
+                      <span className="stat-label">Modules</span>
+                    </div>
+                  )}
                   <div className="stat">
                     <span className="stat-number">✓</span>
                     <span className="stat-label">Certificate</span>

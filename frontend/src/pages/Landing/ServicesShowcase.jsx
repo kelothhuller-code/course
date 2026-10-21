@@ -55,7 +55,7 @@ export default function ServicesShowcase() {
         ...formData,
         serviceId: modalService?._id || null
       });
-      alert('Thank you! Your enquiry has been received in our backend portal. WideTech engineering team will reach out to you within 24 hours.');
+      alert('Thank you! Your enquiry has been received. The WideTech team will reply to you by email.');
       handleClose();
     } catch (err) {
       alert('Error submitting enquiry: ' + err.message);
@@ -117,9 +117,11 @@ export default function ServicesShowcase() {
                 </p>
 
                 {/* Delivery SLA Box */}
-                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#0369a1', fontWeight: 600, marginBottom: '1.25rem' }}>
-                  {svc.performance || 'Turnaround: 7-14 Days • 24/7 SLA'}
-                </div>
+                {svc.performance && (
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#0369a1', fontWeight: 600, marginBottom: '1.25rem' }}>
+                    {svc.performance}
+                  </div>
+                )}
 
                 {/* Deliverables List */}
                 {svc.deliverables && svc.deliverables.length > 0 && (
@@ -225,10 +227,9 @@ export default function ServicesShowcase() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>WhatsApp / Phone *</label>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Phone (optional)</label>
                   <input 
                     type="tel" 
-                    required 
                     value={formData.phone} 
                     onChange={e => setFormData({ ...formData, phone: e.target.value })} 
                     placeholder="9876543210"

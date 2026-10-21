@@ -4,6 +4,7 @@ import Software from '../models/Software.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
+import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
 import { authenticateToken, isUserAdmin } from '../middleware/auth.js';
 
 import path from 'path';
@@ -48,10 +49,15 @@ router.get('/:id', async (req, res) => {
 // POST submit software enquiry (No WhatsApp redirection needed)
 router.post('/enquire', async (req, res) => {
   try {
-    const { softwareId, name, email, phone, requirements, companyName } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ success: false, message: 'Name and email are required.' });
+    const { requirements, companyName } = req.body;
+    // Validate input (email format, lengths, optional phone) instead of trusting raw body values
+    const { data, error } = validateEnquiry({ ...req.body, message: requirements, interest: 'Software' }, { requireMessage: false });
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
     }
+    const { name, email, phone } = data;
+    // An invalid id used to throw a Mongoose CastError → HTTP 500; treat it as "no specific item"
+    const softwareId = isValidObjectId(req.body.softwareId) ? req.body.softwareId : null;
 
     let softwareTitle = 'WideTech Software Tool';
     if (softwareId) {
@@ -64,22 +70,27 @@ router.post('/enquire', async (req, res) => {
     }
 
     // Save as ContactMessage in DB
-    await ContactMessage.create({
+    const enquiryRecord = {
       name,
       email,
+      phone,
+      interest: 'Software',
+      source: 'software_modal',
       subject: `Software Enquiry: ${softwareTitle}`,
       message: `Phone: ${phone || 'N/A'}\nCompany: ${companyName || 'N/A'}\nRequirements: ${requirements || 'Interested in software purchase / license'}`
-    });
+    };
+    await ContactMessage.create(enquiryRecord);
+    notifyNewEnquiry(enquiryRecord);
 
     // Save or update Lead in DB
     await Lead.findOneAndUpdate(
-      { email: email.toLowerCase() },
+      { email },
       { name, source: 'software_enquiry' },
       { upsert: true, new: true }
     );
 
     // If matching user exists, attach to their purchasedSoftware as enquiry
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       if (!existingUser.purchasedSoftware) existingUser.purchasedSoftware = [];
       const alreadyHas = existingUser.purchasedSoftware.find(
