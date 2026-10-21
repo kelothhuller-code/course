@@ -3,6 +3,7 @@ import Service from '../models/Service.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
+import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
 
 const router = express.Router();
 
@@ -38,10 +39,15 @@ router.get('/:id', async (req, res) => {
 // POST submit service enquiry
 router.post('/enquire', async (req, res) => {
   try {
-    const { serviceId, name, email, phone, requirements, companyName } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ success: false, message: 'Name and email are required.' });
+    const { requirements, companyName } = req.body;
+    // Validate input (email format, lengths, optional phone) instead of trusting raw body values
+    const { data, error } = validateEnquiry({ ...req.body, message: requirements, interest: 'Service' }, { requireMessage: false });
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
     }
+    const { name, email, phone } = data;
+    // An invalid id used to throw a Mongoose CastError → HTTP 500; treat it as "no specific item"
+    const serviceId = isValidObjectId(req.body.serviceId) ? req.body.serviceId : null;
 
     let serviceTitle = 'Custom Technology & Bot Service';
     if (serviceId) {
@@ -54,22 +60,27 @@ router.post('/enquire', async (req, res) => {
     }
 
     // Save as ContactMessage
-    await ContactMessage.create({
+    const enquiryRecord = {
       name,
       email,
+      phone,
+      interest: 'Service',
+      source: 'service_modal',
       subject: `Service Enquiry: ${serviceTitle}`,
       message: `Phone: ${phone || 'N/A'}\nCompany: ${companyName || 'N/A'}\nRequirements: ${requirements || 'Interested in consultation'}`
-    });
+    };
+    await ContactMessage.create(enquiryRecord);
+    notifyNewEnquiry(enquiryRecord);
 
     // Save or update Lead
     await Lead.findOneAndUpdate(
-      { email: email.toLowerCase() },
+      { email },
       { name, source: 'service_enquiry' },
       { upsert: true, new: true }
     );
 
     // If matching user exists, attach to their purchasedServices/enquiries
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       if (!existingUser.purchasedServices) existingUser.purchasedServices = [];
       existingUser.purchasedServices.push({

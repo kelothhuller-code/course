@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import tracker from '../../utils/tracker';
 import { getMediaUrl, FALLBACK_SOFTWARE_THUMBNAIL } from '../../utils/media';
+import { openEnquiry } from '../../config/site';
 
 export default function SoftwareShowcase() {
   const [softwares, setSoftwares] = useState([]);
@@ -47,7 +49,8 @@ export default function SoftwareShowcase() {
         ...formData,
         softwareId: modalSoftware?._id || null
       });
-      alert('Thank you! Your enquiry has been received in our backend. WideTech team will reach out to you within 24 hours.');
+      tracker.trackEvent('enquiry_submit', { source: 'software_modal' });
+      alert('Thank you! Your enquiry has been received. The WideTech team will reply to you by email.');
       handleClose();
     } catch (err) {
       alert('Error submitting enquiry: ' + err.message);
@@ -56,17 +59,48 @@ export default function SoftwareShowcase() {
     }
   };
 
-  // Avoid section completely if nothing has been added
-  if (!loading && softwares.length === 0) {
-    return null;
-  }
-
   if (loading) {
     return null; // Don't flash empty state
   }
 
+  // No software published yet: still show a clear "software for your business" offer
+  // (copy reused from the existing hero) so business visitors have a path to enquire.
+  // TODO(owner): add your software products in the admin portal → Software; they will
+  // automatically replace this block with real product cards and prices.
+  if (softwares.length === 0) {
+    return (
+      <section className="software-section software-fallback" id="software" aria-labelledby="software-title">
+        <div className="container">
+          <div className="section-label">SOFTWARE & AUTOMATION FOR BUSINESSES</div>
+          <h2 className="section-title" id="software-title">Ready-to-Run Software & Custom Bots</h2>
+          <p className="section-subtitle">
+            Deploy WideTech's ready-to-run commercial software systems, or have us engineer custom bots and
+            business automations for you.
+          </p>
+          <div className="software-fallback-grid">
+            <div className="software-fallback-card">
+              <span className="software-fallback-icon" aria-hidden="true">🧩</span>
+              <h3>Ready-to-run software</h3>
+              <p>Commercial tools and production templates you can deploy for your business.</p>
+            </div>
+            <div className="software-fallback-card">
+              <span className="software-fallback-icon" aria-hidden="true">🤖</span>
+              <h3>Custom bots & automation</h3>
+              <p>Bots and workflow automations engineered around your process.</p>
+            </div>
+          </div>
+          <div className="software-fallback-cta">
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => openEnquiry('Software')}>
+              Tell Us What You Need →
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="software-section" id="software" style={{ padding: '5rem 0', background: 'var(--bg-card)' }}>
+    <section className="software-section" id="software" style={{ padding: '5rem 0', background: 'var(--background-white)' }}>
       <div className="container">
         <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 3rem auto' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', background: 'rgba(99,102,241,0.08)', padding: '4px 14px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
@@ -148,10 +182,12 @@ export default function SoftwareShowcase() {
                     {item.usefulness || item.description}
                   </p>
 
-                  {/* Performance Specs Box */}
-                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', fontSize: '0.8rem', color: '#0284c7', fontWeight: 600, marginBottom: '1rem' }}>
-                    {item.performance || 'Sub-150ms Response • 99.9% Uptime'}
-                  </div>
+                  {/* Performance Specs Box (only when the owner has entered real specs) */}
+                  {item.performance && (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', fontSize: '0.8rem', color: '#0284c7', fontWeight: 600, marginBottom: '1rem' }}>
+                      {item.performance}
+                    </div>
+                  )}
 
                   {/* Feature Bullets */}
                   {item.features && item.features.length > 0 && (
@@ -187,7 +223,7 @@ export default function SoftwareShowcase() {
                     className="btn btn-primary btn-sm"
                     style={{ padding: '0.5rem 1.1rem', fontWeight: 700 }}
                   >
-                    Enquire / Get Tool →
+                    Get This Software →
                   </button>
                 </div>
               </div>
@@ -209,7 +245,7 @@ export default function SoftwareShowcase() {
           alignItems: 'center',
           padding: '1rem'
         }}>
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-label={`Enquire about ${modalSoftware.title}`} style={{
             background: '#ffffff',
             borderRadius: '20px',
             maxWidth: '520px',
@@ -230,6 +266,7 @@ export default function SoftwareShowcase() {
               </div>
               <button 
                 onClick={handleClose} 
+                aria-label="Close"
                 style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
               >
                 ✕
@@ -263,10 +300,9 @@ export default function SoftwareShowcase() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Contact Phone *</label>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '3px' }}>Phone (optional)</label>
                   <input 
                     type="tel" 
-                    required 
                     value={formData.phone} 
                     onChange={e => setFormData({ ...formData, phone: e.target.value })} 
                     placeholder="9876543210"

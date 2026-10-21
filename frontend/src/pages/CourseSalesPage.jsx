@@ -6,6 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import TrustBadges from '../components/TrustBadges';
 import CourseReviews from '../components/CourseReviews';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
+import { buildBuyingFaqs } from '../config/faqs';
+import tracker from '../utils/tracker';
 import './CourseSalesPage.css';
 
 export default function CourseSalesPage({ user }) {
@@ -78,6 +80,7 @@ export default function CourseSalesPage({ user }) {
     }
 
     // Paid courses: Allow direct checkout without prior login
+    tracker.trackEvent('buy_click', { courseId: course._id, source: 'sales_page' });
     navigate(`/checkout/${course._id}`);
   };
 
@@ -98,6 +101,12 @@ export default function CourseSalesPage({ user }) {
   // Compute inclusive GST breakup for sales page display
   const taxableBase = basePrice ? Math.round((basePrice / 1.18) * 100) / 100 : 0;
   const gstPart = basePrice ? Math.round((basePrice - taxableBase) * 100) / 100 : 0;
+
+  // Course-specific FAQs from the admin sales builder first, then facts derived from the course
+  // data and the shared buyer FAQs (pricing, payment, access, refunds), so buyers' common
+  // questions are always answered on-page.
+  const faqs = buildBuyingFaqs(course ? { ...course, salesPageConfig: { faqs: config.faqs || [] } } : null)
+    .map(f => ({ question: f.q, answer: f.a, link: f.link }));
 
   const ctaLabel = isAlreadyEnrolled
     ? '📖 Continue Learning'
@@ -162,16 +171,15 @@ export default function CourseSalesPage({ user }) {
                 {ctaLabel}
               </button>
 
-              <button
-                className="btn btn-secondary btn-lg sales-share-btn"
-                onClick={handleCopyLink}
-              >
-                🔗 Share Page
-              </button>
+              {!isFree && !isAlreadyEnrolled && (
+                <a href="#sales-faq" className="btn btn-secondary btn-lg sales-share-btn">
+                  Questions? See FAQ ↓
+                </a>
+              )}
             </div>
 
             <p className="sales-trust-line">
-              🔒 Instant Access • Official GST Invoice • Lifetime Validity
+              🔒 Secure Razorpay checkout • No account needed before paying • Instant access • GST invoice • Lifetime access
             </p>
           </div>
 
@@ -274,7 +282,7 @@ export default function CourseSalesPage({ user }) {
         <section style={{ marginBottom: '3rem' }}>
           <h2 className="sales-section-title">💡 What You Will Learn & Achieve</h2>
           <div className="sales-outcomes-grid">
-            {(config.highlights && config.highlights.length > 0 ? config.highlights : course?.outcomes || [
+            {(config.highlights?.length > 0 ? config.highlights : course?.outcomes?.length > 0 ? course.outcomes : [
               'Master practical real-world skills with step-by-step guidance',
               'Build portfolio-ready projects from scratch',
               'Earn an official verifiable Certificate upon completion'
@@ -365,24 +373,29 @@ export default function CourseSalesPage({ user }) {
         <CourseReviews courseId={id} user={user} />
 
         {/* FAQs */}
-        {config.faqs && config.faqs.length > 0 && (
-          <section style={{ marginBottom: '3rem' }}>
-            <h2 className="sales-section-title"> Frequently Asked Questions</h2>
+        {faqs.length > 0 && (
+          <section style={{ marginBottom: '3rem' }} id="sales-faq">
+            <h2 className="sales-section-title">❓ Frequently Asked Questions</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '800px', margin: '0 auto' }}>
-              {config.faqs.map((faq, idx) => (
+              {faqs.map((faq, idx) => (
                 <div
                   key={idx}
                   className="glass-card"
-                  style={{ padding: '1.15rem', borderRadius: '12px', cursor: 'pointer' }}
-                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                  style={{ padding: '1.15rem', borderRadius: '12px' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.95rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                    aria-expanded={activeFaq === idx}
+                    style={{ all: 'unset', boxSizing: 'border-box', width: '100%', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', fontWeight: 600, fontSize: '0.95rem' }}
+                  >
                     <span>{faq.question}</span>
-                    <span>{activeFaq === idx ? '−' : '+'}</span>
-                  </div>
+                    <span aria-hidden="true">{activeFaq === idx ? '−' : '+'}</span>
+                  </button>
                   {activeFaq === idx && (
                     <p style={{ marginTop: '0.75rem', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '0.75rem', lineHeight: 1.6 }}>
                       {faq.answer}
+                      {faq.link && <> <Link to={faq.link.to}>{faq.link.label} →</Link></>}
                     </p>
                   )}
                 </div>
@@ -404,6 +417,9 @@ export default function CourseSalesPage({ user }) {
           >
             {ctaLabel}
           </button>
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Still unsure? <Link to="/contact">Send us a question</Link> — we reply by email.
+          </p>
         </section>
 
       </div>

@@ -4,6 +4,7 @@ import ContactMessage from '../models/ContactMessage.js';
 import NewsletterConfig from '../models/NewsletterConfig.js';
 import { protect, admin } from '../middleware/auth.js';
 import { sendCustomEmail, getEmailBrandHeader, getEmailBrandFooter } from '../utils/mailer.js';
+import { validateEnquiry, isLikelySpam, notifyNewEnquiry, escapeHtml } from '../utils/enquiry.js';
 
 const router = express.Router();
 
@@ -203,28 +204,38 @@ router.get('/unsubscribe', async (req, res) => {
 // @route   POST /api/leads/contact
 // @access  Public
 router.post('/contact', async (req, res) => {
-  const { name, email, subject, message } = req.body;
-
-  if (!name || !email || !message) {
-    return res.status(400).json({ message: 'Name, email, and message are required.' });
+  // Bots filling the hidden honeypot get a fake success and nothing is stored/emailed
+  if (isLikelySpam(req.body)) {
+    return res.status(201).json({ success: true, message: 'Your enquiry has been received.' });
   }
 
-  if (!email.includes('@')) {
-    return res.status(400).json({ message: 'Please provide a valid email address.' });
+  const { data, error } = validateEnquiry(req.body);
+  if (error) {
+    return res.status(400).json({ message: error });
   }
+
+  const legacySubject = typeof req.body.subject === 'string' ? req.body.subject.trim().slice(0, 150) : '';
+  const subject = legacySubject || `${data.interest} enquiry`;
+  const source = typeof req.body.source === 'string' ? req.body.source.trim().slice(0, 50) : '';
 
   try {
     const newQuery = await ContactMessage.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      subject: (subject || 'General Inquiry').trim(),
-      message: message.trim(),
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      interest: data.interest,
+      source,
+      subject,
+      message: data.message,
       status: 'unread',
     });
 
+    // Fire-and-forget owner notification (never blocks or fails the request)
+    notifyNewEnquiry({ ...data, subject, source });
+
     res.status(201).json({
       success: true,
-      message: 'Your inquiry has been received! Our support team will get back to you shortly.',
+      message: 'Your enquiry has been received! We will get back to you by email shortly.',
       id: newQuery._id
     });
   } catch (error) {
@@ -270,13 +281,13 @@ router.post('/messages/:id/reply', protect, admin, async (req, res) => {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
           ${getEmailBrandHeader()}
           <div style="font-size: 15px; line-height: 1.6; color: #334155;">
-            <p>Hi <strong>${msg.name}</strong>,</p>
+            <p>Hi <strong>${escapeHtml(msg.name)}</strong>,</p>
             <div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 14px 18px; margin: 16px 0; border-radius: 6px;">
-              ${replyText.trim().replace(/\n/g, '<br>')}
+              ${escapeHtml(replyText.trim()).replace(/\n/g, '<br>')}
             </div>
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed #cbd5e1; font-size: 13px; color: #64748b;">
               <strong>Your Original Inquiry:</strong><br>
-              <em>"${msg.message.replace(/\n/g, '<br>')}"</em>
+              <em>"${escapeHtml(msg.message).replace(/\n/g, '<br>')}"</em>
             </div>
           </div>
           ${getEmailBrandFooter()}

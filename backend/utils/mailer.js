@@ -207,12 +207,24 @@ export const sendAccountCreatedWithPurchaseEmail = async (email, name, itemTitle
   }
 };
 
-export const sendCustomEmail = async ({ to, subject, html, text }) => {
+// Accepts either an options object ({ to, subject, html, text, replyTo }) or the positional form
+// (to, subject, text, html). Several routes (lead welcome email, admin inquiry replies,
+// newsletter broadcast) call it positionally — previously that destructured a string, so
+// `to` was undefined and those emails silently never went out.
+export const sendCustomEmail = async (toOrOptions, subjectArg, textArg, htmlArg) => {
+  const opts = (toOrOptions && typeof toOrOptions === 'object')
+    ? toOrOptions
+    : { to: toOrOptions, subject: subjectArg, text: textArg, html: htmlArg };
+  const { to, subject, html, text, replyTo } = opts;
+  if (!to) {
+    throw new Error('sendCustomEmail: missing recipient');
+  }
   const transporter = createTransporter();
   const mailOptions = {
     from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
     to,
     subject,
+    ...(replyTo ? { replyTo } : {}),
     text: text || '',
     html: html || `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">

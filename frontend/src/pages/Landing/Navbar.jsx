@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { getCoursePrice, isEnrolledIn } from '../../config/site';
 
-export default function Navbar({ user, featuredCourse, hasSoftware = false, hasServices = false, onLogout }) {
+export default function Navbar({ user, featuredCourse, hasServices = false, hasEvents = false, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
@@ -33,6 +33,22 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
   }, [isOpen]);
 
   const closeMenu = () => setIsOpen(false);
+
+  // Only link to sections that actually render (avoids dead anchors)
+  const navLinks = [
+    featuredCourse ? { id: 'featured-program', label: 'The Course' } : { id: 'courses', label: 'Courses' },
+    { id: 'software', label: 'Software' },
+    hasServices && { id: 'services', label: 'Services' },
+    hasEvents && { id: 'events', label: 'Workshops' },
+    { id: 'faq', label: 'FAQ' },
+    { id: 'enquiry', label: 'Contact' },
+  ].filter(Boolean);
+
+  const price = getCoursePrice(featuredCourse);
+  const enrolled = isEnrolledIn(user, featuredCourse);
+  const buyCta = featuredCourse && !enrolled
+    ? { to: `/sale/${featuredCourse._id}`, label: price.isFree ? 'Start Free' : `Buy Course · ${price.label}` }
+    : { to: '/all-courses', label: 'Explore Courses' };
 
   const scrollToSection = (e, sectionId) => {
     e.preventDefault();
@@ -99,11 +115,9 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
 
             {/* Desktop Navigation Links (Landing Page) */}
             <div className="navbar-desktop-nav">
-              <a href="#courses" onClick={(e) => scrollToSection(e, 'courses')} className="nav-link">AI Courses</a>
-              <a href="#software" onClick={(e) => scrollToSection(e, 'software')} className="nav-link">Softwares & Bots</a>
-              <a href="#services" onClick={(e) => scrollToSection(e, 'services')} className="nav-link">Custom Services</a>
-              <a href="#events" onClick={(e) => scrollToSection(e, 'events')} className="nav-link">Workshops</a>
-              <a href="#about" onClick={(e) => scrollToSection(e, 'about')} className="nav-link">About</a>
+              {navLinks.map((l) => (
+                <a key={l.id} href={`#${l.id}`} onClick={(e) => scrollToSection(e, l.id)} className="nav-link">{l.label}</a>
+              ))}
 
               <div className="nav-desktop-auth-actions" style={{ marginLeft: '1rem' }}>
                 {user ? (
@@ -125,11 +139,11 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
                       Login
                     </Link>
                     <Link 
-                      to="/all-courses" 
+                      to={buyCta.to} 
                       className="btn btn-primary btn-sm"
                       onClick={closeMenu}
                     >
-                      Explore All Courses
+                      {buyCta.label}
                     </Link>
                   </div>
                 )}
@@ -140,6 +154,7 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
             <aside 
               className={`navbar-sidenav ${isOpen ? 'navbar-sidenav-open' : ''}`}
               aria-label="Mobile Navigation Drawer"
+              aria-hidden={!isOpen}
             >
               {/* Drawer Top Header */}
               <div className="sidenav-header">
@@ -184,18 +199,11 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
               {/* Sidenav Links - Exactly matching Computer Navigation */}
               <div className="sidenav-body">
                 <div className="sidenav-group">
-                  <a href="#courses" className="sidenav-link" onClick={(e) => scrollToSection(e, 'courses')}>
-                    AI Courses
-                  </a>
-                  <a href="#software" className="sidenav-link" onClick={(e) => scrollToSection(e, 'software')}>
-                    Softwares & Bots
-                  </a>
-                  <a href="#services" className="sidenav-link" onClick={(e) => scrollToSection(e, 'services')}>
-                    Custom Services
-                  </a>
-                  <a href="#events" className="sidenav-link" onClick={(e) => scrollToSection(e, 'events')}>
-                    Workshops
-                  </a>
+                  {navLinks.map((l) => (
+                    <a key={l.id} href={`#${l.id}`} className="sidenav-link" onClick={(e) => scrollToSection(e, l.id)}>
+                      {l.label}
+                    </a>
+                  ))}
                   <a href="#about" className="sidenav-link" onClick={(e) => scrollToSection(e, 'about')}>
                     About WideTech
                   </a>
@@ -233,12 +241,12 @@ export default function Navbar({ user, featuredCourse, hasSoftware = false, hasS
                       Sign In
                     </Link>
                     <Link 
-                      to="/auth?signup=true" 
+                      to={buyCta.to} 
                       className="btn btn-primary btn-md" 
                       style={{ textAlign: 'center' }}
                       onClick={closeMenu}
                     >
-                      Get Started
+                      {featuredCourse && !enrolled ? 'Buy Course' : 'Explore Courses'}
                     </Link>
                   </div>
                 )}

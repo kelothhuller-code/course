@@ -42,7 +42,13 @@ import User from './models/User.js';
 
 const app = express();
 
+// Behind Nginx (see nginx-production.conf) every request arrives from 127.0.0.1.
+// Without this, express-rate-limit keys ALL visitors on the proxy IP, so e.g. 15 failed
+// logins by anyone would lock out every user site-wide for 15 minutes.
+app.set('trust proxy', process.env.TRUST_PROXY_HOPS !== undefined ? Number(process.env.TRUST_PROXY_HOPS) : 1);
+
 const isDev = process.env.NODE_ENV !== 'production';
+const isLocalOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
 // Configure CORS to strictly allow authorized production and dev origins
 const allowedOrigins = [
@@ -57,7 +63,9 @@ const allowedOrigins = [
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*') || isDev) {
+    // In development only localhost origins are added. Previously *any* origin was
+    // reflected with credentials whenever NODE_ENV was not exactly 'production'.
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*') || (isDev && isLocalOrigin(origin))) {
       return callback(null, true);
     }
     return callback(new Error('CORS access blocked by WIDETECH security policy: ' + origin), false);
@@ -109,6 +117,14 @@ const paymentLimiter = rateLimit({
   message: { message: 'Too many payment requests, please try again later.' }
 });
 
+// Public enquiry/contact forms: stop spam floods without affecting normal visitors
+const enquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 200 : 10,
+  skip: (req) => req.method !== 'POST',
+  message: { message: 'Too many enquiries from this IP, please try again in a few minutes or email us directly.' }
+});
+
 // Middleware
 // PayU response comes as urlencoded postback form data, so we must support urlencoded parser
 app.use(express.json({
@@ -126,6 +142,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/payment', paymentLimiter);
+app.use(['/api/leads/contact', '/api/software/enquire', '/api/services/enquire'], enquiryLimiter);
 
 
 
@@ -242,6 +259,10 @@ app.use((req, res, next) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  // Disallowed CORS origins are a client policy issue, not a server crash
+  if (err && typeof err.message === 'string' && err.message.startsWith('CORS access blocked')) {
+    return res.status(403).json({ message: 'Origin not allowed' });
+  }
   console.error('Unhandled error:', err.stack);
   res.status(500).json({
     message: err.message || 'Internal Server Error',

@@ -118,7 +118,7 @@ window.AnalyticsModule = {
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;">
                     ${funnel.stages.map((stage, idx) => {
-                        const colors = ['#6366f1', '#38bdf8', '#fbbf24', '#10b981'];
+                        const colors = ['#6366f1', '#38bdf8', '#a855f7', '#fbbf24', '#10b981'];
                         const color = colors[idx] || '#6366f1';
                         return `
                             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;position:relative;">
@@ -137,6 +137,12 @@ window.AnalyticsModule = {
                         `;
                     }).join('')}
                 </div>
+                ${funnel.enquiries ? `
+                    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;font-size:0.85rem;color:var(--text-muted);">
+                        <span style="background:rgba(56,189,248,0.1);color:#38bdf8;padding:4px 10px;border-radius:6px;">✉️ Enquiries received: <strong>${funnel.enquiries.stored}</strong> (see Inquiries)</span>
+                        <span style="background:rgba(248,113,113,0.1);color:#f87171;padding:4px 10px;border-radius:6px;">💳 Unrecovered payment failures: <strong>${funnel.paymentFailures || 0}</strong></span>
+                    </div>
+                ` : ''}
             </div>
 
             <!-- Top Visited Pages -->

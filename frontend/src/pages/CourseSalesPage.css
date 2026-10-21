@@ -4,6 +4,7 @@
 
 .sales-page-wrapper {
   min-height: 100vh;
+  padding-bottom: 72px; /* room for the fixed sticky buy bar so it never covers content */
   background: #f8fafc;
   color: var(--text-primary);
   display: flex;

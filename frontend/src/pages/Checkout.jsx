@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import NavHeader from './NavHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import tracker from '../utils/tracker';
+import { countChapters, SUPPORT_EMAIL } from '../config/site';
+import './Checkout.css';
+
+const INDIAN_STATES = [
+  'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+  'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
+  'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
+  'Uttarakhand', 'West Bengal'
+];
 
 export default function Checkout({ user, onRefreshUser }) {
   const { id } = useParams();
@@ -28,6 +40,16 @@ export default function Checkout({ user, onRefreshUser }) {
   const [buyerState, setBuyerState] = useState('Kerala');
   const [buyerAddress, setBuyerAddress] = useState('');
   const [buyerGstin, setBuyerGstin] = useState('');
+
+  // UX state: inline errors instead of alert(), collapsed optional sections, success screen
+  const [formErrors, setFormErrors] = useState({});
+  const [payError, setPayError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [showBusinessFields, setShowBusinessFields] = useState(false);
+  const [showCoupon, setShowCoupon] = useState(false);
+  const [successInfo, setSuccessInfo] = useState(null); // { email, newlyCreated }
+  const payErrorRef = useRef(null);
+  const clearFieldError = (name) => setFormErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
 
   // Keep state synced when user prop updates
   useEffect(() => {
@@ -59,15 +81,16 @@ export default function Checkout({ user, onRefreshUser }) {
               setItemType('event');
             }
           } catch (err2) {
+            // Previously: alert() + redirect to /dashboard, which bounced guests to the login page
             console.error('Item not found:', err2);
-            alert('Item not found');
-            navigate('/dashboard');
+            setLoadError(err?.message && !/not found/i.test(err.message)
+              ? 'We could not load this course right now. Please check your connection and try again.'
+              : 'This course could not be found. It may have been moved or is no longer on sale.');
           }
         }
       } catch (err) {
         console.error('Error fetching item:', err);
-        alert('Failed to load item details');
-        navigate('/dashboard');
+        setLoadError('We could not load this course right now. Please check your connection and try again.');
       } finally {
         setLoading(false);
       }
@@ -138,21 +161,35 @@ export default function Checkout({ user, onRefreshUser }) {
     });
   };
 
+  const showPayError = (message) => {
+    setPayError(message);
+    // Bring the message into view (the pay button can be far down on mobile)
+    setTimeout(() => payErrorRef.current?.focus(), 50);
+  };
+
+  // Clear success screen replacing the old alert(): tells the buyer where their access and
+  // login details are, then opens the course automatically.
+  const showSuccess = (email, newlyCreated) => {
+    setSuccessInfo({ email, newlyCreated: Boolean(newlyCreated) });
+    window.scrollTo(0, 0);
+    setTimeout(() => navigate(`/course/${id}`), 4000);
+  };
+
   const handlePayment = async () => {
     const cleanName = (buyerName || user?.name || '').trim();
     const cleanEmail = (buyerEmail || user?.email || '').toLowerCase().trim();
     const cleanPhone = (buyerPhone || user?.phone || '').trim();
 
-    if (!cleanName) {
-      alert('Please enter your full name for order invoice & course access.');
-      return;
-    }
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      alert('Please enter a valid email address to receive your course and account details.');
-      return;
-    }
-    if (!cleanPhone) {
-      alert('Please enter your phone number.');
+    const errors = {};
+    if (!cleanName) errors.name = 'Please enter your name — it goes on your invoice.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) errors.email = 'Please enter a valid email — your access details are sent here.';
+    if (cleanPhone.replace(/\D/g, '').length < 10) errors.phone = 'Please enter a valid mobile number (at least 10 digits).';
+    setFormErrors(errors);
+    setPayError('');
+    const firstInvalid = ['name', 'email', 'phone'].find(k => errors[k]);
+    if (firstInvalid) {
+      const el = document.getElementById(`co-${firstInvalid}`);
+      if (el) el.focus();
       return;
     }
 
@@ -219,18 +256,13 @@ export default function Checkout({ user, onRefreshUser }) {
                   localStorage.setItem('token', verifyRes.token);
                   if (onRefreshUser) await onRefreshUser();
                 }
-                if (verifyRes.newlyCreated) {
-                  alert(`🎉 Payment successful! An account has been created for your email (${cleanEmail}). Your generated login password and receipt have been sent to your email. Redirecting to your course...`);
-                } else {
-                  alert('🎉 Payment successful! You are now enrolled.');
-                }
-                navigate(`/course/${id}`);
+                showSuccess(cleanEmail, verifyRes.newlyCreated);
               } else {
-                alert('Payment verification failed: ' + verifyRes.message);
+                showPayError(`We could not confirm your payment (${verifyRes.message || 'verification failed'}). If money was debited, email us your payment ID ${response.razorpay_payment_id} and we will enrol you.`);
               }
             } catch (vErr) {
               console.error('Verification error:', vErr);
-              alert(vErr.message || 'Payment verification failed');
+              showPayError(`${vErr.message || 'We could not confirm your payment.'} If money was debited, email us your payment ID ${response.razorpay_payment_id} and we will enrol you.`);
             } finally {
               setProcessing(false);
             }
@@ -267,14 +299,14 @@ export default function Checkout({ user, onRefreshUser }) {
             step: 'payment_failed'
           });
           console.error('Razorpay payment failed:', response.error);
-          alert(`Payment Failed: ${response.error.description || response.error.reason}`);
+          showPayError(response.error?.description || response.error?.reason || 'The payment was declined.');
           setProcessing(false);
         });
         razorpayInstance.open();
       }
     } catch (err) {
       console.error('Payment initiation error:', err);
-      alert(err.message || 'Failed to initiate payment');
+      showPayError(err.message || 'We could not start the payment.');
       setProcessing(false);
     }
   };
@@ -296,26 +328,21 @@ export default function Checkout({ user, onRefreshUser }) {
             localStorage.setItem('token', verifyRes.token);
             if (onRefreshUser) await onRefreshUser();
           }
-          const cleanEmail = (buyerEmail || user?.email || '');
-          if (verifyRes.newlyCreated) {
-            alert(`🎉 Payment successful! An account has been created for your email (${cleanEmail}). Your login password and receipt have been sent to your email. Redirecting to your course...`);
-          } else {
-            alert('🎉 Payment successful! You are now enrolled.');
-          }
-          setTimeout(() => {
-            navigate(`/course/${id}`);
-          }, 1200);
+          setShowPaymentModal(false);
+          showSuccess((buyerEmail || user?.email || '').toLowerCase().trim(), verifyRes.newlyCreated);
         } else {
-          alert('Verification failed: ' + verifyRes.message);
+          setShowPaymentModal(false);
+          showPayError('Verification failed: ' + (verifyRes.message || 'unknown error'));
         }
       } else {
         setPaymentStatus('failed');
-        alert('Payment cancelled or failed. You can try again.');
         setShowPaymentModal(false);
+        showPayError('Payment cancelled (test mode). You can try again.');
       }
     } catch (err) {
       console.error('Mock payment error:', err);
-      alert('Payment processing failed. Please try again.');
+      setShowPaymentModal(false);
+      showPayError(err.message || 'Payment processing failed. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -362,11 +389,15 @@ export default function Checkout({ user, onRefreshUser }) {
       <>
         <NavHeader user={user} onLogout={handleLogout} />
         <div className="container" style={{ padding: '2rem 0' }}>
-          <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-            <h2>Item not found</h2>
-            <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-              Back to Dashboard
-            </button>
+          <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }} role="alert">
+            <h2>Checkout unavailable</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0.75rem 0 1.5rem' }}>
+              {loadError || 'This course could not be found.'}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={() => window.location.reload()}>Try again</button>
+              <button className="btn btn-secondary" onClick={() => navigate('/all-courses')}>See all courses</button>
+            </div>
           </div>
         </div>
       </>
@@ -406,423 +437,346 @@ export default function Checkout({ user, onRefreshUser }) {
     );
   }
 
+  const taxableBase = Math.round((finalPrice / 1.18) * 100) / 100;
+  const gstTotal = Math.round((finalPrice - taxableBase) * 100) / 100;
+  const isIntraState = buyerState.trim().toLowerCase() === 'kerala';
+  const cgst = isIntraState ? Math.round((gstTotal / 2) * 100) / 100 : 0;
+  const sgst = isIntraState ? Math.round((gstTotal - cgst) * 100) / 100 : 0;
+  const listPrice = Number(item.price) || 0;
+  const savings = listPrice > finalPrice ? listPrice - finalPrice : 0;
+  const chapterCount = countChapters(item);
+  const outcomes = (item.outcomes || []).filter(Boolean).slice(0, 5);
+
+  if (successInfo) {
+    return (
+      <>
+        <NavHeader user={user} onLogout={handleLogout} />
+        <div className="checkout-page">
+          <div className="checkout-success glass-card" role="status" aria-live="polite">
+            <div className="checkout-success-icon" aria-hidden="true">🎉</div>
+            <h1>Payment successful — you're in!</h1>
+            <p>
+              You now have access to <strong>{item.title}</strong>.
+            </p>
+            <ul className="checkout-success-steps">
+              {successInfo.newlyCreated ? (
+                <li>📬 We created your account for <strong>{successInfo.email}</strong> and emailed your login password and GST invoice.</li>
+              ) : (
+                <li>📬 Your receipt and GST invoice have been emailed to <strong>{successInfo.email}</strong>.</li>
+              )}
+              <li>📚 The course is always available in your dashboard.</li>
+              <li>❓ Trouble accessing it? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</li>
+            </ul>
+            <button type="button" className="btn btn-primary btn-lg checkout-success-cta" onClick={() => navigate(`/course/${id}`)}>
+              {itemType === 'course' ? 'Open my course →' : 'Go to my dashboard →'}
+            </button>
+            <p className="checkout-success-note">Opening it for you automatically…</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const fieldClass = (name) => `checkout-input${formErrors[name] ? ' has-error' : ''}`;
+
   return (
     <>
       <NavHeader user={user} onLogout={handleLogout} />
-      <div className="landing-page" style={{ paddingTop: '1rem' }}>
-        <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
-          <div className="checkout-grid" style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '2rem',
-            maxWidth: '900px',
-            margin: '0 auto'
-          }}>
-            {/* Left: Order Summary */}
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h2 style={{ marginBottom: '1.5rem' }}>Order Summary</h2>
-              
-              <div className="checkout-item" style={{ 
-                display: 'flex', 
-                gap: '1rem',
-                paddingBottom: '1rem',
-                borderBottom: '1px solid var(--border)',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ 
-                  width: '80px', 
-                  height: '80px', 
-                  borderRadius: 'var(--radius)',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  <img 
-                    src={getMediaUrl(item.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
-                    alt={item.title}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = FALLBACK_COURSE_THUMBNAIL;
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h4 style={{ marginBottom: '0.25rem' }}>{item.title}</h4>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {itemType === 'course' ? '📚 Course' : '📅 Event'}
-                  </p>
-                  {item.languages && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      Languages: {item.languages.join(', ')}
-                    </p>
-                  )}
-                </div>
-              </div>
+      <div className="checkout-page">
+        <div className="checkout-container">
+        <div className="checkout-grid">
+          {/* Left: details + pay */}
+          <section className="glass-card checkout-main" aria-labelledby="checkout-title">
+            <h1 id="checkout-title" className="checkout-title">Complete your purchase</h1>
 
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
-                  <span>₹{item.price}</span>
-                </div>
-                {item.discountedPrice && item.discountedPrice < item.price && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#10b981' }}>
-                    <span>Course Discount</span>
-                    <span>-₹{item.price - item.discountedPrice}</span>
-                  </div>
-                )}
-
-                {/* ── Coupon Code Section ── */}
-                <div style={{ margin: '1rem 0', padding: '1rem', background: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>🏷️ Have a coupon?</p>
-                  {appliedCoupon ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ flex: 1, fontSize: '0.85rem', color: '#10b981', fontWeight: 600 }}>✅ {appliedCoupon.code} applied!</span>
-                      <button
-                        onClick={removeCoupon}
-                        style={{ background: 'none', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '6px', color: 'var(--danger, #ef4444)', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.78rem' }}
-                      >Remove</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Enter coupon code"
-                        value={couponInput}
-                        onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
-                        onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem 0.75rem',
-                          background: 'var(--background-white)',
-                          border: `1px solid ${couponError ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
-                          borderRadius: '8px',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.85rem',
-                          outline: 'none',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                        }}
-                      />
-                      <button
-                        onClick={handleApplyCoupon}
-                        disabled={couponLoading || !couponInput.trim()}
-                        className="btn btn-secondary btn-sm"
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        {couponLoading ? '...' : 'Apply'}
-                      </button>
-                    </div>
-                  )}
-                  {couponError && <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: '#ef4444' }}>{couponError}</p>}
-                  {appliedCoupon && <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: '#10b981' }}>{appliedCoupon.message}</p>}
-                </div>
-
-                {appliedCoupon && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#10b981' }}>
-                    <span>Coupon Discount</span>
-                    <span>-₹{basePrice - finalPrice}</span>
-                  </div>
-                )}
-
-                {/* ── Customer & Indian GST Billing Details Section ── */}
-                <div style={{ margin: '1rem 0', padding: '1rem', background: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  {!user ? (
-                    <div style={{ 
-                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08))', 
-                      border: '1px solid rgba(99, 102, 241, 0.25)', 
-                      borderRadius: '8px', 
-                      padding: '0.85rem', 
-                      marginBottom: '1rem' 
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '1.2rem' }}>⚡</span>
-                          <div>
-                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Guest Checkout</strong>
-                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              No prior login required! We'll auto-provision your account & email your access credentials.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/auth', { state: { from: `/checkout/${id}` } })}
-                          style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.78rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
-                        >
-                          Have an account? Sign in
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ 
-                      background: 'rgba(16, 185, 129, 0.08)', 
-                      border: '1px solid rgba(16, 185, 129, 0.2)', 
-                      borderRadius: '8px', 
-                      padding: '0.65rem 0.85rem', 
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
-                        👤 Logged in as: {user.name} ({user.email})
-                      </span>
-                    </div>
-                  )}
-
-                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>🇮🇳</span> Customer & Billing Details
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
-                        Full Name <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={buyerName}
-                        onChange={e => setBuyerName(e.target.value)}
-                        placeholder="Enter full name"
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
-                        Email Address <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={buyerEmail}
-                        onChange={e => setBuyerEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        disabled={Boolean(user?.email)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: user?.email ? 'rgba(0,0,0,0.05)' : 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
-                      />
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
-                        📬 Course access & login credentials will be delivered to this email.
-                      </span>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
-                        Mobile Phone / WhatsApp <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        value={buyerPhone}
-                        onChange={e => setBuyerPhone(e.target.value)}
-                        placeholder="10-digit mobile number"
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>State (Place of Supply)</label>
-                      <select
-                        value={buyerState}
-                        onChange={e => setBuyerState(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
-                      >
-                        {[
-                          'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
-                          'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
-                          'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
-                          'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-                          'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab',
-                          'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-                          'Uttarakhand', 'West Bengal'
-                        ].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Billing Street Address (Optional)</label>
-                      <input
-                        type="text"
-                        value={buyerAddress}
-                        onChange={e => setBuyerAddress(e.target.value)}
-                        placeholder="House/Street/Locality address"
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Buyer GSTIN (Optional B2B Input Credit)</label>
-                      <input
-                        type="text"
-                        value={buyerGstin}
-                        onChange={e => setBuyerGstin(e.target.value.toUpperCase())}
-                        placeholder="e.g. 33AAAAA0000A1Z5"
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'monospace' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* GST Price Breakup Calculation */}
-                {(() => {
-                  const taxableBase = Math.round((finalPrice / 1.18) * 100) / 100;
-                  const gstTotal = Math.round((finalPrice - taxableBase) * 100) / 100;
-                  const isIntraState = buyerState.trim().toLowerCase() === 'kerala';
-                  const cgst = isIntraState ? Math.round((gstTotal / 2) * 100) / 100 : 0;
-                  const sgst = isIntraState ? Math.round((gstTotal - cgst) * 100) / 100 : 0;
-                  const igst = isIntraState ? 0 : gstTotal;
-
-                  return (
-                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius)', border: '1px solid rgba(59, 130, 246, 0.2)', margin: '1rem 0' }}>
-                      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#60a5fa', margin: '0 0 0.4rem 0' }}>📊 GST Tax Breakdown (18% Inclusive)</p>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
-                        <span>Taxable Value (Base):</span>
-                        <span>₹{taxableBase.toFixed(2)}</span>
-                      </div>
-                      {isIntraState ? (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
-                            <span>CGST (9%):</span>
-                            <span>₹{cgst.toFixed(2)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
-                            <span>SGST (9%):</span>
-                            <span>₹{sgst.toFixed(2)}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.2rem 0' }}>
-                          <span>IGST (18% Inter-state):</span>
-                          <span>₹{igst.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, color: '#10b981', paddingTop: '0.4rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                        <span>Total GST Included:</span>
-                        <span>₹{gstTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  padding: '0.75rem 0',
-                  borderTop: '2px solid var(--border)',
-                  marginTop: '0.5rem',
-                  fontWeight: 'bold',
-                  fontSize: '1.2rem'
-                }}>
-                  <span>Total Amount (Incl. GST)</span>
-                  <span>₹{finalPrice}</span>
-                </div>
-              </div>
-
-              <button 
-                className="btn btn-primary btn-lg" 
-                onClick={handlePayment}
-                disabled={processing}
-                style={{ 
-                  width: '100%', 
-                  marginTop: '1.5rem',
-                  opacity: processing ? 0.7 : 1
+            <div className="checkout-item">
+              <img
+                className="checkout-item-thumb"
+                src={getMediaUrl(item.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
+                alt=""
+                width="80"
+                height="80"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = FALLBACK_COURSE_THUMBNAIL;
                 }}
-              >
-                {processing ? 'Processing...' : `Pay ₹${finalPrice} (Incl. GST)`}
-              </button>
-
-              <p style={{ 
-                fontSize: '0.75rem', 
-                color: 'var(--text-muted)', 
-                textAlign: 'center',
-                marginTop: '1rem'
-              }}>
-                🔒 256-Bit Encrypted Payment powered by Razorpay (UPI, Google Pay, Cards, NetBanking)
-              </p>
-
-              <p style={{ 
-                fontSize: '0.72rem', 
-                color: 'var(--text-muted)', 
-                textAlign: 'center',
-                marginTop: '0.4rem',
-                lineHeight: 1.4
-              }}>
-                By proceeding, you agree to our{' '}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Terms</a>
-                ,{' '}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Privacy Policy</a>
-                {' '}and{' '}
-                <a href="/refund" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Refund Policy</a>.
-              </p>
-            </div>
-
-            {/* Right: Item Details */}
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>What you'll get</h3>
-              <ul style={{ 
-                listStyle: 'none', 
-                padding: 0,
-                margin: 0
-              }}>
-                {itemType === 'course' ? (
-                  <>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>📹</span> Full video course content
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>📚</span> Study materials & resources
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>🎓</span> Certificate upon completion
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>💬</span> Q&A with instructors
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>🌍</span> {item.languages?.length || 0} language options
-                    </li>
-                    {item.duration && (
-                      <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>⏱️</span> {item.duration} of content
-                      </li>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>🎤</span> Live interactive session
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>📅</span> {new Date(item.dateTime).toLocaleString()}
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>🔗</span> Meeting link provided
-                    </li>
-                    <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>💬</span> Q&A during session
-                    </li>
-                    {item.duration && (
-                      <li style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>⏱️</span> Duration: {item.duration}
-                      </li>
-                    )}
-                  </>
-                )}
-              </ul>
-
-              <div style={{ 
-                marginTop: '1.5rem',
-                padding: '1rem',
-                background: 'var(--background)',
-                borderRadius: 'var(--radius)'
-              }}>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  {itemType === 'course' 
-                    ? 'Lifetime access with all future updates included.' 
-                    : 'Registration includes full access to the live session and recording.'}
+              />
+              <div className="checkout-item-info">
+                <h2 className="checkout-item-title">{item.title}</h2>
+                <p className="checkout-item-meta">
+                  {itemType === 'course' ? '📚 Course' : '📅 Live event'}
+                  {chapterCount > 0 && ` · ${chapterCount} module${chapterCount === 1 ? '' : 's'}`}
+                  {item.languages?.length > 0 && ` · ${item.languages.join(', ')}`}
                 </p>
               </div>
+              <div className="checkout-item-price">
+                <strong>₹{finalPrice}</strong>
+                {savings > 0 && <s>₹{listPrice}</s>}
+              </div>
             </div>
-          </div>
+            <p className="checkout-price-note">
+              ✅ Final price — 18% GST already included. No extra charges at payment.
+            </p>
 
+            {!user ? (
+              <div className="checkout-guest-note">
+                <span><strong>No account needed.</strong> We'll create one and email your login details.</span>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => navigate('/auth', { state: { from: `/checkout/${id}` } })}
+                >
+                  Already have an account? Sign in
+                </button>
+              </div>
+            ) : (
+              <div className="checkout-user-note">👤 Signed in as {user.name} ({user.email})</div>
+            )}
+
+            <form
+              className="checkout-form"
+              noValidate
+              onSubmit={(e) => { e.preventDefault(); handlePayment(); }}
+            >
+              <div className="checkout-field">
+                <label htmlFor="co-name">Full name <span aria-hidden="true">*</span></label>
+                <input
+                  id="co-name"
+                  type="text"
+                  autoComplete="name"
+                  className={fieldClass('name')}
+                  value={buyerName}
+                  onChange={e => { setBuyerName(e.target.value); clearFieldError('name'); }}
+                  placeholder="Your full name"
+                  aria-invalid={Boolean(formErrors.name)}
+                  aria-describedby={formErrors.name ? 'co-name-err' : undefined}
+                />
+                {formErrors.name && <p className="checkout-error" id="co-name-err">{formErrors.name}</p>}
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="co-email">Email <span aria-hidden="true">*</span></label>
+                <input
+                  id="co-email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  className={fieldClass('email')}
+                  value={buyerEmail}
+                  onChange={e => { setBuyerEmail(e.target.value); clearFieldError('email'); }}
+                  placeholder="you@example.com"
+                  disabled={Boolean(user?.email)}
+                  aria-invalid={Boolean(formErrors.email)}
+                  aria-describedby={formErrors.email ? 'co-email-err' : 'co-email-help'}
+                />
+                {formErrors.email
+                  ? <p className="checkout-error" id="co-email-err">{formErrors.email}</p>
+                  : <p className="checkout-help" id="co-email-help">Your access, login details and invoice are sent here.</p>}
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="co-phone">Mobile number <span aria-hidden="true">*</span></label>
+                <input
+                  id="co-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className={fieldClass('phone')}
+                  value={buyerPhone}
+                  onChange={e => { setBuyerPhone(e.target.value); clearFieldError('phone'); }}
+                  placeholder="10-digit mobile number"
+                  aria-invalid={Boolean(formErrors.phone)}
+                  aria-describedby={formErrors.phone ? 'co-phone-err' : 'co-phone-help'}
+                />
+                {formErrors.phone
+                  ? <p className="checkout-error" id="co-phone-err">{formErrors.phone}</p>
+                  : <p className="checkout-help" id="co-phone-help">Needed by Razorpay for UPI / card payment.</p>}
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="co-state">Your state <span className="checkout-label-hint">(for the GST invoice)</span></label>
+                <select
+                  id="co-state"
+                  className="checkout-input"
+                  autoComplete="address-level1"
+                  value={buyerState}
+                  onChange={e => setBuyerState(e.target.value)}
+                >
+                  {INDIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
+                </select>
+              </div>
+
+              {/* Optional business-invoice fields: hidden by default so most buyers see 4 fields only */}
+              <button
+                type="button"
+                className="link-button checkout-toggle"
+                aria-expanded={showBusinessFields}
+                aria-controls="co-business"
+                onClick={() => setShowBusinessFields(v => !v)}
+              >
+                {showBusinessFields ? '− Hide business invoice details' : '+ Need a business (B2B) GST invoice? Add GSTIN & address'}
+              </button>
+              {showBusinessFields && (
+                <div id="co-business" className="checkout-business">
+                  <div className="checkout-field">
+                    <label htmlFor="co-gstin">GSTIN <span className="checkout-label-hint">(optional)</span></label>
+                    <input
+                      id="co-gstin"
+                      type="text"
+                      className="checkout-input checkout-mono"
+                      value={buyerGstin}
+                      onChange={e => setBuyerGstin(e.target.value.toUpperCase())}
+                      placeholder="e.g. 33AAAAA0000A1Z5"
+                    />
+                  </div>
+                  <div className="checkout-field">
+                    <label htmlFor="co-address">Billing address <span className="checkout-label-hint">(optional)</span></label>
+                    <input
+                      id="co-address"
+                      type="text"
+                      autoComplete="street-address"
+                      className="checkout-input"
+                      value={buyerAddress}
+                      onChange={e => setBuyerAddress(e.target.value)}
+                      placeholder="House / street / locality"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Coupon: collapsed so buyers without a code are not sent off searching for one */}
+              {appliedCoupon ? (
+                <div className="checkout-coupon-applied">
+                  <span>✅ {appliedCoupon.code} applied{appliedCoupon.message ? ` — ${appliedCoupon.message}` : ''}</span>
+                  <button type="button" className="link-button" onClick={removeCoupon}>Remove</button>
+                </div>
+              ) : showCoupon ? (
+                <div className="checkout-coupon">
+                  <label htmlFor="co-coupon" className="sr-only">Coupon code</label>
+                  <input
+                    id="co-coupon"
+                    type="text"
+                    className={`checkout-input checkout-mono${couponError ? ' has-error' : ''}`}
+                    placeholder="Coupon code"
+                    value={couponInput}
+                    onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleApplyCoupon(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    {couponLoading ? '…' : 'Apply'}
+                  </button>
+                  {couponError && <p className="checkout-error checkout-coupon-error">{couponError}</p>}
+                </div>
+              ) : (
+                <button type="button" className="link-button checkout-toggle" onClick={() => setShowCoupon(true)}>
+                  Have a coupon code?
+                </button>
+              )}
+
+              <div className="checkout-summary">
+                {savings > 0 && (
+                  <div className="checkout-summary-row">
+                    <span>Price</span>
+                    <span><s>₹{listPrice}</s></span>
+                  </div>
+                )}
+                {item.discountedPrice && item.discountedPrice < item.price && (
+                  <div className="checkout-summary-row checkout-saving">
+                    <span>Discount</span>
+                    <span>−₹{item.price - item.discountedPrice}</span>
+                  </div>
+                )}
+                {appliedCoupon && (
+                  <div className="checkout-summary-row checkout-saving">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <span>−₹{basePrice - finalPrice}</span>
+                  </div>
+                )}
+                <div className="checkout-summary-row checkout-total">
+                  <span>Total to pay</span>
+                  <span>₹{finalPrice}</span>
+                </div>
+                <details className="checkout-gst">
+                  <summary>Includes ₹{gstTotal.toFixed(2)} GST — see breakdown</summary>
+                  <div className="checkout-summary-row"><span>Taxable value</span><span>₹{taxableBase.toFixed(2)}</span></div>
+                  {isIntraState ? (
+                    <>
+                      <div className="checkout-summary-row"><span>CGST (9%)</span><span>₹{cgst.toFixed(2)}</span></div>
+                      <div className="checkout-summary-row"><span>SGST (9%)</span><span>₹{sgst.toFixed(2)}</span></div>
+                    </>
+                  ) : (
+                    <div className="checkout-summary-row"><span>IGST (18%)</span><span>₹{gstTotal.toFixed(2)}</span></div>
+                  )}
+                </details>
+              </div>
+
+              {payError && (
+                <div className="checkout-pay-error" role="alert" ref={payErrorRef} tabIndex={-1}>
+                  <strong>Payment didn't go through.</strong> {payError}
+                  <span className="checkout-pay-error-help">
+                    No money is taken for a failed payment. Try again, or email{' '}
+                    <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> if it keeps failing.
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg checkout-pay-btn"
+                disabled={processing}
+                aria-busy={processing}
+              >
+                {processing ? 'Opening secure payment…' : `🔒 Pay ₹${finalPrice} securely`}
+              </button>
+
+              <ul className="checkout-trust" aria-label="Purchase guarantees">
+                <li>⚡ Instant access right after payment</li>
+                <li>🔒 Secure payment by Razorpay — UPI, GPay, cards, net banking</li>
+                <li>🧾 GST invoice emailed automatically</li>
+                <li>♾️ Lifetime access from your dashboard</li>
+              </ul>
+
+              <p className="checkout-legal">
+                By paying you agree to our{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a>,{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and{' '}
+                <a href="/refund" target="_blank" rel="noopener noreferrer">Refund Policy</a>.
+              </p>
+            </form>
+          </section>
+
+          {/* Right: what the buyer gets — built from the item's own data, no generic claims */}
+          <aside className="glass-card checkout-side" aria-labelledby="checkout-side-title">
+            <h2 id="checkout-side-title" className="checkout-side-title">What you get</h2>
+            <ul className="checkout-benefits">
+              {itemType === 'course' ? (
+                <>
+                  {outcomes.map((o) => <li key={o}>✓ {o}</li>)}
+                  {chapterCount > 0 && <li>✓ {chapterCount} module{chapterCount === 1 ? '' : 's'} you can go through at your own pace</li>}
+                  {item.languages?.length > 0 && <li>✓ Language: {item.languages.join(', ')}</li>}
+                  {item.duration && <li>✓ {item.duration} of content</li>}
+                  <li>✓ Lifetime access, including future updates</li>
+                </>
+              ) : (
+                <>
+                  <li>✓ Live interactive session</li>
+                  {item.dateTime && <li>✓ {new Date(item.dateTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</li>}
+                  <li>✓ Meeting link provided after registration</li>
+                  {item.duration && <li>✓ Duration: {item.duration}</li>}
+                </>
+              )}
+            </ul>
+            <p className="checkout-side-help">
+              Questions before paying?{' '}
+              <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+            </p>
+          </aside>
+        </div>
           {/* Payment Modal (Mock Mode) */}
           {showPaymentModal && (
             <div className="modal-overlay" style={{

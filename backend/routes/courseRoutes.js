@@ -7,6 +7,8 @@ import User from '../models/User.js';
 import { protect, admin, isUserAdmin, optionalAuth } from '../middleware/auth.js';
 import { getJwtSecret } from '../utils/jwtSecret.js';
 
+import { sanitizePublicCourse } from '../utils/publicCourse.js';
+
 const router = express.Router();
 
 // @desc    Get all courses
@@ -25,7 +27,6 @@ const router = express.Router();
 // GET /api/courses - Get courses with pagination
 router.get('/', async (req, res) => {
   try {
-    console.log(req.query)
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 9;
     const skip = (page - 1) * limit;
@@ -51,7 +52,7 @@ router.get('/', async (req, res) => {
     }
 
     res.json({
-      courses,
+      courses: courses.map(sanitizePublicCourse),
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -70,7 +71,6 @@ router.get('/', async (req, res) => {
 // In your courses route file
 router.get('/paginated', async (req, res) => {
   try {
-    console.log('xxdsd')
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const search = req.query.search || '';
@@ -108,7 +108,7 @@ router.get('/paginated', async (req, res) => {
       .limit(limit);
 
     res.json({
-      courses,
+      courses: courses.map(sanitizePublicCourse),
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -131,7 +131,7 @@ router.get('/all', async (req, res) => {
       .sort({ createdAt: -1 }).limit(3);
 
     res.json({
-      courses,
+      courses: courses.map(sanitizePublicCourse),
       total: courses.length
     });
   } catch (error) {
@@ -147,7 +147,7 @@ router.get('/featured', async (req, res) => {
   try {
     const featuredCourse = await Course.findOne({ isFeatured: true })
       .select('-content.chapters.videoUrl');
-    res.json({ featuredCourse });
+    res.json({ featuredCourse: sanitizePublicCourse(featuredCourse) });
   } catch (error) {
     console.error('Fetch featured course error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -177,25 +177,8 @@ router.get('/sales/:slugOrId', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
 
-    // Sanitize course content to prevent leaking paid links on public sales pages
-    const sanitizedCourse = course.toObject();
-    if (sanitizedCourse.content) {
-      sanitizedCourse.content.forEach(lang => {
-        if (lang.chapters) {
-          lang.chapters.forEach(ch => {
-            delete ch.videoUrl;
-            delete ch.driveLink;
-            if (ch.materials && Array.isArray(ch.materials)) {
-              ch.materials = ch.materials.map(m => ({
-                _id: m._id,
-                title: m.title,
-                type: m.type
-              }));
-            }
-          });
-        }
-      });
-    }
+    // Sanitize course content (chapter links, materials, paid resource bundles) for the public sales page
+    const sanitizedCourse = sanitizePublicCourse(course);
 
     res.json({
       course: sanitizedCourse,

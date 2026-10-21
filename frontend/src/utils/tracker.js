@@ -70,6 +70,42 @@ export const tracker = {
   },
 
   /**
+   * Track a funnel interaction that is not a page view.
+   * @param {'buy_click'|'enquiry_submit'} name
+   * @param {Object} [data]
+   * @param {string} [data.courseId]
+   * @param {string} [data.source] - where it happened, e.g. 'hero', 'sticky_bar', 'sales_page', 'contact_page'
+   */
+  trackEvent(name, data = {}) {
+    if (typeof window === 'undefined') return;
+
+    const payload = {
+      name,
+      path: window.location.pathname + window.location.search,
+      source: data.source || '',
+      courseId: data.courseId || null,
+      sessionId: getSessionId(),
+      device: getDeviceType()
+    };
+
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      fetch(`${BASE_URL}/analytics/track-event`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        // keepalive so the request survives the navigation a buy click triggers
+        keepalive: true
+      }).catch(() => {});
+    } catch {
+      // Swallowed
+    }
+  },
+
+  /**
    * Track checkout step & lead info
    * @param {Object} data
    * @param {string} data.courseId

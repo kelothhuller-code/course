@@ -2291,3 +2291,252 @@ body.menu-open-scroll-lock {
     font-size: 0.8rem;
   }
 }
+/* =====================================================================
+   CONVERSION-FOCUSED LANDING UPDATES
+   (hero offer card, sticky buy bar, enquiry form, software CTA, a11y fixes)
+   ===================================================================== */
+
+/* Accessibility: skip link + visible keyboard focus */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0.5rem;
+  z-index: 20000;
+  background: var(--primary);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.skip-link:focus { left: 0.5rem; }
+.landing-page a:focus-visible,
+.landing-page button:focus-visible,
+.landing-page select:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  .landing-page *, .landing-page *::before, .landing-page *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.link-button {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Closed mobile drawer: its box-shadow used to bleed onto the left edge of every
+   page, and its links stayed keyboard-focusable while hidden. */
+.navbar-sidenav:not(.navbar-sidenav-open) {
+  box-shadow: none;
+  visibility: hidden;
+}
+.navbar-sidenav {
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.32s;
+}
+
+/* ----- Hero ----- */
+.hero-section {
+  min-height: auto;
+  padding: 7.5rem 0 4rem 0;
+}
+.hero-title { font-size: clamp(2.1rem, 4.6vw, 3.4rem); }
+.hero-primary-cta { box-shadow: 0 10px 24px -8px rgba(79, 70, 229, 0.55); }
+.hero-trust {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem 0;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+.hero-trust li { white-space: nowrap; }
+.hero-business-link {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.hero-offer-card {
+  background: var(--background-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  max-width: 460px;
+  margin: 0 auto;
+  text-align: left;
+}
+.hero-offer-skeleton {
+  min-height: 460px;
+  background: linear-gradient(100deg, #f1f5f9 30%, #e2e8f0 50%, #f1f5f9 70%);
+  background-size: 200% 100%;
+  animation: heroShimmer 1.4s ease-in-out infinite;
+}
+@keyframes heroShimmer { to { background-position: -200% 0; } }
+.hero-offer-thumb { position: relative; aspect-ratio: 16 / 9; background: #0f172a; }
+.hero-offer-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-offer-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+}
+.hero-offer-body { padding: 1.5rem; }
+.hero-offer-title { font-size: 1.3rem; line-height: 1.3; margin: 0 0 0.6rem 0; }
+.hero-offer-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+.hero-offer-price-now { font-size: 2rem; font-weight: 800; color: var(--text-primary); font-family: 'Outfit', sans-serif; }
+.hero-offer-price-was { font-size: 1.05rem; color: var(--text-muted); text-decoration: line-through; }
+.hero-offer-price-note { font-size: 0.8rem; color: #059669; font-weight: 600; }
+.hero-offer-facts {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.hero-offer-cta { width: 100%; justify-content: center; padding: 0.85rem 1rem; font-size: 1rem; }
+.hero-offer-small { font-size: 0.78rem; color: var(--text-muted); text-align: center; margin: 0.6rem 0 0 0; }
+
+@media (max-width: 900px) {
+  .hero-section { padding: 6.5rem 0 3rem 0; }
+  .hero-trust { justify-content: center; }
+  .hero-business-link { text-align: center; }
+}
+@media (max-width: 480px) {
+  .hero-trust { flex-direction: row; justify-content: center; font-size: 0.82rem; }
+  .hero-offer-facts { grid-template-columns: 1fr; }
+}
+
+/* ----- Featured course / pricing ----- */
+.featured-section .section-title { margin-bottom: 1.5rem; }
+.featured-price-note { font-size: 0.85rem; color: #059669; font-weight: 600; margin: -0.25rem 0 1rem 0; }
+
+/* ----- FAQ ----- */
+.faq-heading { margin: 0; font-size: inherit; font-weight: inherit; font-family: inherit; }
+.faq-answer a { color: var(--primary); font-weight: 600; }
+.faq-more { text-align: center; margin-top: 1.75rem; color: var(--text-secondary); }
+
+/* ----- Software fallback (no products published yet) ----- */
+.software-fallback { padding: 5rem 0; background: var(--background-white); text-align: center; }
+.software-fallback-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1.25rem;
+  max-width: 760px;
+  margin: 0 auto 2rem auto;
+  text-align: left;
+}
+.software-fallback-card { background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
+.software-fallback-card h3 { margin: 0.5rem 0 0.35rem 0; font-size: 1.15rem; }
+.software-fallback-card p { margin: 0; color: var(--text-secondary); font-size: 0.95rem; }
+.software-fallback-icon { font-size: 1.8rem; }
+
+/* ----- Enquiry section ----- */
+.enquiry-section { padding: 5rem 0; background: var(--background-white); border-top: 1px solid var(--border); }
+.enquiry-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 3rem; align-items: start; }
+.enquiry-intro .section-title { text-align: left; }
+.enquiry-intro p { color: var(--text-secondary); font-size: 1.05rem; }
+.enquiry-points { list-style: none; padding: 0; margin: 1.25rem 0; display: flex; flex-direction: column; gap: 0.5rem; color: var(--text-primary); }
+.enquiry-alt { font-size: 0.92rem !important; }
+.enquiry-alt a { color: var(--primary); font-weight: 600; }
+.enquiry-wa-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+}
+.enquiry-card { background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; box-shadow: var(--shadow-md); }
+@media (max-width: 900px) {
+  .enquiry-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .enquiry-intro { text-align: center; }
+  .enquiry-intro .section-title { text-align: center; }
+  .enquiry-points { align-items: center; }
+  .enquiry-card { padding: 1.25rem; }
+}
+
+/* ----- Testimonials (renders only once the owner adds real ones) ----- */
+.testimonials-section { padding: 5rem 0; }
+.testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.25rem; }
+.testimonial-card { margin: 0; background: var(--background-white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
+.testimonial-card blockquote { margin: 0 0 1rem 0; color: var(--text-primary); }
+.testimonial-card figcaption { font-size: 0.9rem; color: var(--text-muted); }
+
+/* ----- Mobile sticky buy bar ----- */
+.landing-sticky-buy { display: none; }
+@media (max-width: 768px) {
+  .landing-sticky-buy {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08);
+    transform: translateY(110%);
+    transition: transform 0.25s ease;
+  }
+  .landing-sticky-buy.is-visible { transform: translateY(0); }
+  .landing-sticky-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .landing-sticky-title { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .landing-sticky-price { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); display: flex; gap: 0.4rem; align-items: baseline; }
+  .landing-sticky-price s { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+  .landing-sticky-price small { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; }
+  .landing-sticky-cta { flex-shrink: 0; padding: 0.7rem 1.3rem; }
+  .landing-page { padding-bottom: 72px; }
+}
+
+/* ===== Data-driven hero (course outcomes as bullets) ===== */
+.hero-trust { flex-direction: column; gap: 0.45rem; }
+.hero-trust li { white-space: normal; color: var(--text-secondary); font-size: 0.95rem; }
+.hero-text-skeleton { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1.5rem; }
+.hero-text-skeleton span {
+  display: block; height: 1.1rem; border-radius: 6px;
+  background: linear-gradient(100deg, #f1f5f9 30%, #e2e8f0 50%, #f1f5f9 70%);
+  background-size: 200% 100%; animation: heroShimmer 1.4s ease-in-out infinite;
+}
+.hero-text-skeleton span:nth-child(1) { width: 40%; }
+.hero-text-skeleton span:nth-child(2) { width: 95%; height: 2.6rem; }
+.hero-text-skeleton span:nth-child(3) { width: 80%; }
+
+/* ===== Compact "Also available" course strip ===== */
+.more-courses-section { padding: 2.5rem 0; }
+.more-courses-title { font-size: 1.25rem; margin: 0 0 1rem; text-align: center; }
+.more-courses-list { list-style: none; margin: 0 auto; padding: 0; max-width: 760px; display: flex; flex-direction: column; gap: 0.75rem; }
+.more-course {
+  display: flex; align-items: center; gap: 0.9rem; padding: 0.75rem;
+  background: var(--background-white); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px);
+}
+.more-course img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.more-course-info { flex: 1; min-width: 0; }
+.more-course-info h3 { font-size: 0.98rem; margin: 0 0 0.2rem; line-height: 1.35; }
+.more-course-info p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+@media (max-width: 520px) {
+  .more-course { flex-wrap: wrap; }
+  .more-course .btn { width: 100%; text-align: center; }
+}
