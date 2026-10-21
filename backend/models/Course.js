@@ -37,6 +37,9 @@ const CourseSchema = new mongoose.Schema({
   category: { type: String, required: true }, // e.g., "AI Development", "AI in Daily Life"
   isFree: { type: Boolean, default: false },
   isFeatured: { type: Boolean, default: false },
+  // Optional landing-page course carousel position: 1 = first slot after the featured course,
+  // 2 = next, ... ; null/unset = automatic (by sales, then newest); -1 = never show in the carousel.
+  landingOrder: { type: Number, default: null, min: -1, max: 99 },
   outcomes: [{ type: String }], // Deliverables / Benefits
   packageType: { type: String, enum: ['Starter', 'Professional', 'Master'], default: 'Starter' },
   price: { type: Number, required: true },
