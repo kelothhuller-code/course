@@ -4,6 +4,16 @@ window.AnalyticsModule = {
     activeFilter: 'all', // 'all' | 'abandoned' | 'recovered'
     searchQuery: '',
 
+    escapeHtml(str) {
+        if (!str && str !== 0) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     async render() {
         try {
             const res = await API.getAnalyticsOverview();
@@ -145,8 +155,8 @@ window.AnalyticsModule = {
                         <tbody>
                             ${topPages && topPages.length > 0 ? topPages.map(p => `
                                 <tr style="border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.9rem;">
-                                    <td style="padding:12px;font-family:monospace;color:#38bdf8;">${Helpers.escapeHtml(p.path)}</td>
-                                    <td style="padding:12px;color:var(--text-main);">${Helpers.escapeHtml(p.pageTitle || '—')}</td>
+                                    <td style="padding:12px;font-family:monospace;color:#38bdf8;">${AnalyticsModule.escapeHtml(p.path)}</td>
+                                    <td style="padding:12px;color:var(--text-main);">${AnalyticsModule.escapeHtml(p.pageTitle || '—')}</td>
                                     <td style="padding:12px;text-align:right;font-weight:600;">${p.views}</td>
                                     <td style="padding:12px;text-align:right;color:#a855f7;">${p.uniqueVisitors}</td>
                                 </tr>
@@ -172,7 +182,7 @@ window.AnalyticsModule = {
                     <div style="display:flex;gap:10px;align-items:center;">
                         <input type="text"
                             placeholder="Search by name, email, phone..."
-                            value="${Helpers.escapeHtml(this.searchQuery)}"
+                            value="${AnalyticsModule.escapeHtml(this.searchQuery)}"
                             oninput="AnalyticsModule.handleSearch(this.value)"
                             style="padding:8px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:0.88rem;width:240px;"
                         />
@@ -225,17 +235,17 @@ window.AnalyticsModule = {
                                             ${Helpers.formatDate(lead.lastActiveAt || lead.createdAt)}
                                         </td>
                                         <td style="padding:12px;">
-                                            <div style="font-weight:600;color:var(--text-main);">${Helpers.escapeHtml(lead.buyerName || 'Anonymous Visitor')}</div>
+                                            <div style="font-weight:600;color:var(--text-main);">${AnalyticsModule.escapeHtml(lead.buyerName || 'Anonymous Visitor')}</div>
                                             <div style="font-size:0.82rem;color:#94a3b8;margin-top:2px;">
-                                                ${lead.buyerEmail ? `<a href="mailto:${encodeURIComponent(lead.buyerEmail)}" style="color:#38bdf8;text-decoration:none;">📧 ${Helpers.escapeHtml(lead.buyerEmail)}</a>` : '<span style="color:#64748b;">No email entered</span>'}
+                                                ${lead.buyerEmail ? `<a href="mailto:${encodeURIComponent(lead.buyerEmail)}" style="color:#38bdf8;text-decoration:none;">📧 ${AnalyticsModule.escapeHtml(lead.buyerEmail)}</a>` : '<span style="color:#64748b;">No email entered</span>'}
                                             </div>
                                             <div style="font-size:0.82rem;color:#94a3b8;margin-top:2px;">
-                                                ${lead.buyerPhone ? `📞 ${Helpers.escapeHtml(lead.buyerPhone)}` : ''}
-                                                ${lead.buyerState ? ` • ${Helpers.escapeHtml(lead.buyerState)}` : ''}
+                                                ${lead.buyerPhone ? `📞 ${AnalyticsModule.escapeHtml(lead.buyerPhone)}` : ''}
+                                                ${lead.buyerState ? ` • ${AnalyticsModule.escapeHtml(lead.buyerState)}` : ''}
                                             </div>
                                         </td>
                                         <td style="padding:12px;">
-                                            <div style="font-weight:600;color:var(--text-main);">${Helpers.escapeHtml(lead.courseTitle || 'Academy Course')}</div>
+                                            <div style="font-weight:600;color:var(--text-main);">${AnalyticsModule.escapeHtml(lead.courseTitle || 'Academy Course')}</div>
                                             <div style="font-size:0.85rem;color:#34d399;font-weight:600;margin-top:2px;">₹${(lead.amount || 0).toLocaleString('en-IN')}</div>
                                         </td>
                                         <td style="padding:12px;">
