@@ -2510,3 +2510,33 @@ body.menu-open-scroll-lock {
   .landing-sticky-cta { flex-shrink: 0; padding: 0.7rem 1.3rem; }
   .landing-page { padding-bottom: 72px; }
 }
+
+/* ===== Data-driven hero (course outcomes as bullets) ===== */
+.hero-trust { flex-direction: column; gap: 0.45rem; }
+.hero-trust li { white-space: normal; color: var(--text-secondary); font-size: 0.95rem; }
+.hero-text-skeleton { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1.5rem; }
+.hero-text-skeleton span {
+  display: block; height: 1.1rem; border-radius: 6px;
+  background: linear-gradient(100deg, #f1f5f9 30%, #e2e8f0 50%, #f1f5f9 70%);
+  background-size: 200% 100%; animation: heroShimmer 1.4s ease-in-out infinite;
+}
+.hero-text-skeleton span:nth-child(1) { width: 40%; }
+.hero-text-skeleton span:nth-child(2) { width: 95%; height: 2.6rem; }
+.hero-text-skeleton span:nth-child(3) { width: 80%; }
+
+/* ===== Compact "Also available" course strip ===== */
+.more-courses-section { padding: 2.5rem 0; }
+.more-courses-title { font-size: 1.25rem; margin: 0 0 1rem; text-align: center; }
+.more-courses-list { list-style: none; margin: 0 auto; padding: 0; max-width: 760px; display: flex; flex-direction: column; gap: 0.75rem; }
+.more-course {
+  display: flex; align-items: center; gap: 0.9rem; padding: 0.75rem;
+  background: var(--background-white); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px);
+}
+.more-course img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.more-course-info { flex: 1; min-width: 0; }
+.more-course-info h3 { font-size: 0.98rem; margin: 0 0 0.2rem; line-height: 1.35; }
+.more-course-info p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+@media (max-width: 520px) {
+  .more-course { flex-wrap: wrap; }
+  .more-course .btn { width: 100%; text-align: center; }
+}

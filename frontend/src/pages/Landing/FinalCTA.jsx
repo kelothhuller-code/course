@@ -9,8 +9,12 @@ export default function FinalCTA({ user, featuredCourse }) {
   return (
     <section className="final-cta" aria-labelledby="final-cta-title">
       <div className="container">
-        <h2 id="final-cta-title">Your Journey Can Start Today.</h2>
-        <p>You don't need to know everything before you start. You just need to start.</p>
+        <h2 id="final-cta-title">{featuredCourse && !enrolled ? 'Ready to Get Started?' : 'Your Journey Can Start Today.'}</h2>
+        <p>
+          {featuredCourse
+            ? <>Get <strong>{featuredCourse.title}</strong> today — instant access after a secure checkout.</>
+            : "You don't need to know everything before you start. You just need to start."}
+        </p>
         <div className="cta-buttons">
           {featuredCourse ? (
             <Link
@@ -33,10 +37,10 @@ export default function FinalCTA({ user, featuredCourse }) {
           </button>
         </div>
         <div className="trust-tags">
-          <span>✓ Beginner friendly</span>
-          <span>✓ Age 10+</span>
+          <span>✓ Instant access</span>
           <span>✓ Lifetime access</span>
           <span>✓ Prices incl. GST</span>
+          <span>✓ Secure Razorpay checkout</span>
         </div>
       </div>
     </section>

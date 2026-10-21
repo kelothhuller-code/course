@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import tracker from '../../utils/tracker';
 
 export default function ServicesShowcase() {
   const [services, setServices] = useState([]);
@@ -55,6 +56,7 @@ export default function ServicesShowcase() {
         ...formData,
         serviceId: modalService?._id || null
       });
+      tracker.trackEvent('enquiry_submit', { source: 'service_modal' });
       alert('Thank you! Your enquiry has been received. The WideTech team will reply to you by email.');
       handleClose();
     } catch (err) {

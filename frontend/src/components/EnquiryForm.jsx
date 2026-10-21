@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import tracker from '../utils/tracker';
 import './EnquiryForm.css';
 
 const ENQUIRY_INTERESTS = ['Course', 'Software', 'Other'];
@@ -13,7 +14,11 @@ const PHONE_RE = /^[+\d][\d\s()-]{6,19}$/;
  * ContactMessage collection (visible in the admin portal → Inquiries) and emails
  * the owner if ENQUIRY_NOTIFY_EMAIL + SMTP are configured on the backend.
  */
-export default function EnquiryForm({ user, defaultInterest = 'Course', source = 'landing_page', compact = false }) {
+export default function EnquiryForm({ user, defaultInterest = 'Course', source = 'landing_page', compact = false, courseTitle = '' }) {
+  // Name the actual course when we know it (e.g. the featured course), otherwise stay generic
+  const courseOptionLabel = courseTitle
+    ? `Course: ${courseTitle.length > 48 ? `${courseTitle.slice(0, 45).trim()}…` : courseTitle}`
+    : 'A course';
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -73,6 +78,7 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
       });
       setServerMsg(res?.message || '');
       setStatus('sent');
+      tracker.trackEvent('enquiry_submit', { source: `${source || 'enquiry_form'}:${form.interest}` });
     } catch (err) {
       setServerMsg(err.message || 'Something went wrong. Please try again.');
       setStatus('error');
@@ -122,7 +128,7 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
         <div className="enquiry-field">
           <label htmlFor="enq-interest">I'm interested in *</label>
           <select id="enq-interest" value={form.interest} onChange={update('interest')}>
-            <option value="Course">A course</option>
+            <option value="Course">{courseOptionLabel}</option>
             <option value="Software">Software / automation</option>
             <option value="Other">Something else</option>
           </select>

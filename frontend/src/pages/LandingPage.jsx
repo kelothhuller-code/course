@@ -6,13 +6,9 @@ import { api } from '../api';
 import Navbar from './Landing/Navbar';
 import Hero from './Landing/Hero';
 import FeaturedCourse from './Landing/FeaturedCourse';
-import BuildJourney from './Landing/BuildJourney';
 import CourseCurriculum from './Landing/CourseCurriculum';
-import WhyAI from './Landing/WhyAI';
 import TrialTutorials from './Landing/TrialTutorials';
-import LearningPaths from './Landing/LearningPaths';
 import EventsSection from './Landing/EventsSection';
-import AudienceSection from './Landing/AudienceSection';
 import HowItWorks from './Landing/HowItWorks';
 import FounderSection from './Landing/FounderSection';
 import Testimonials from './Landing/Testimonials';
@@ -21,6 +17,8 @@ import FinalCTA from './Landing/FinalCTA';
 import Footer from './Landing/Footer';
 import VideoModal from './Landing/VideoModal';
 import CourseGrid from './Landing/CourseGrid';
+import MoreCourses from './Landing/MoreCourses';
+import { buildBuyingFaqs } from '../config/faqs';
 import LeadMagnet from './Landing/LeadMagnet';
 import SoftwareShowcase from './Landing/SoftwareShowcase';
 import ServicesShowcase from './Landing/ServicesShowcase';
@@ -169,6 +167,12 @@ export default function LandingPage({ user }) {
     }
   };
 
+  // Everything except the featured course. With a small catalogue a full "course library" grid
+  // looks empty and competes with the main offer, so 1–2 extra courses get a compact strip.
+  const otherCourses = courses.filter(c => c._id !== featuredCourse?._id);
+  const useCompactCourseList = otherCourses.length > 0 && otherCourses.length < 3 && !pagination.hasNextPage;
+  const faqs = buildBuyingFaqs(featuredCourse, { hasFreeLesson: trials.length > 0 });
+
   return (
     <div className="landing-page">
       <a href="#main-content" className="skip-link">Skip to content</a>
@@ -197,19 +201,21 @@ export default function LandingPage({ user }) {
         )}
         {featuredCourse && <CourseCurriculum course={featuredCourse} />}
 
-        {/* 3. Why it works / who it's for */}
-        <BuildJourney />
-        <WhyAI />
-        <AudienceSection />
+        {/* 3. Try before buying, how buying works, who is behind it.
+            BuildJourney / WhyAI / AudienceSection / LearningPaths were removed from the page:
+            they pitched an AI-website course for kids (age 10+) that is not in the live
+            catalogue, which confused visitors arriving for the actual course. The components
+            are kept in ./Landing if a matching course is launched again. */}
         <TrialTutorials trials={trials} onPlayVideo={setActiveVideo} />
         <HowItWorks />
         <FounderSection />
         <Testimonials />
 
         {/* 4. Other courses */}
-        {!loading && (
+        {!loading && useCompactCourseList && <MoreCourses courses={otherCourses} user={user} />}
+        {!loading && !useCompactCourseList && otherCourses.length > 0 && (
           <CourseGrid
-            courses={courses}
+            courses={otherCourses}
             user={user}
             handleEnroll={handleEnroll}
             pagination={pagination}
@@ -227,10 +233,9 @@ export default function LandingPage({ user }) {
         <EventsSection events={events} user={user} handleEnroll={handleEnroll} />
 
         {/* 6. Objection handling, final CTA, enquiries */}
-        <FAQ />
+        <FAQ faqs={faqs} />
         <FinalCTA user={user} featuredCourse={featuredCourse} />
-        <EnquirySection user={user} />
-        <LearningPaths />
+        <EnquirySection user={user} featuredCourse={featuredCourse} />
         <LeadMagnet />
       </main>
 

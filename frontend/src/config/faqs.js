@@ -1,17 +1,15 @@
 /**
  * Buyer FAQs shown on the landing page and (as a fallback) on course sales pages.
- * Every answer here is based on behaviour that already exists in the codebase
- * (checkout, GST invoices, certificates, refund policy). Update them if the
- * business rules change.
+ *
+ * Kept universal on purpose: every answer describes how the platform works for ANY course
+ * (checkout, GST, access, refunds) — nothing is specific to one course's topic.
+ * Course-specific questions belong in the course's own Sales Page FAQs (admin → Sales Page
+ * Builder); buildBuyingFaqs() puts those first when they exist.
  */
 export const BUYING_FAQS = [
   {
-    q: 'Do I need coding experience?',
-    a: 'No. The beginner curriculum starts from the absolute basics — no prior coding knowledge is required.',
-  },
-  {
     q: 'How do I pay, and is GST included?',
-    a: 'Checkout is handled securely by Razorpay (UPI, cards and other methods Razorpay supports). Listed prices already include 18% GST, and a GST invoice is emailed to you automatically.',
+    a: 'Checkout is handled securely by Razorpay (UPI, cards, net banking and the other methods Razorpay supports). The price you see already includes 18% GST — there is nothing extra to pay at checkout — and a GST invoice is emailed to you automatically.',
   },
   {
     q: 'Do I need an account before buying?',
@@ -19,23 +17,15 @@ export const BUYING_FAQS = [
   },
   {
     q: 'How do I access the course after payment?',
-    a: 'Access is instant. After payment you are taken straight to the course, and it is always available in your student dashboard.',
+    a: 'Access is instant. After payment you are taken straight to the course, and it stays available in your student dashboard.',
   },
   {
-    q: 'Is this a live course? How long do I have access?',
-    a: 'Courses are pre-recorded video lessons you can watch at your own pace, with lifetime access. Live hands-on workshops are offered separately with their own schedules.',
+    q: 'How long do I have access? Is it self-paced?',
+    a: 'Yes — courses are self-paced with lifetime access, so you can go through the material whenever it suits you. Live workshops, when offered, are listed separately with their own schedules.',
   },
   {
-    q: 'Can I watch the lessons on my phone?',
+    q: 'Can I use it on my phone?',
     a: 'Yes. The course platform works on mobile phones, tablets and desktop computers.',
-  },
-  {
-    q: 'Do I get a certificate?',
-    a: 'Yes. You receive a verifiable digital certificate when you complete 100% of the course.',
-  },
-  {
-    q: 'What age is this for?',
-    a: '10+ and anyone who wants to learn. No advanced maths is needed.',
   },
   {
     q: 'Can I get a refund?',
@@ -47,3 +37,36 @@ export const BUYING_FAQS = [
     a: 'Yes. WideTech offers ready-to-run software and custom bot/automation engineering. Tell us what you need using the enquiry form and we will reply by email.',
   },
 ];
+
+/**
+ * FAQ list for a specific course: the owner's own sales-page FAQs first, then facts derived
+ * from the course data (language, format), then the universal buying FAQs.
+ */
+export function buildBuyingFaqs(course, { hasFreeLesson = false } = {}) {
+  const own = (course?.salesPageConfig?.faqs || [])
+    .filter((f) => f && f.question && f.answer)
+    .map((f) => ({ q: f.question, a: f.answer }));
+
+  const derived = [];
+  const langs = (course?.languages || []).filter(Boolean);
+  if (langs.length) {
+    derived.push({
+      q: 'Which language is the course in?',
+      a: `${course.title} is available in ${langs.join(', ')}.`,
+    });
+  }
+  if (hasFreeLesson) {
+    derived.push({
+      q: 'Can I try something for free first?',
+      a: 'Yes — there is a free lesson on this page. Watch it first and buy the full course when you are ready.',
+    });
+  }
+
+  const seen = new Set(own.map((f) => f.q.trim().toLowerCase()));
+  return [...own, ...derived, ...BUYING_FAQS].filter((f) => {
+    const key = f.q.trim().toLowerCase();
+    if (seen.has(key) && !own.includes(f)) return false;
+    seen.add(key);
+    return true;
+  });
+}

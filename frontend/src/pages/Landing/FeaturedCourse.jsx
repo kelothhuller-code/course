@@ -7,14 +7,12 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
     c.courseId?._id === course._id || c.courseId === course._id
   );
 
+  // Universal fallback, only used when the course has no outcomes filled in (admin → course → outcomes)
   const defaultFeatures = [
-    'Beginner friendly',
-    'Age 10+',
-    'Video-based learning',
-    'Build a real website',
-    'Learn AI-assisted coding',
-    'Publish your website',
-    'Lifetime access'
+    'Self-paced — go through it whenever it suits you',
+    'Instant access right after payment',
+    'Lifetime access from your dashboard',
+    'Works on mobile, tablet and desktop'
   ];
 
   // If a specific course is highlighted from backend
@@ -95,10 +93,14 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
               <div className="featured-visual">
                 <div className="featured-icon">🚀</div>
                 <div className="featured-stats">
-                  <div className="stat">
-                    <span className="stat-number">10+</span>
-                    <span className="stat-label">Age</span>
-                  </div>
+                  {course.languages?.length > 0 && (
+                    <div className="stat">
+                      <span className="stat-number" style={{ fontSize: course.languages.length > 1 ? undefined : '1.1rem' }}>
+                        {course.languages.length > 1 ? course.languages.length : course.languages[0]}
+                      </span>
+                      <span className="stat-label">{course.languages.length > 1 ? 'Languages' : 'Language'}</span>
+                    </div>
+                  )}
                   {chapterCount > 0 && (
                     <div className="stat">
                       <span className="stat-number">{chapterCount}</span>
@@ -106,8 +108,8 @@ export default function FeaturedCourse({ course, user, handleEnroll }) {
                     </div>
                   )}
                   <div className="stat">
-                    <span className="stat-number">✓</span>
-                    <span className="stat-label">Certificate</span>
+                    <span className="stat-number">∞</span>
+                    <span className="stat-label">Lifetime access</span>
                   </div>
                 </div>
               </div>

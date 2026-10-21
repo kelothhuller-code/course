@@ -4,6 +4,8 @@ import PageView from '../models/PageView.js';
 import AbandonedCheckout from '../models/AbandonedCheckout.js';
 import Transaction from '../models/Transaction.js';
 import Course from '../models/Course.js';
+import ContactMessage from '../models/ContactMessage.js';
+import FunnelEvent, { FUNNEL_EVENT_NAMES } from '../models/FunnelEvent.js';
 import { protect, admin, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -63,6 +65,38 @@ router.post('/track-view', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Error tracking view:', error);
     return res.status(200).json({ success: false }); // Always 200 so it never breaks frontend
+  }
+});
+
+/**
+ * POST /api/analytics/track-event
+ * Records a funnel interaction that is not a page view (buy-button click, enquiry submit).
+ * Same contract as /track-view: always answers 200 so tracking never breaks the page.
+ */
+router.post('/track-event', optionalAuth, async (req, res) => {
+  try {
+    const { name, path, source, sessionId, courseId, device } = req.body || {};
+    if (!FUNNEL_EVENT_NAMES.includes(name) || typeof sessionId !== 'string' || !sessionId) {
+      return res.status(200).json({ success: false, reason: 'invalid_event' });
+    }
+
+    FunnelEvent.create({
+      name,
+      path: String(path || '').slice(0, 500),
+      source: String(source || '').slice(0, 100),
+      sessionId: sessionId.slice(0, 100),
+      userId: req.user?._id || null,
+      courseId: courseId && mongoose.Types.ObjectId.isValid(courseId) ? courseId : null,
+      device: ['mobile', 'tablet', 'desktop'].includes(device) ? device : 'unknown',
+      createdAt: new Date()
+    }).catch(err => {
+      console.error('FunnelEvent logging error (swallowed):', err.message);
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error tracking event:', error);
+    return res.status(200).json({ success: false });
   }
 });
 
@@ -197,9 +231,11 @@ router.get('/admin/overview', protect, admin, async (req, res) => {
       stage3Sessions,
       completedTransactions
     ] = await Promise.all([
+      // The tracker sends pathname + query string, so "/?utm_source=…" or "/?fbclid=…" must
+      // count as a landing visit too (an exact $in match silently dropped all campaign traffic).
       PageView.distinct('sessionId', {
         ...funnelDateFilter,
-        path: { $in: ['/', '/all-courses'] }
+        path: { $regex: '^/(all-courses/?)?(\\?|#|$)' }
       }),
       PageView.distinct('sessionId', {
         ...funnelDateFilter,
@@ -218,25 +254,40 @@ router.get('/admin/overview', protect, admin, async (req, res) => {
       })
     ]);
 
+    const [buyClickSessions, enquiryEvents30d, enquiriesStored30d, paymentFailed30d] = await Promise.all([
+      FunnelEvent.distinct('sessionId', { ...funnelDateFilter, name: 'buy_click' }),
+      FunnelEvent.countDocuments({ ...funnelDateFilter, name: 'enquiry_submit' }),
+      ContactMessage.countDocuments(funnelDateFilter),
+      AbandonedCheckout.countDocuments({ lastActiveAt: { $gte: thirtyDaysAgo }, step: 'payment_failed', status: 'abandoned' })
+    ]);
+
     const s1 = stage1Sessions.length;
     const s2 = stage2Sessions.length;
+    const sBuy = buyClickSessions.length;
     const s3 = stage3Sessions.length;
     const s4 = completedTransactions;
 
     // Drop-off calculations
-    const s1_to_s2_drop = s1 > 0 ? Math.max(0, Math.round(((s1 - s2) / s1) * 100)) : 0;
-    const s2_to_s3_drop = s2 > 0 ? Math.max(0, Math.round(((s2 - s3) / s2) * 100)) : 0;
-    const s3_to_s4_drop = s3 > 0 ? Math.max(0, Math.round(((s3 - s4) / s3) * 100)) : 0;
+    const drop = (from, to) => (from > 0 ? Math.max(0, Math.round(((from - to) / from) * 100)) : 0);
+    const s1_to_s2_drop = drop(s1, s2);
+    const s2_to_buy_drop = drop(s2, sBuy);
+    const s2_to_s3_drop = drop(s2, s3);
+    const s3_to_s4_drop = drop(s3, s4);
     const overallConversion = s1 > 0 ? ((s4 / s1) * 100).toFixed(1) : 0;
 
     const funnel = {
       stages: [
         { name: '1. Store & Catalog Visitors', count: s1, dropOffAfter: s1_to_s2_drop, dropOffLabel: `${s1_to_s2_drop}% left before viewing a course` },
-        { name: '2. Course Sales Page Views', count: s2, dropOffAfter: s2_to_s3_drop, dropOffLabel: `${s2_to_s3_drop}% left without clicking Buy Now` },
-        { name: '3. Reached Checkout', count: s3, dropOffAfter: s3_to_s4_drop, dropOffLabel: `${s3_to_s4_drop}% abandoned cart at payment` },
-        { name: '4. Completed Purchases', count: s4, dropOffAfter: 0, dropOffLabel: 'Enrolled' }
+        { name: '2. Course Sales Page Views', count: s2, dropOffAfter: s2_to_buy_drop, dropOffLabel: `${s2_to_buy_drop}% left without clicking a Buy button` },
+        // Buy clicks come from any page (landing hero, sticky bar, sales page), so this stage can exceed stage 2
+        { name: '3. Clicked Buy', count: sBuy, dropOffAfter: drop(sBuy, s3), dropOffLabel: `${drop(sBuy, s3)}% clicked Buy but never loaded checkout` },
+        { name: '4. Reached Checkout', count: s3, dropOffAfter: s3_to_s4_drop, dropOffLabel: `${s3_to_s4_drop}% abandoned cart at payment` },
+        { name: '5. Completed Purchases', count: s4, dropOffAfter: 0, dropOffLabel: 'Enrolled' }
       ],
-      overallConversionRate: `${overallConversion}%`
+      overallConversionRate: `${overallConversion}%`,
+      salesPageToCheckoutDrop: s2_to_s3_drop,
+      paymentFailures: paymentFailed30d,
+      enquiries: { submittedEvents: enquiryEvents30d, stored: enquiriesStored30d }
     };
 
     // 3. Top Visited Pages

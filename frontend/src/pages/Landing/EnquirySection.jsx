@@ -7,7 +7,7 @@ import { SUPPORT_EMAIL, whatsappUrl } from '../../config/site';
  * Email/form is the primary channel; WhatsApp is intentionally a single, small
  * text link here only (trust signal) — the owner prefers enquiries by email.
  */
-export default function EnquirySection({ user }) {
+export default function EnquirySection({ user, featuredCourse = null }) {
   const wa = whatsappUrl();
   return (
     <section className="enquiry-section" id="enquiry" aria-labelledby="enquiry-title">
@@ -41,7 +41,7 @@ export default function EnquirySection({ user }) {
             </p>
           </div>
           <div className="enquiry-card">
-            <EnquiryForm user={user} source="landing_page" />
+            <EnquiryForm user={user} source="landing_page" courseTitle={featuredCourse?.title || ''} />
           </div>
         </div>
       </div>

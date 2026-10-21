@@ -6,7 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import TrustBadges from '../components/TrustBadges';
 import CourseReviews from '../components/CourseReviews';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
-import { BUYING_FAQS } from '../config/faqs';
+import { buildBuyingFaqs } from '../config/faqs';
+import tracker from '../utils/tracker';
 import './CourseSalesPage.css';
 
 export default function CourseSalesPage({ user }) {
@@ -79,6 +80,7 @@ export default function CourseSalesPage({ user }) {
     }
 
     // Paid courses: Allow direct checkout without prior login
+    tracker.trackEvent('buy_click', { courseId: course._id, source: 'sales_page' });
     navigate(`/checkout/${course._id}`);
   };
 
@@ -100,11 +102,11 @@ export default function CourseSalesPage({ user }) {
   const taxableBase = basePrice ? Math.round((basePrice / 1.18) * 100) / 100 : 0;
   const gstPart = basePrice ? Math.round((basePrice - taxableBase) * 100) / 100 : 0;
 
-  // Course-specific FAQs from the admin sales builder, otherwise the shared buyer FAQs
-  // (pricing, payment, access, refunds) so buyers' common questions are answered on-page.
-  const faqs = config.faqs?.length > 0
-    ? config.faqs
-    : BUYING_FAQS.map(f => ({ question: f.q, answer: f.a, link: f.link }));
+  // Course-specific FAQs from the admin sales builder first, then facts derived from the course
+  // data and the shared buyer FAQs (pricing, payment, access, refunds), so buyers' common
+  // questions are always answered on-page.
+  const faqs = buildBuyingFaqs(course ? { ...course, salesPageConfig: { faqs: config.faqs || [] } } : null)
+    .map(f => ({ question: f.q, answer: f.a, link: f.link }));
 
   const ctaLabel = isAlreadyEnrolled
     ? '📖 Continue Learning'

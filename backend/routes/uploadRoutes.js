@@ -248,6 +248,9 @@ router.get('/material/download/:filename', optionalAuth, async (req, res) => {
       const course = await Course.findOne({
         $or: [
           { 'content.chapters.materials.link': { $regex: escapedFilename, $options: 'i' } },
+          // Chapter-level files are stored in driveLink by the admin content editor. Without this
+          // clause a paid file referenced only there matched no course and was served to anyone.
+          { 'content.chapters.driveLink': { $regex: escapedFilename, $options: 'i' } },
           { 'resourceBundles.fileUrl': { $regex: escapedFilename, $options: 'i' } }
         ]
       });

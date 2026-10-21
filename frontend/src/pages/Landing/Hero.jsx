@@ -3,11 +3,19 @@ import { Link } from 'react-router-dom';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
 import { getCoursePrice, isEnrolledIn, countChapters, openEnquiry } from '../../config/site';
 
+const truncate = (text, max) => {
+  const t = String(text || '').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  return `${cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : max).trim()}…`;
+};
+
 /**
  * Above-the-fold hero.
- * Goal: in < 5 seconds a visitor should know (1) what they will be able to do,
- * (2) what it costs and (3) where to click to buy. All copy below is taken from
- * existing site content (course features, FAQ, journey section).
+ * Goal: in < 5 seconds a visitor should know (1) what they get, (2) what it costs and
+ * (3) where to click to buy. All course copy comes from the featured course's own data
+ * (sales-page headline/subheadline, title, description, outcomes) so the hero always
+ * matches whatever course the owner features — nothing topic-specific is hardcoded.
  */
 export default function Hero({ user, featuredCourse, loading = false }) {
   const price = getCoursePrice(featuredCourse);
@@ -23,20 +31,53 @@ export default function Hero({ user, featuredCourse, loading = false }) {
         ? 'Start Learning — Free'
         : `Get Instant Access — ${price.label}`;
 
+  const cfg = featuredCourse?.salesPageConfig || {};
+  const headline = String(cfg.headline || featuredCourse?.title || '').trim();
+  // "Main promise: secondary line" titles get the second half highlighted
+  const colon = headline.indexOf(':');
+  const [headMain, headHighlight] = colon > 0 && colon < headline.length - 1
+    ? [headline.slice(0, colon + 1), headline.slice(colon + 1).trim()]
+    : [headline, ''];
+  const description = truncate(cfg.subheadline || featuredCourse?.description, 240);
+  const outcomes = (featuredCourse?.outcomes || []).filter(Boolean).slice(0, 3);
+  const badge = featuredCourse
+    ? [
+        featuredCourse.category ? `${featuredCourse.category} course` : 'Featured course',
+        featuredCourse.languages?.length ? featuredCourse.languages.join(' / ') : null,
+      ].filter(Boolean).join(' • ').toUpperCase()
+    : 'WIDETECH ACADEMY';
+
   return (
     <section className="hero-section" aria-labelledby="hero-title">
       <div className="container">
         <div className="hero-grid">
           <div className="hero-content">
-            <div className="hero-badge">🚀 BEGINNER-FRIENDLY AI COURSES • AGE 10+</div>
-            <h1 className="hero-title" id="hero-title">
-              Build Real Websites with AI.{' '}
-              <span className="hero-highlight">Even If You've Never Coded.</span>
-            </h1>
-            <p className="hero-description">
-              Learn how to talk to AI, generate code, customise it and publish your own website — step by step,
-              in self-paced video lessons with lifetime access.
-            </p>
+            {loading ? (
+              <div className="hero-text-skeleton" aria-hidden="true">
+                <span /><span /><span />
+              </div>
+            ) : featuredCourse ? (
+              <>
+                <div className="hero-badge">🚀 {badge}</div>
+                <h1 className="hero-title" id="hero-title">
+                  {headMain}
+                  {headHighlight && <>{' '}<span className="hero-highlight">{headHighlight}</span></>}
+                </h1>
+                {description && <p className="hero-description">{description}</p>}
+              </>
+            ) : (
+              <>
+                <div className="hero-badge">🚀 {badge}</div>
+                <h1 className="hero-title" id="hero-title">
+                  Practical Online Courses.{' '}
+                  <span className="hero-highlight">Learn at Your Own Pace.</span>
+                </h1>
+                <p className="hero-description">
+                  Self-paced courses with instant access and lifetime validity — plus ready-to-run software and
+                  custom automation for businesses.
+                </p>
+              </>
+            )}
 
             <div className="hero-ctas">
               <Link to={saleUrl} className="btn btn-primary btn-lg hero-primary-cta">
@@ -50,10 +91,9 @@ export default function Hero({ user, featuredCourse, loading = false }) {
             </div>
 
             <ul className="hero-trust" aria-label="Course highlights">
-              <li>✓ No coding experience needed</li>
-              <li>✓ Lifetime access</li>
-              <li>✓ Certificate on completion</li>
-              <li>✓ Secure checkout · GST invoice</li>
+              {outcomes.map((o) => <li key={o}>✓ {o}</li>)}
+              <li>✓ Instant access · Lifetime access</li>
+              <li>✓ Secure Razorpay checkout · GST invoice</li>
             </ul>
 
             <p className="hero-business-link">
@@ -95,8 +135,8 @@ export default function Hero({ user, featuredCourse, loading = false }) {
                   <ul className="hero-offer-facts">
                     {chapters > 0 && <li>📚 {chapters} module{chapters === 1 ? '' : 's'}</li>}
                     {featuredCourse.languages?.length > 0 && <li>🌐 {featuredCourse.languages.slice(0, 3).join(' · ')}</li>}
+                    <li>⚡ Instant access</li>
                     <li>♾️ Lifetime access</li>
-                    <li>🎓 Verifiable certificate</li>
                   </ul>
                   <Link to={saleUrl} className="btn btn-primary hero-offer-cta">
                     {enrolled ? 'Go to course →' : price.isFree ? 'Enroll free →' : 'Buy now →'}

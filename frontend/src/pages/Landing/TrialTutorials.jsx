@@ -9,7 +9,7 @@ export default function TrialTutorials({ trials, onPlayVideo }) {
     <section className="trials-section" id="trials">
       <div className="container">
         <div className="section-label">FREE TRIAL</div>
-        <h2 className="section-title">Not Sure Yet? Try AI for Free.</h2>
+        <h2 className="section-title">Not Sure Yet? Watch a Free Lesson.</h2>
         <p className="section-subtitle">Watch a free lesson before you decide.</p>
 
         <div className="trials-grid">

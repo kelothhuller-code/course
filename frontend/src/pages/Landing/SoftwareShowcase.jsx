@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import tracker from '../../utils/tracker';
 import { getMediaUrl, FALLBACK_SOFTWARE_THUMBNAIL } from '../../utils/media';
 import { openEnquiry } from '../../config/site';
 
@@ -48,6 +49,7 @@ export default function SoftwareShowcase() {
         ...formData,
         softwareId: modalSoftware?._id || null
       });
+      tracker.trackEvent('enquiry_submit', { source: 'software_modal' });
       alert('Thank you! Your enquiry has been received. The WideTech team will reply to you by email.');
       handleClose();
     } catch (err) {
