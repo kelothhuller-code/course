@@ -110,6 +110,17 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Ordered courses with data-backed badges/ratings for the landing carousel and all-courses page.
+  // limit omitted = every course (all-courses page); limit given = carousel (skips hidden ones).
+  getCourseShowcase: async (limit) => {
+    const qs = limit ? `?limit=${encodeURIComponent(limit)}` : '';
+    const res = await fetch(`${BASE_URL}/courses/showcase${qs}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
   getFeaturedCourse: async () => {
     const res = await fetch(`${BASE_URL}/courses/featured`, {
       method: 'GET',
@@ -119,7 +130,6 @@ export const api = {
   },
   getAllCoursesPaginated: async (page = 1, limit = 12, search = '', category = 'All') => {
     try {
-      console.log('bbbbb')
       const queryParams = new URLSearchParams({
         page,
         limit,

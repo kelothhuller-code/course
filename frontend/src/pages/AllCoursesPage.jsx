@@ -1,95 +1,96 @@
 // src/pages/AllCoursesPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
-import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CourseSalesCard from '../components/CourseSalesCard';
 import Footer from './Landing/Footer';
 import './AllCoursesPage.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
-  const [courses, setCourses] = useState([]);
+  const PAGE_SIZE = 12;
+  const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    hasNextPage: false,
-    hasPrevPage: false
-  });
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [categories, setCategories] = useState(['All']);
-  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
 
-  // Fetch courses with pagination and search
-  const fetchCourses = useCallback(async (page = 1, search = '', category = 'All') => {
-    try {
-      setLoading(true);
-      const data = await api.getAllCoursesPaginated(page, 12, search, category);
-      setCourses(data.courses || []);
-      setPagination(data.pagination || {
-        currentPage: 1,
-        totalPages: 1,
-        totalItems: 0,
-        hasNextPage: false,
-        hasPrevPage: false
-      });
-
-      // Extract unique categories
-      if (data.courses) {
-        const uniqueCategories = ['All', ...new Set(data.courses.map(c => c.category).filter(Boolean))];
-        setCategories(uniqueCategories);
+  // One request for the whole catalogue, in the same order as the landing carousel
+  // (featured → pinned → best-selling → newest) and with data-backed badges/ratings.
+  // Falls back to the paginated list endpoint if the showcase endpoint is unavailable.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        let list;
+        try {
+          const data = await api.getCourseShowcase();
+          list = data.courses || [];
+        } catch {
+          const data = await api.getAllCoursesPaginated(1, 50, '', 'All');
+          list = data.courses || [];
+        }
+        if (!cancelled) setAllCourses(list);
+      } catch (err) {
+        console.error('Error fetching courses:', err);
+        if (!cancelled) setLoadError('We could not load the courses right now. Please check your connection and try again.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching courses:', err);
-      setCourses([]);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    fetchCourses(1, '', 'All');
-  }, [fetchCourses]);
+  // Categories come from the full catalogue (previously from the filtered page, so picking a
+  // category made every other category tab disappear)
+  const categories = useMemo(
+    () => ['All', ...new Set(allCourses.map(c => c.category).filter(Boolean))],
+    [allCourses]
+  );
 
-  // Handle search
+  const filtered = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return allCourses.filter(c =>
+      (selectedCategory === 'All' || c.category === selectedCategory) &&
+      (!q || [c.title, c.description, c.category].some(v => String(v || '').toLowerCase().includes(q)))
+    );
+  }, [allCourses, searchTerm, selectedCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const courses = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagination = {
+    currentPage,
+    totalPages,
+    totalItems: filtered.length,
+    hasNextPage: currentPage < totalPages,
+    hasPrevPage: currentPage > 1,
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchCourses(1, searchTerm, selectedCategory);
+    setSearchTerm(searchInput);
+    setPage(1);
   };
 
-  // Handle category filter
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
-    fetchCourses(1, searchTerm, category);
+    setPage(1);
   };
 
-  // Handle page change
   const handlePageChange = (newPage) => {
-    fetchCourses(newPage, searchTerm, selectedCategory);
+    setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle enroll
-  const handleEnroll = async (course) => {
-    const isAlreadyEnrolled = user?.enrolledCourses?.some(c =>
-      (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
-    );
-
-    if (isAlreadyEnrolled) {
-      navigate(`/course/${course._id}`);
-      return;
-    }
-
-    // Always navigate to the Dedicated Sales Page funnel for all non-enrolled courses (Free & Paid)
-    navigate(`/sale/${course._id}`);
-  };
-
-  // Clear search
   const clearSearch = () => {
+    setSearchInput('');
     setSearchTerm('');
-    fetchCourses(1, '', selectedCategory);
+    setSelectedCategory('All');
+    setPage(1);
   };
 
   return (
@@ -122,7 +123,7 @@ export default function AllCoursesPage({ user, onLogout }) {
           {/* Page Header */}
           <div className="all-courses-header">
             <h1>All Courses</h1>
-            <p>Discover our complete library of AI learning courses</p>
+            <p>Instant access after a secure Razorpay checkout · Prices include GST · Lifetime access</p>
           </div>
 
           {/* Search & Filter Section */}
@@ -134,10 +135,11 @@ export default function AllCoursesPage({ user, onLogout }) {
                   type="text"
                   className="search-input"
                   placeholder="Search courses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Search courses"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
-                {searchTerm && (
+                {searchInput && (
                   <button type="button" className="clear-search" onClick={clearSearch}>
                     ✕
                   </button>
@@ -148,10 +150,13 @@ export default function AllCoursesPage({ user, onLogout }) {
               </div>
             </form>
 
-            <div className="filter-tabs">
+            {categories.length > 2 && (
+            <div className="filter-tabs" role="group" aria-label="Filter by category">
               {categories.map(category => (
                 <button
                   key={category}
+                  type="button"
+                  aria-pressed={selectedCategory === category}
                   className={`filter-tab ${selectedCategory === category ? 'active' : ''}`}
                   onClick={() => handleCategoryChange(category)}
                 >
@@ -159,13 +164,14 @@ export default function AllCoursesPage({ user, onLogout }) {
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           {/* Results Count */}
           <div className="results-count">
-            {!loading && (
-              <span>
-                Showing {courses.length} of {pagination.totalItems} courses
+            {!loading && !loadError && (
+              <span aria-live="polite">
+                Showing {courses.length} of {pagination.totalItems} course{pagination.totalItems === 1 ? '' : 's'}
               </span>
             )}
           </div>
@@ -173,6 +179,13 @@ export default function AllCoursesPage({ user, onLogout }) {
           {/* Course Grid */}
           {loading ? (
             <LoadingSpinner />
+          ) : loadError ? (
+            <div className="no-results" role="alert">
+              <span className="no-results-icon">⚠️</span>
+              <h3>Courses unavailable</h3>
+              <p>{loadError}</p>
+              <button onClick={() => window.location.reload()} className="btn btn-primary">Try again</button>
+            </div>
           ) : courses.length === 0 ? (
             <div className="no-results">
               <span className="no-results-icon">📚</span>
@@ -184,83 +197,13 @@ export default function AllCoursesPage({ user, onLogout }) {
             </div>
           ) : (
             <>
-              <div className="course-grid">
-                {courses.map(course => {
-                  const isEnrolled = user?.enrolledCourses?.some(c => 
-                    (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
-                  );
-
-                  const handleCardClick = () => {
-                    if (isEnrolled) {
-                      navigate(`/course/${course._id}`);
-                    } else {
-                      navigate(`/sale/${course._id}`);
-                    }
-                  };
-
-                  return (
-                    <div 
-                      key={course._id} 
-                      className="course-card"
-                      onClick={handleCardClick}
-                      style={{ cursor: 'pointer' }}
-                      title={`View ${course.title || 'Course'} details`}
-                    >
-                      <div className="card-img">
-                        <img
-                          src={getMediaUrl(course.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
-                          alt={course.title}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = FALLBACK_COURSE_THUMBNAIL;
-                          }}
-                        />
-                        {course.category && (
-                          <span className="card-tag">{course.category}</span>
-                        )}
-                        {course.isPopular && (
-                          <span className="card-badge popular">⭐ Popular</span>
-                        )}
-                      </div>
-                      <div className="course-card-content">
-                        <h3 className="card-title">{course.title}</h3>
-                        <p className="card-desc">{course.description}</p>
-                        <div className="card-languages">
-                          {course.languages?.slice(0, 3).map(lang => (
-                            <span key={lang} className="language-pill">🌐 {lang}</span>
-                          ))}
-                        </div>
-                        <div className="card-meta">
-                          <div className="card-price">
-                            {course.discountedPrice && course.discountedPrice < course.price ? (
-                              <span>
-                                <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.35rem' }}>
-                                  ₹{course.price}
-                                </span>
-                                ₹{course.discountedPrice}
-                              </span>
-                            ) : (
-                              <span>{course.isFree || course.price === 0 ? 'Free' : `₹${course.price}`}</span>
-                            )}
-                          </div>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEnroll(course);
-                            }}
-                          >
-                            {isEnrolled
-                              ? '📖 Continue'
-                              : (course.isFree || course.price === 0 ? '🎯 Enroll Free' : '🛒 View Details')}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ul className={`sales-card-grid${courses.length < 3 ? ' is-few' : ''}`}>
+                {courses.map((course, index) => (
+                  <li key={course._id}>
+                    <CourseSalesCard course={course} user={user} source="all_courses" headingLevel={2} priority={index < 3} />
+                  </li>
+                ))}
+              </ul>
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (

@@ -141,6 +141,23 @@ window.CoursesModule = {
                                 <option value="true" ${course?.isFeatured ? 'selected' : ''}>Yes (Showcase on Landing Page)</option>
                             </select>
                         </div>
+
+                        <div class="form-group">
+                            <label class="form-label">🎠 Landing "Top Courses" carousel</label>
+                            <select id="course-landing-order" class="form-control">
+                                ${[
+                                    ['', 'Automatic (featured, then best-selling, then newest)'],
+                                    ['1', 'Pin to slot 1 (after the featured course)'],
+                                    ['2', 'Pin to slot 2'],
+                                    ['3', 'Pin to slot 3'],
+                                    ['-1', 'Hide from the carousel']
+                                ].map(([v, label]) => {
+                                    const current = course?.landingOrder === null || course?.landingOrder === undefined ? '' : String(course.landingOrder);
+                                    return `<option value="${v}" ${current === v ? 'selected' : ''}>${label}</option>`;
+                                }).join('')}
+                            </select>
+                            <small style="color:var(--text-muted);">The carousel shows up to 3 courses. The featured course is always first.</small>
+                        </div>
                     </div>
 
                     <!-- Mapped Follow-up / Continuation Courses Selector -->
@@ -611,6 +628,7 @@ window.CoursesModule = {
             discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
             affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
             isFeatured: document.getElementById('course-featured')?.value === 'true',
+            landingOrder: document.getElementById('course-landing-order')?.value ?? '',
             outcomes,
             languages,
             continuationCourses,
