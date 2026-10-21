@@ -83,6 +83,11 @@ const App = {
                     content = await DashboardModule.render();
                     break;
 
+                case 'analytics':
+                    this.setBreadcrumb('📊 Traffic & Drop-off Funnel Analytics');
+                    content = await AnalyticsModule.render();
+                    break;
+
                 // ==================== SOFTWARE & AI SERVICES ====================
                 case 'software':
                     this.setBreadcrumb('Software Products & AI Tools');

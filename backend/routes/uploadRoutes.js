@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { protect, admin, isUserAdmin } from '../middleware/auth.js';
+import { protect, admin, isUserAdmin, optionalAuth } from '../middleware/auth.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 
@@ -222,10 +222,10 @@ router.post('/material', protect, admin, upload.single('material'), (req, res) =
   }
 });
 
-// @desc    Download or view protected course material (PDF, slides, notes, sheets, images) (B2)
+// @desc    Download or view protected course material / bundle (PDF, sheets, ZIP archives, notes, slides) (B2)
 // @route   GET /api/upload/material/download/:filename
-// @access  Private (Enrolled students or admin)
-router.get('/material/download/:filename', protect, async (req, res) => {
+// @access  Public for free courses/previews, Private for paid enrollments
+router.get('/material/download/:filename', optionalAuth, async (req, res) => {
   try {
     const filename = req.params.filename;
     const safeFilename = path.basename(filename);
@@ -239,23 +239,36 @@ router.get('/material/download/:filename', protect, async (req, res) => {
       return res.status(404).json({ message: 'Requested material file not found on server.' });
     }
 
-    // Check access: Authorized .env Admin or Enrolled Student in the course referencing this file
+    // Check access: Authorized .env Admin, Free Course, Free Preview Bundle, or Enrolled Student
     const isAdmin = isUserAdmin(req.user);
 
     if (!isAdmin) {
-      // Find course referencing this material filename
+      // Find course referencing this material filename (either in chapter materials or course-level resourceBundles)
       const escapedFilename = safeFilename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const course = await Course.findOne({
-        'content.chapters.materials.link': { $regex: escapedFilename, $options: 'i' }
+        $or: [
+          { 'content.chapters.materials.link': { $regex: escapedFilename, $options: 'i' } },
+          { 'resourceBundles.fileUrl': { $regex: escapedFilename, $options: 'i' } }
+        ]
       });
 
       if (course) {
         const isFree = course.isFree || course.price === 0;
-        const isEnrolled = req.user.enrolledCourses?.some(
+        const matchingBundle = course.resourceBundles?.find(b =>
+          b.fileUrl && b.fileUrl.toLowerCase().includes(safeFilename.toLowerCase())
+        );
+        const isFreePreview = Boolean(matchingBundle?.isFreePreview);
+
+        const isEnrolled = req.user && req.user.enrolledCourses?.some(
           c => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
         );
 
-        if (!isFree && !isEnrolled) {
+        if (!isFree && !isFreePreview && !isEnrolled) {
+          if (!req.user) {
+            return res.status(401).json({
+              message: 'Please sign in or enroll to download this course material.'
+            });
+          }
           return res.status(403).json({
             message: 'Access denied: You must be enrolled in this course to view or download its study materials.'
           });

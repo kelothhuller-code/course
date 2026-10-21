@@ -58,28 +58,27 @@ export default function CourseSalesPage({ user }) {
       return;
     }
 
-    if (!user) {
-      navigate(`/auth?redirect=/sale/${id}`);
-      return;
-    }
-
     const course = data?.course;
     if (!course) return;
 
     if (course.isFree || course.price === 0) {
-      setEnrollingFree(true);
-      try {
-        await api.enrollFree(course._id);
-        alert('🎉 Congratulations! You have successfully enrolled in this free course.');
-        window.location.href = `/course/${course._id}`;
-      } catch (err) {
-        alert(err.message || 'Free enrollment failed');
-      } finally {
-        setEnrollingFree(false);
+      // Free courses are immediately accessible to everyone
+      if (user) {
+        setEnrollingFree(true);
+        try {
+          await api.enrollFree(course._id);
+        } catch (err) {
+          console.log('Enroll free background note:', err);
+        } finally {
+          setEnrollingFree(false);
+        }
       }
-    } else {
-      navigate(`/checkout/${course._id}`);
+      navigate(`/course/${course._id}`);
+      return;
     }
+
+    // Paid courses: Allow direct checkout without prior login
+    navigate(`/checkout/${course._id}`);
   };
 
   const handleCopyLink = () => {
@@ -302,6 +301,62 @@ export default function CourseSalesPage({ user }) {
                   {chapter.description && <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{chapter.description}</p>}
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Downloadable Resource Bundles & Package Files */}
+        {course?.resourceBundles && course.resourceBundles.length > 0 && (
+          <section style={{ marginBottom: '3rem' }}>
+            <h2 className="sales-section-title">📦 Included Downloadable Files & Assets</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
+              Enrolling in this course grants you lifetime access to these project assets, cheat sheets & resource bundles:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+              {course.resourceBundles.map((bundle, bIdx) => {
+                const getIcon = (type) => {
+                  const t = (type || '').toLowerCase();
+                  if (t === 'zip' || t === 'archive') return '📦';
+                  if (t === 'pdf') return '📄';
+                  if (t === 'sheet' || t.includes('xls') || t === 'csv') return '📊';
+                  if (t === 'code') return '💻';
+                  return '📁';
+                };
+                return (
+                  <div key={bundle._id || bIdx} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.75rem' }}>{getIcon(bundle.fileType)}</span>
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                            {(bundle.fileType || 'BUNDLE').toUpperCase()}
+                          </span>
+                          {bundle.fileSize && (
+                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'var(--background)', color: 'var(--text-muted)' }}>
+                              {bundle.fileSize}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>{bundle.title}</h4>
+                      {bundle.description && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{bundle.description}</p>}
+                    </div>
+                    {bundle.isFreePreview && bundle.fileUrl && (
+                      <div style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border)' }}>
+                        <a
+                          href={bundle.fileUrl.startsWith('http') ? bundle.fileUrl : `/api/upload/material/download/${bundle.fileUrl.split('/').pop()}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: '100%', fontSize: '0.75rem', textAlign: 'center', display: 'block' }}
+                        >
+                          🎁 Download Free Sample
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

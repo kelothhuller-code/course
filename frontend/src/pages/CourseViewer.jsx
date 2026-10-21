@@ -107,8 +107,12 @@ export default function CourseViewer({ user, onRefreshUser }) {
         
       } catch (err) {
         console.error('Error opening classroom:', err);
-        alert('You do not have access to this course. Redirecting to dashboard...');
-        navigate('/dashboard');
+        if (!user) {
+          navigate(`/sale/${id}`);
+        } else {
+          alert('You do not have access to this course. Redirecting to dashboard...');
+          navigate('/dashboard');
+        }
       } finally {
         setLoading(false);
       }
@@ -208,6 +212,11 @@ export default function CourseViewer({ user, onRefreshUser }) {
         };
       });
 
+      if (!user) {
+        // Guest user: local state is updated optimistically
+        return;
+      }
+
       const res = await api.updateVideoProgress(id, activeId, {
         completed: !isCurrentlyCompleted,
         videoProgressPercent: !isCurrentlyCompleted ? 100 : 0,
@@ -272,7 +281,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
   // Handle video progress tracking
   const handleVideoProgress = useCallback(async (data) => {
-    if (!activeLesson || !course) return;
+    if (!activeLesson || !course || !user) return;
     
     if (videoProgressTimer) {
       clearTimeout(videoProgressTimer);
@@ -311,17 +320,21 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
   // Handle material open tracking
   const handleMaterialOpen = useCallback(async () => {
-    if (!activeLesson || !course) return;
+    if (!activeLesson || !course || !user) return;
     try {
       await api.trackMaterialOpen(id, activeLesson._id);
     } catch (err) {
       console.error('Error tracking material open:', err);
     }
-  }, [activeLesson, course, id]);
+  }, [activeLesson, course, id, user]);
 
   // Handle comment submission
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      alert('Please sign in or create an account to post comments.');
+      return;
+    }
     if (!newComment.trim()) return;
     
     try {
@@ -341,6 +354,10 @@ export default function CourseViewer({ user, onRefreshUser }) {
   // Handle reply submission
   const handleReplySubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      alert('Please sign in to reply to comments.');
+      return;
+    }
     if (!replyText.trim() || !replyingTo) return;
     
     try {
@@ -360,6 +377,10 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
   // Handle comment like
   const handleLikeComment = async (commentId) => {
+    if (!user) {
+      alert('Please sign in to like comments.');
+      return;
+    }
     try {
       await api.toggleLike(commentId);
       await loadComments(commentPage);
@@ -476,8 +497,18 @@ export default function CourseViewer({ user, onRefreshUser }) {
     return base;
   };
 
+  const getBundleIcon = (fileType = '') => {
+    const t = (fileType || '').toLowerCase();
+    if (t === 'zip' || t === 'archive') return '📦';
+    if (t === 'pdf') return '📄';
+    if (t === 'sheet' || t.includes('xls') || t === 'csv') return '📊';
+    if (t === 'code') return '💻';
+    if (t === 'slides' || t.includes('ppt')) return '📑';
+    return '📁';
+  };
+
   const handleDownloadSecureMaterial = (rawUrl, title) => {
-    if (!user && !localStorage.getItem('token')) {
+    if (!user && !localStorage.getItem('token') && !course?.isFree) {
       alert('Please log in to download course materials.');
       return;
     }
@@ -1212,9 +1243,94 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       </div>
                     )}
 
-                    {/* Tab 2: Study Materials & Worksheets */}
+                    {/* Tab 2: Study Materials, Worksheets & Resource Bundles */}
                     {activeViewerTab === 'resources' && (
-                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease' }}>
+                      <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* Section A: Course Resource Bundles (Full Project ZIP, Templates & Data Sheets) */}
+                        {course?.resourceBundles && course.resourceBundles.length > 0 && (
+                          <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.03) 0%, var(--card-bg, #fff) 100%)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                                <span>📦</span> Course Resource Bundles (.ZIP, Sheets & Guides)
+                              </h3>
+                              <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '20px', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', fontWeight: '700' }}>
+                                {course.resourceBundles.length} Bundle{course.resourceBundles.length > 1 ? 's' : ''} Included
+                              </span>
+                            </div>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                              Complete downloadable package files, starter code zip archives, Excel/Google sheets, templates, and reference assets for this entire course.
+                            </p>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                              {course.resourceBundles.map((bundle, bIdx) => {
+                                const isViewable = ['pdf', 'sheet', 'notes', 'slides'].includes(bundle.fileType?.toLowerCase());
+                                return (
+                                  <div
+                                    key={bundle._id || bIdx}
+                                    style={{
+                                      padding: '1.15rem',
+                                      borderRadius: '12px',
+                                      background: 'var(--background-white, #fff)',
+                                      border: '1px solid var(--border, #e2e8f0)',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                                      transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '1.75rem' }}>{getBundleIcon(bundle.fileType)}</span>
+                                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                          <span style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#e0e7ff', color: '#4338ca' }}>
+                                            {bundle.fileType || 'ZIP'}
+                                          </span>
+                                          {bundle.fileSize && (
+                                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#f1f5f9', color: '#64748b' }}>
+                                              {bundle.fileSize}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <h4 style={{ fontSize: '0.95rem', fontWeight: '700', margin: '0 0 0.35rem 0', color: 'var(--text-primary)' }}>
+                                        {bundle.title}
+                                      </h4>
+                                      {bundle.description && (
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0', lineHeight: '1.5' }}>
+                                          {bundle.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border, #e2e8f0)' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadSecureMaterial(bundle.fileUrl, bundle.title)}
+                                        className="btn btn-primary btn-sm"
+                                        style={{ flex: 1, fontSize: '0.8rem', padding: '0.45rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                                      >
+                                        📥 Download Bundle
+                                      </button>
+                                      {isViewable && (
+                                        <a
+                                          href={getSecureMaterialUrl(bundle.fileUrl, true)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ fontSize: '0.8rem', padding: '0.45rem 0.75rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                        >
+                                          ↗
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Section B: Lesson Study Materials & Worksheets */}
                         <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px' }}>
                           <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span>📂</span> Lesson Study Materials & Worksheets
@@ -1243,7 +1359,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
                                     <span style={{ fontSize: '1.4rem' }}>
-                                      {mat.type === 'pdf' ? '📄' : mat.type === 'sheet' ? '📈' : mat.type === 'image' ? '🖼️' : '📁'}
+                                      {getBundleIcon(mat.type)}
                                     </span>
                                     <div>
                                       <div style={{ fontWeight: '600', fontSize: '0.92rem', color: 'var(--text-primary)' }}>

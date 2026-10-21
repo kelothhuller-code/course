@@ -11,13 +11,13 @@ import { getJwtSecret } from '../utils/jwtSecret.js';
 const router = express.Router();
 
 // Generate JWT token with tokenVersion for concurrent session control (F2)
-const generateToken = (id, tokenVersion = 0) => {
+export const generateToken = (id, tokenVersion = 0) => {
   return jwt.sign({ id, tokenVersion }, getJwtSecret(), {
     expiresIn: '30d',
   });
 };
 
-const setAuthCookie = (res, token) => {
+export const setAuthCookie = (res, token) => {
   res.cookie('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -182,7 +182,7 @@ router.post('/login', async (req, res) => {
         await superAdmin.save();
       }
 
-      const token = generateToken(superAdmin._id);
+      const token = generateToken(superAdmin._id, superAdmin.tokenVersion || 0);
       setAuthCookie(res, token);
 
       return res.json({

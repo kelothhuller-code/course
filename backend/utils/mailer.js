@@ -134,6 +134,79 @@ export const sendPurchaseEmail = async (email, name, itemTitle, txnid, amount) =
   }
 };
 
+export const sendAccountCreatedWithPurchaseEmail = async (email, name, itemTitle, txnid, amount, tempPassword) => {
+  const transporter = createTransporter();
+  const frontendUrl = process.env.FRONTEND_URL || 'https://widetech.in';
+  const mailOptions = {
+    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    to: email,
+    subject: `Your Account Details & Enrollment Confirmation for ${itemTitle}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
+        ${getEmailBrandHeader()}
+        <h2 style="color: #4f46e5; margin-top: 0;">Welcome to WIDETECHNOS Academy! 🎉</h2>
+        <p style="color: #334155; line-height: 1.6;">Hello <strong>${name}</strong>,</p>
+        <p style="color: #334155; line-height: 1.6;">
+          Thank you for your purchase of <strong>₹${amount}</strong>! Your enrollment in <strong>${itemTitle}</strong> is active and ready.
+        </p>
+        
+        <!-- Account Credentials Box -->
+        <div style="background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%); border: 1px solid #c7d2fe; border-radius: 12px; padding: 20px; margin: 22px 0;">
+          <h3 style="color: #3730a3; margin: 0 0 12px 0; font-size: 1.05rem;">🔑 Your New Account Credentials</h3>
+          <p style="color: #4338ca; font-size: 0.88rem; margin: 0 0 12px 0; line-height: 1.5;">
+            An account has been automatically created so you can access your purchased courses anytime from any device.
+          </p>
+          <div style="background: #ffffff; border-radius: 8px; padding: 12px 16px; border: 1px solid #e0e7ff; margin-bottom: 8px;">
+            <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 4px;">Registered Email / Username:</div>
+            <div style="font-size: 1rem; font-weight: 700; color: #1e293b; font-family: monospace;">${email}</div>
+          </div>
+          <div style="background: #ffffff; border-radius: 8px; padding: 12px 16px; border: 1px solid #e0e7ff;">
+            <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 4px;">Generated Password:</div>
+            <div style="font-size: 1.1rem; font-weight: 800; color: #4f46e5; font-family: monospace; letter-spacing: 1px;">${tempPassword}</div>
+          </div>
+          <p style="font-size: 0.8rem; color: #64748b; margin: 10px 0 0 0; line-height: 1.4;">
+            💡 <em>You can log in with this password immediately. If you forget your password in the future, simply click <strong>"Forgot Password"</strong> on our login page using your email.</em>
+          </p>
+        </div>
+
+        <!-- Receipt Table -->
+        <div style="background-color: #f8fafc; padding: 18px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <h4 style="margin: 0 0 12px 0; color: #1e293b;">Order Receipt Details:</h4>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <tr>
+              <td style="color: #64748b; padding: 6px 0;">Item Name:</td>
+              <td style="text-align: right; font-weight: bold; color: #1e293b;">${itemTitle}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748b; padding: 6px 0;">Transaction ID:</td>
+              <td style="text-align: right; font-family: monospace; color: #1e293b;">${txnid}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748b; padding: 6px 0;">Amount Paid:</td>
+              <td style="text-align: right; color: #059669; font-weight: bold;">₹${amount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0 14px 0;">
+          <a href="${frontendUrl}/dashboard" style="background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+            Access Your Course & Dashboard →
+          </a>
+        </div>
+
+        ${getEmailBrandFooter()}
+      </div>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Account creation + purchase email dispatched: ${info.messageId}`);
+  } catch (error) {
+    console.error('Error sending account creation email:', error);
+  }
+};
+
 export const sendCustomEmail = async ({ to, subject, html, text }) => {
   const transporter = createTransporter();
   const mailOptions = {

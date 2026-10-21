@@ -22,6 +22,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import softwareRoutes from './routes/softwareRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -227,6 +228,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/software', softwareRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Base Route
 app.get('/', (req, res) => {

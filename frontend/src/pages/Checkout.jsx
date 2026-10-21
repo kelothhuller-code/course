@@ -4,6 +4,7 @@ import { api } from '../api';
 import NavHeader from './NavHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
+import tracker from '../utils/tracker';
 
 export default function Checkout({ user, onRefreshUser }) {
   const { id } = useParams();
@@ -20,11 +21,22 @@ export default function Checkout({ user, onRefreshUser }) {
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Indian GST Billing Details state
+  // Buyer & Billing Details state
   const [buyerName, setBuyerName] = useState(user?.name || '');
+  const [buyerEmail, setBuyerEmail] = useState(user?.email || '');
+  const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
   const [buyerState, setBuyerState] = useState('Kerala');
   const [buyerAddress, setBuyerAddress] = useState('');
   const [buyerGstin, setBuyerGstin] = useState('');
+
+  // Keep state synced when user prop updates
+  useEffect(() => {
+    if (user) {
+      if (!buyerName) setBuyerName(user.name || '');
+      if (!buyerEmail) setBuyerEmail(user.email || '');
+      if (!buyerPhone && user.phone) setBuyerPhone(user.phone);
+    }
+  }, [user]);
 
   const navigate = useNavigate();
 
@@ -64,6 +76,54 @@ export default function Checkout({ user, onRefreshUser }) {
     fetchItem();
   }, [id, navigate]);
 
+  // Compute final price
+  const basePrice = item?.discountedPrice && item.discountedPrice < item.price
+    ? item.discountedPrice
+    : item?.price;
+
+  const finalPrice = appliedCoupon
+    ? appliedCoupon.discountType === 'percentage'
+      ? Math.round(basePrice * (1 - appliedCoupon.discountValue / 100))
+      : Math.max(0, basePrice - appliedCoupon.discountValue)
+    : basePrice;
+
+  // Track checkout step 1: entered checkout
+  useEffect(() => {
+    if (item) {
+      tracker.trackCheckoutStep({
+        courseId: id,
+        courseTitle: item.title,
+        amount: finalPrice || item.price || 0,
+        buyerName,
+        buyerEmail,
+        buyerPhone,
+        buyerState,
+        step: 'entered_checkout'
+      });
+    }
+  }, [item?.title]);
+
+  // Track checkout step 2: filled contact info (debounced)
+  useEffect(() => {
+    if (!item) return;
+    if (!buyerName && !buyerEmail && !buyerPhone) return;
+
+    const timer = setTimeout(() => {
+      tracker.trackCheckoutStep({
+        courseId: id,
+        courseTitle: item.title,
+        amount: finalPrice || item.price || 0,
+        buyerName,
+        buyerEmail,
+        buyerPhone,
+        buyerState,
+        step: 'filled_contact'
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [buyerName, buyerEmail, buyerPhone, buyerState, item?.title, finalPrice]);
+
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       if (window.Razorpay) {
@@ -79,22 +139,47 @@ export default function Checkout({ user, onRefreshUser }) {
   };
 
   const handlePayment = async () => {
-    if (!user) {
-      alert('Please sign in or create an account before completing checkout.');
-      navigate('/auth', { state: { from: `/checkout/${id}` } });
+    const cleanName = (buyerName || user?.name || '').trim();
+    const cleanEmail = (buyerEmail || user?.email || '').toLowerCase().trim();
+    const cleanPhone = (buyerPhone || user?.phone || '').trim();
+
+    if (!cleanName) {
+      alert('Please enter your full name for order invoice & course access.');
       return;
     }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      alert('Please enter a valid email address to receive your course and account details.');
+      return;
+    }
+    if (!cleanPhone) {
+      alert('Please enter your phone number.');
+      return;
+    }
+
     setProcessing(true);
+    // Track checkout step 3: initiated payment
+    tracker.trackCheckoutStep({
+      courseId: id,
+      courseTitle: item?.title,
+      amount: finalPrice || item?.price || 0,
+      buyerName: cleanName,
+      buyerEmail: cleanEmail,
+      buyerPhone: cleanPhone,
+      buyerState,
+      step: 'initiated_payment'
+    });
+
     try {
       const orderPayload = {
         itemId: id,
         itemType,
         couponCode: appliedCoupon?.code || null,
-        buyerName,
+        buyerName: cleanName,
+        buyerEmail: cleanEmail,
         buyerAddress,
         buyerState,
         buyerGstin,
-        phone: user?.phone || '9999999999'
+        phone: cleanPhone
       };
 
       const orderData = await api.createRazorpayOrder(orderPayload);
@@ -130,9 +215,16 @@ export default function Checkout({ user, onRefreshUser }) {
               });
 
               if (verifyRes.success) {
-                alert('🎉 Payment successful! You are now enrolled.');
-                if (onRefreshUser) await onRefreshUser();
-                navigate('/dashboard?payment=success&txnid=' + orderData.txnid);
+                if (verifyRes.token) {
+                  localStorage.setItem('token', verifyRes.token);
+                  if (onRefreshUser) await onRefreshUser();
+                }
+                if (verifyRes.newlyCreated) {
+                  alert(`🎉 Payment successful! An account has been created for your email (${cleanEmail}). Your generated login password and receipt have been sent to your email. Redirecting to your course...`);
+                } else {
+                  alert('🎉 Payment successful! You are now enrolled.');
+                }
+                navigate(`/course/${id}`);
               } else {
                 alert('Payment verification failed: ' + verifyRes.message);
               }
@@ -164,6 +256,16 @@ export default function Checkout({ user, onRefreshUser }) {
 
         const razorpayInstance = new window.Razorpay(options);
         razorpayInstance.on('payment.failed', function (response) {
+          tracker.trackCheckoutStep({
+            courseId: id,
+            courseTitle: item?.title,
+            amount: finalPrice || item?.price || 0,
+            buyerName: cleanName,
+            buyerEmail: cleanEmail,
+            buyerPhone: cleanPhone,
+            buyerState,
+            step: 'payment_failed'
+          });
           console.error('Razorpay payment failed:', response.error);
           alert(`Payment Failed: ${response.error.description || response.error.reason}`);
           setProcessing(false);
@@ -190,11 +292,19 @@ export default function Checkout({ user, onRefreshUser }) {
 
         if (verifyRes.success) {
           setPaymentStatus('success');
-          alert('🎉 Payment successful! You are now enrolled.');
-          if (onRefreshUser) await onRefreshUser();
+          if (verifyRes.token) {
+            localStorage.setItem('token', verifyRes.token);
+            if (onRefreshUser) await onRefreshUser();
+          }
+          const cleanEmail = (buyerEmail || user?.email || '');
+          if (verifyRes.newlyCreated) {
+            alert(`🎉 Payment successful! An account has been created for your email (${cleanEmail}). Your login password and receipt have been sent to your email. Redirecting to your course...`);
+          } else {
+            alert('🎉 Payment successful! You are now enrolled.');
+          }
           setTimeout(() => {
-            navigate('/dashboard?payment=success&txnid=' + paymentData.txnid);
-          }, 1500);
+            navigate(`/course/${id}`);
+          }, 1200);
         } else {
           alert('Verification failed: ' + verifyRes.message);
         }
@@ -219,10 +329,6 @@ export default function Checkout({ user, onRefreshUser }) {
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
-    if (!user) {
-      setCouponError('Please sign in first to apply coupon discounts.');
-      return;
-    }
     setCouponLoading(true);
     setCouponError('');
     setAppliedCoupon(null);
@@ -241,17 +347,6 @@ export default function Checkout({ user, onRefreshUser }) {
     setCouponInput('');
     setCouponError('');
   };
-
-  // Compute final price
-  const basePrice = item?.discountedPrice && item.discountedPrice < item.price
-    ? item.discountedPrice
-    : item?.price;
-
-  const finalPrice = appliedCoupon
-    ? appliedCoupon.discountType === 'percentage'
-      ? Math.round(basePrice * (1 - appliedCoupon.discountValue / 100))
-      : Math.max(0, basePrice - appliedCoupon.discountValue)
-    : basePrice;
 
   if (loading) {
     return (
@@ -429,31 +524,96 @@ export default function Checkout({ user, onRefreshUser }) {
                   </div>
                 )}
 
-                {/* ── Billing & Indian GST Details Section ── */}
+                {/* ── Customer & Indian GST Billing Details Section ── */}
                 <div style={{ margin: '1rem 0', padding: '1rem', background: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  {!user ? (
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08))', 
+                      border: '1px solid rgba(99, 102, 241, 0.25)', 
+                      borderRadius: '8px', 
+                      padding: '0.85rem', 
+                      marginBottom: '1rem' 
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                          <div>
+                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Guest Checkout</strong>
+                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              No prior login required! We'll auto-provision your account & email your access credentials.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/auth', { state: { from: `/checkout/${id}` } })}
+                          style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.78rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                        >
+                          Have an account? Sign in
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      background: 'rgba(16, 185, 129, 0.08)', 
+                      border: '1px solid rgba(16, 185, 129, 0.2)', 
+                      borderRadius: '8px', 
+                      padding: '0.65rem 0.85rem', 
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
+                        👤 Logged in as: {user.name} ({user.email})
+                      </span>
+                    </div>
+                  )}
+
                   <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>🇮🇳</span> Indian GST Billing Details
+                    <span>🇮🇳</span> Customer & Billing Details
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Full Billing Name</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                        Full Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
                       <input
                         type="text"
                         value={buyerName}
                         onChange={e => setBuyerName(e.target.value)}
-                        placeholder="Enter full name for tax invoice"
+                        placeholder="Enter full name"
                         style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Billing Street Address</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                        Email Address <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
                       <input
-                        type="text"
-                        value={buyerAddress}
-                        onChange={e => setBuyerAddress(e.target.value)}
-                        placeholder="House/Street/Locality address"
+                        type="email"
+                        value={buyerEmail}
+                        onChange={e => setBuyerEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        disabled={Boolean(user?.email)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: user?.email ? 'rgba(0,0,0,0.05)' : 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                      />
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                        📬 Course access & login credentials will be delivered to this email.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                        Mobile Phone / WhatsApp <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={buyerPhone}
+                        onChange={e => setBuyerPhone(e.target.value)}
+                        placeholder="10-digit mobile number"
                         style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
                       />
                     </div>
@@ -475,6 +635,17 @@ export default function Checkout({ user, onRefreshUser }) {
                           'Uttarakhand', 'West Bengal'
                         ].map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Billing Street Address (Optional)</label>
+                      <input
+                        type="text"
+                        value={buyerAddress}
+                        onChange={e => setBuyerAddress(e.target.value)}
+                        placeholder="House/Street/Locality address"
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background-white)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                      />
                     </div>
 
                     <div>

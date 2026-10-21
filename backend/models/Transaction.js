@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const TransactionSchema = new mongoose.Schema({
   txnid: { type: String, required: true, unique: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   itemType: { type: String, enum: ['course', 'event', 'software', 'service'], required: true },
   itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
   amount: { type: Number, required: true },

@@ -1,14 +1,17 @@
 import express from 'express';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
-import { protect, isUserAdmin } from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
+import { protect, optionalAuth, isUserAdmin } from '../middleware/auth.js';
 import Transaction from '../models/Transaction.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import User from '../models/User.js';
 import ReferralLog from '../models/ReferralLog.js';
 import Coupon from '../models/Coupon.js';
-import { sendPurchaseEmail } from '../utils/mailer.js';
+import AbandonedCheckout from '../models/AbandonedCheckout.js';
+import { sendPurchaseEmail, sendAccountCreatedWithPurchaseEmail } from '../utils/mailer.js';
+import { generateToken, setAuthCookie } from './authRoutes.js';
 
 import { getOrInitGstConfig } from './gstRoutes.js';
 
@@ -17,7 +20,8 @@ const router = express.Router();
 // Helper to fulfill purchase, enroll user, credit affiliate, and send email safely
 async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
   if (txn.status === 'success') {
-    return { alreadyFulfilled: true };
+    const existingUser = txn.userId ? await User.findById(txn.userId) : null;
+    return { alreadyFulfilled: true, user: existingUser };
   }
 
   txn.status = 'success';
@@ -30,9 +34,42 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
   } else if (gateway === 'payu') {
     txn.payuResponse = paymentDetails;
   }
+
+  let user = txn.userId ? await User.findById(txn.userId) : null;
+  const buyerEmail = txn.billingDetails?.buyerEmail ? txn.billingDetails.buyerEmail.toLowerCase().trim() : null;
+  const buyerName = txn.billingDetails?.buyerName ? txn.billingDetails.buyerName.trim() : 'Student';
+
+  let newlyCreated = false;
+  let tempPassword = null;
+
+  if (!user && buyerEmail) {
+    user = await User.findOne({ email: buyerEmail });
+  }
+
+  if (!user && buyerEmail) {
+    // Automatically provision new user account for the buyer!
+    newlyCreated = true;
+    const randomSuffix = crypto.randomBytes(3).toString('hex');
+    tempPassword = `Wide@${randomSuffix}!`;
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+    const newReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+
+    user = await User.create({
+      name: buyerName,
+      email: buyerEmail,
+      password: hashedPassword,
+      role: 'user',
+      referralCode: newReferralCode
+    });
+  }
+
+  if (user) {
+    txn.userId = user._id;
+  }
   await txn.save();
 
-  const user = await User.findById(txn.userId);
   if (!user) return { success: true };
 
   let itemTitle = 'WIDETECHNOS Academy Item';
@@ -95,14 +132,31 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
     }
   }
 
-  // Send purchase confirmation email
+  // Send purchase confirmation email or new account welcome email
   try {
-    sendPurchaseEmail(user.email, user.name, itemTitle, txn.txnid, txn.amount);
+    if (newlyCreated && tempPassword) {
+      await sendAccountCreatedWithPurchaseEmail(user.email, user.name, itemTitle, txn.txnid, txn.amount, tempPassword);
+    } else {
+      await sendPurchaseEmail(user.email, user.name, itemTitle, txn.txnid, txn.amount);
+    }
   } catch (emailErr) {
-    console.error('Failed to send purchase email:', emailErr);
+    console.error('Failed to send purchase/welcome email:', emailErr);
   }
 
-  return { success: true, itemTitle };
+  // Mark abandoned checkout as recovered
+  try {
+    const buyerEmail = (user.email || txn.buyerEmail || '').toLowerCase().trim();
+    if (buyerEmail) {
+      await AbandonedCheckout.updateMany(
+        { buyerEmail, status: 'abandoned', ...(txn.itemId ? { courseId: txn.itemId } : {}) },
+        { status: 'recovered', recoveredAt: new Date(), lastActiveAt: new Date() }
+      );
+    }
+  } catch (acErr) {
+    console.error('Failed to update abandoned checkout status to recovered:', acErr);
+  }
+
+  return { success: true, itemTitle, user, newlyCreated, tempPassword };
 }
 
 // Helper to generate hash
@@ -122,8 +176,8 @@ const verifyResponseHash = (key, txnid, amount, productinfo, firstname, email, s
 
 // @desc    Validate a coupon code
 // @route   POST /api/payment/validate-coupon
-// @access  Private
-router.post('/validate-coupon', protect, async (req, res) => {
+// @access  Public / Optional Auth
+router.post('/validate-coupon', optionalAuth, async (req, res) => {
   const { code, courseId } = req.body;
   if (!code) return res.status(400).json({ message: 'Coupon code is required.' });
 
@@ -143,7 +197,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
     }
 
     // Check single-use per user tracking (C2)
-    const userUsageCount = (coupon.usedByUsers || []).filter(u => u.toString() === req.user._id.toString()).length;
+    const userUsageCount = req.user ? (coupon.usedByUsers || []).filter(u => u.toString() === req.user._id.toString()).length : 0;
     const maxPerUser = coupon.maxUsesPerUser || 1;
     if (userUsageCount >= maxPerUser) {
       return res.status(400).json({ message: `You have already redeemed this coupon code.` });
@@ -167,11 +221,11 @@ router.post('/validate-coupon', protect, async (req, res) => {
   }
 });
 
-// @desc    Initiate a payment transaction
+// @desc    Initiate a payment transaction (PayU)
 // @route   POST /api/payment/pay
-// @access  Private
-router.post('/pay', protect, async (req, res) => {
-  const { itemId, itemType, couponCode, buyerName, buyerAddress, buyerState, buyerGstin } = req.body; // itemType: 'course' or 'event'
+// @access  Public / Optional Auth
+router.post('/pay', optionalAuth, async (req, res) => {
+  const { itemId, itemType, couponCode, buyerName, buyerEmail, buyerAddress, buyerState, buyerGstin, phone } = req.body;
 
   try {
     let item;
@@ -183,6 +237,45 @@ router.post('/pay', protect, async (req, res) => {
 
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Resolve buyer info
+    let resolvedUserId = req.user ? req.user._id : null;
+    let resolvedEmail = req.user ? req.user.email : (buyerEmail || '').toLowerCase().trim();
+    let resolvedName = req.user ? (buyerName || req.user.name) : (buyerName || '').trim();
+    let resolvedPhone = req.user ? (phone || req.user.phone || '9999999999') : (phone || '9999999999');
+
+    if (!req.user) {
+      if (!resolvedEmail || !resolvedEmail.includes('@')) {
+        return res.status(400).json({ message: 'A valid email address is required for checkout.' });
+      }
+      if (!resolvedName) {
+        return res.status(400).json({ message: 'Your name is required for checkout.' });
+      }
+
+      const existingUser = await User.findOne({ email: resolvedEmail });
+      if (existingUser) {
+        resolvedUserId = existingUser._id;
+        if (itemType === 'course') {
+          const isAlreadyEnrolled = existingUser.enrolledCourses?.some(
+            (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
+          );
+          if (isAlreadyEnrolled) {
+            return res.status(400).json({ message: 'An account with this email is already enrolled in this course. Please sign in to access it.' });
+          }
+        }
+      }
+    } else {
+      // Check logged in user enrollment
+      const user = await User.findById(req.user._id);
+      if (itemType === 'course') {
+        const isAlreadyEnrolled = user.enrolledCourses?.some(
+          (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
+        );
+        if (isAlreadyEnrolled) {
+          return res.status(400).json({ message: 'You are already enrolled in this course.' });
+        }
+      }
     }
 
     // Use discountedPrice if available and lower than original price
@@ -242,16 +335,16 @@ router.post('/pay', protect, async (req, res) => {
     await Transaction.create({
       txnid,
       invoiceNo,
-      userId: req.user._id,
+      userId: resolvedUserId,
       itemType,
       itemId: item._id,
       amount: price,
       status: 'pending',
       couponCode: appliedCoupon ? appliedCoupon.code : null,
       billingDetails: {
-        buyerName: buyerName || req.user.name,
-        buyerEmail: req.user.email,
-        buyerPhone: req.body.phone || '9999999999',
+        buyerName: resolvedName,
+        buyerEmail: resolvedEmail,
+        buyerPhone: resolvedPhone,
         buyerAddress: buyerAddress || '',
         buyerState: posState,
         buyerGstin: buyerGstin ? buyerGstin.toUpperCase().trim() : '',
@@ -279,12 +372,12 @@ router.post('/pay', protect, async (req, res) => {
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';
     const actionUrl = key === 'mock_key'
-      ? 'mock' // Front-end will catch this and display a simulation modal/page
+      ? 'mock'
       : `${process.env.PAYU_BASE_URL || 'https://test.payu.in'}/_payment`;
 
     const productinfo = item.title;
-    const firstname = req.user.name;
-    const email = req.user.email;
+    const firstname = resolvedName;
+    const email = resolvedEmail;
 
     // Calculate PayU hash
     const hash = calculateHash(key, txnid, price, productinfo, firstname, email, salt);
@@ -303,7 +396,7 @@ router.post('/pay', protect, async (req, res) => {
       productinfo,
       firstname,
       email,
-      phone: '9999999999', // placeholder phone
+      phone: resolvedPhone,
       surl,
       furl,
       hash,
@@ -347,65 +440,17 @@ router.post('/response', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
     if (isHashValid && status === 'success') {
-      txn.status = 'success';
-      txn.payuResponse = req.body;
-      await txn.save();
-
-      // Enroll the user in the purchased course/event
-      const user = await User.findById(txn.userId);
-      if (txn.itemType === 'course') {
-        const isAlreadyEnrolled = user.enrolledCourses.some(
-          (c) => c.courseId.toString() === txn.itemId.toString()
-        );
-        if (!isAlreadyEnrolled) {
-          user.enrolledCourses.push({
-            courseId: txn.itemId,
-            progress: 0,
-            completed: false,
-            completedChapters: [],
-          });
-        }
-      } else if (txn.itemType === 'event') {
-        const isAlreadyEnrolled = user.enrolledEvents.some(
-          (e) => e.eventId.toString() === txn.itemId.toString()
-        );
-        if (!isAlreadyEnrolled) {
-          user.enrolledEvents.push({
-            eventId: txn.itemId,
-          });
-        }
+      const fulfillment = await fulfillPurchase(txn, req.body, 'payu');
+      const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
+      if (user) {
+        const token = generateToken(user._id, user.tokenVersion || 0);
+        setAuthCookie(res, token);
       }
-      await user.save();
-
-      // Send purchase confirmation email
-      sendPurchaseEmail(user.email, user.name, productinfo, txnid, amount);
-
-      // Process Referral Commission
-      if (txn.itemType === 'course' && user.referredBy) {
-        const course = await Course.findById(txn.itemId);
-        if (course && course.affiliateCommission > 0) {
-          const referrer = await User.findById(user.referredBy);
-          if (referrer) {
-            referrer.walletBalance += course.affiliateCommission;
-            await referrer.save();
-            await ReferralLog.create({
-              referrerId: referrer._id,
-              refereeId: user._id,
-              courseId: course._id,
-              commissionAmount: course.affiliateCommission
-            });
-          }
-        }
-      }
-
-      // Redirect client to dashboard with success query param
-      res.redirect(`${frontendUrl}/dashboard?payment=success&txnid=${txnid}`);
+      res.redirect(`${frontendUrl}/course/${txn.itemId}?payment=success&txnid=${txnid}`);
     } else {
       txn.status = 'failed';
       txn.payuResponse = req.body;
       await txn.save();
-
-      // Redirect client to dashboard with failure query param
       res.redirect(`${frontendUrl}/dashboard?payment=failed&txnid=${txnid}`);
     }
   } catch (error) {
@@ -430,78 +475,25 @@ router.post('/mock-callback', async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
-    const user = await User.findById(txn.userId);
-    let itemTitle = 'WIDETECHNOS item';
-    if (txn.itemType === 'course') {
-      const c = await Course.findById(txn.itemId);
-      if (c) itemTitle = c.title;
-    } else {
-      const e = await Event.findById(txn.itemId);
-      if (e) itemTitle = e.title;
-    }
-
-    // Construct mock payload similar to PayU response structure
-    const payload = {
-      status,
-      txnid,
-      amount: txn.amount.toString(),
-      productinfo: itemTitle,
-      firstname: user.name,
-      email: user.email,
-      hash: 'mock_hash_value',
-    };
-
-    // Forward to our standard callback endpoint via axios or call the code logic directly.
-    // Call the code logic directly to keep it self-contained:
-    txn.status = status;
-    txn.payuResponse = payload;
-    await txn.save();
-
     if (status === 'success') {
-      if (txn.itemType === 'course') {
-        const isAlreadyEnrolled = user.enrolledCourses.some(
-          (c) => c.courseId.toString() === txn.itemId.toString()
-        );
-        if (!isAlreadyEnrolled) {
-          user.enrolledCourses.push({
-            courseId: txn.itemId,
-            progress: 0,
-            completed: false,
-            completedChapters: [],
-          });
-        }
-      } else if (txn.itemType === 'event') {
-        const isAlreadyEnrolled = user.enrolledEvents.some(
-          (e) => e.eventId.toString() === txn.itemId.toString()
-        );
-        if (!isAlreadyEnrolled) {
-          user.enrolledEvents.push({
-            eventId: txn.itemId,
-          });
-        }
+      const fulfillment = await fulfillPurchase(txn, { mock: true, status }, 'payu');
+      const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
+      let token = null;
+      if (user) {
+        token = generateToken(user._id, user.tokenVersion || 0);
+        setAuthCookie(res, token);
       }
-      await user.save();
-
-      // Send purchase confirmation email
-      sendPurchaseEmail(user.email, user.name, itemTitle, txnid, txn.amount);
-
-      // Process Referral Commission
-      if (txn.itemType === 'course' && user.referredBy) {
-        const course = await Course.findById(txn.itemId);
-        if (course && course.affiliateCommission > 0) {
-          const referrer = await User.findById(user.referredBy);
-          if (referrer) {
-            referrer.walletBalance += course.affiliateCommission;
-            await referrer.save();
-            await ReferralLog.create({
-              referrerId: referrer._id,
-              refereeId: user._id,
-              courseId: course._id,
-              commissionAmount: course.affiliateCommission
-            });
-          }
-        }
-      }
+      return res.json({
+        success: true,
+        message: 'Mock payment completed successfully',
+        token,
+        newlyCreated: Boolean(fulfillment.newlyCreated),
+        redirectUrl: `/course/${txn.itemId}`
+      });
+    } else {
+      txn.status = 'failed';
+      await txn.save();
+      return res.json({ success: false, message: 'Mock payment was cancelled or failed' });
     }
   } catch (error) {
     console.error('Payment callback error:', error);
@@ -631,9 +623,9 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
 
 // @desc    Initiate a Razorpay Order
 // @route   POST /api/payment/razorpay/create-order
-// @access  Private
-router.post('/razorpay/create-order', protect, async (req, res) => {
-  const { itemId, itemType, couponCode, buyerName, buyerAddress, buyerState, buyerGstin, phone } = req.body;
+// @access  Public / Optional Auth
+router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
+  const { itemId, itemType, couponCode, buyerName, buyerEmail, buyerAddress, buyerState, buyerGstin, phone } = req.body;
 
   try {
     let item;
@@ -647,14 +639,42 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    // Check if user is already enrolled
-    const user = await User.findById(req.user._id);
-    if (itemType === 'course') {
-      const isAlreadyEnrolled = user.enrolledCourses?.some(
-        (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
-      );
-      if (isAlreadyEnrolled) {
-        return res.status(400).json({ message: 'You are already enrolled in this course.' });
+    // Resolve buyer info
+    let resolvedUserId = req.user ? req.user._id : null;
+    let resolvedEmail = req.user ? req.user.email : (buyerEmail || '').toLowerCase().trim();
+    let resolvedName = req.user ? (buyerName || req.user.name) : (buyerName || '').trim();
+    let resolvedPhone = req.user ? (phone || req.user.phone || '9999999999') : (phone || '9999999999');
+
+    if (!req.user) {
+      if (!resolvedEmail || !resolvedEmail.includes('@')) {
+        return res.status(400).json({ message: 'A valid email address is required for checkout.' });
+      }
+      if (!resolvedName) {
+        return res.status(400).json({ message: 'Your name is required for checkout.' });
+      }
+
+      const existingUser = await User.findOne({ email: resolvedEmail });
+      if (existingUser) {
+        resolvedUserId = existingUser._id;
+        if (itemType === 'course') {
+          const isAlreadyEnrolled = existingUser.enrolledCourses?.some(
+            (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
+          );
+          if (isAlreadyEnrolled) {
+            return res.status(400).json({ message: 'An account with this email is already enrolled in this course. Please sign in to access it.' });
+          }
+        }
+      }
+    } else {
+      // Check logged-in user enrollment
+      const user = await User.findById(req.user._id);
+      if (itemType === 'course') {
+        const isAlreadyEnrolled = user.enrolledCourses?.some(
+          (c) => (c.courseId?._id || c.courseId)?.toString() === item._id.toString()
+        );
+        if (isAlreadyEnrolled) {
+          return res.status(400).json({ message: 'You are already enrolled in this course.' });
+        }
       }
     }
 
@@ -730,7 +750,8 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
           txnid,
           itemId: item._id.toString(),
           itemType,
-          userId: req.user._id.toString()
+          userId: resolvedUserId ? resolvedUserId.toString() : '',
+          buyerEmail: resolvedEmail
         }
       });
       razorpayOrderId = order.id;
@@ -740,7 +761,7 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
     await Transaction.create({
       txnid,
       invoiceNo,
-      userId: req.user._id,
+      userId: resolvedUserId,
       itemType,
       itemId: item._id,
       amount: price,
@@ -749,9 +770,9 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
       razorpayOrderId,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
       billingDetails: {
-        buyerName: buyerName || req.user.name,
-        buyerEmail: req.user.email,
-        buyerPhone: phone || '9999999999',
+        buyerName: resolvedName,
+        buyerEmail: resolvedEmail,
+        buyerPhone: resolvedPhone,
         buyerAddress: buyerAddress || '',
         buyerState: posState,
         buyerGstin: buyerGstin ? buyerGstin.toUpperCase().trim() : '',
@@ -786,9 +807,9 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
       itemTitle: item.title,
       itemDescription: item.description?.substring(0, 100) || 'Course Enrollment',
       prefill: {
-        name: buyerName || req.user.name,
-        email: req.user.email,
-        contact: phone || ''
+        name: resolvedName,
+        email: resolvedEmail,
+        contact: resolvedPhone
       }
     });
   } catch (error) {
@@ -799,8 +820,8 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
 
 // @desc    Verify Razorpay Payment Signature
 // @route   POST /api/payment/razorpay/verify
-// @access  Private
-router.post('/razorpay/verify', protect, async (req, res) => {
+// @access  Public / Optional Auth
+router.post('/razorpay/verify', optionalAuth, async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, txnid } = req.body;
 
   try {
@@ -816,14 +837,28 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction record not found' });
     }
 
-    // Ownership validation: verify user owns the transaction or is authorized admin
-    if (txn.userId.toString() !== req.user._id.toString() && !isUserAdmin(req.user)) {
-      return res.status(403).json({ success: false, message: 'Not authorized to verify this transaction.' });
+    // Ownership validation: If user is logged in and txn had an assigned user, verify match
+    if (req.user && txn.userId) {
+      if (txn.userId.toString() !== req.user._id.toString() && !isUserAdmin(req.user)) {
+        return res.status(403).json({ success: false, message: 'Not authorized to verify this transaction.' });
+      }
     }
 
-    // Idempotency: if already completed, return immediately
+    // Idempotency: if already completed, return immediately with session token
     if (txn.status === 'success') {
-      return res.json({ success: true, message: 'Payment already completed', txnid: txn.txnid });
+      const user = txn.userId ? await User.findById(txn.userId) : null;
+      let token = null;
+      if (user) {
+        token = generateToken(user._id, user.tokenVersion || 0);
+        setAuthCookie(res, token);
+      }
+      return res.json({
+        success: true,
+        message: 'Payment already completed',
+        txnid: txn.txnid,
+        token,
+        user: user ? { _id: user._id, name: user.name, email: user.email, role: user.role } : null
+      });
     }
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
@@ -854,19 +889,36 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       }
     }
 
-    // Fulfill the purchase securely
-    await fulfillPurchase(txn, {
+    // Fulfill the purchase securely (auto-creates account if guest)
+    const fulfillment = await fulfillPurchase(txn, {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
       verifiedAt: new Date()
     }, 'razorpay');
 
+    const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
+    let token = null;
+    if (user) {
+      token = generateToken(user._id, user.tokenVersion || 0);
+      setAuthCookie(res, token);
+    }
+
     res.json({
       success: true,
-      message: 'Payment verified and enrollment confirmed!',
+      message: fulfillment.newlyCreated 
+        ? 'Payment verified! An account has been created for your email and your course is unlocked.'
+        : 'Payment verified and enrollment confirmed!',
       txnid: txn.txnid,
-      invoiceNo: txn.invoiceNo
+      invoiceNo: txn.invoiceNo,
+      token,
+      newlyCreated: Boolean(fulfillment.newlyCreated),
+      user: user ? {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      } : null
     });
   } catch (error) {
     console.error('Razorpay verification error:', error);

@@ -4,7 +4,7 @@ import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import TrialTutorial from '../models/TrialTutorial.js';
 import User from '../models/User.js';
-import { protect, admin, isUserAdmin } from '../middleware/auth.js';
+import { protect, admin, isUserAdmin, optionalAuth } from '../middleware/auth.js';
 import { getJwtSecret } from '../utils/jwtSecret.js';
 
 const router = express.Router();
@@ -248,7 +248,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // If requester is Admin, enrolled student, or course is completely free: Return full unredacted course!
-    if (isAdmin || isEnrolled || course.isFree) {
+    if (isAdmin || isEnrolled || course.isFree || course.price === 0) {
       const fullCourse = course.toObject();
       fullCourse.salesPageUrl = `${frontendUrl}/sale/${course.salesPageConfig?.slug || course._id}`;
       return res.json(fullCourse);
@@ -256,6 +256,17 @@ router.get('/:id', async (req, res) => {
 
     // For unenrolled public visitors: Redact sensitive video/drive/material links
     const outline = course.toObject();
+    if (outline.resourceBundles && Array.isArray(outline.resourceBundles)) {
+      outline.resourceBundles = outline.resourceBundles.map(b => ({
+        _id: b._id,
+        title: b.title,
+        description: b.description,
+        fileType: b.fileType,
+        fileSize: b.fileSize,
+        isFreePreview: Boolean(b.isFreePreview),
+        fileUrl: b.isFreePreview ? b.fileUrl : undefined
+      }));
+    }
     if (outline.content) {
       outline.content.forEach(lang => {
         if (lang.chapters) {
@@ -282,15 +293,45 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// @desc    Get full course content for learning (Requires enrollment)
+// @desc    Get full course content for learning (Free courses open to all, paid requires enrollment)
 // @route   GET /api/courses/:id/learn
-// @access  Private
-router.get('/:id/learn', protect, async (req, res) => {
+// @access  Public for free courses / Private for paid courses
+router.get('/:id/learn', optionalAuth, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
       .populate('continuationCourses', 'title price discountedPrice thumbnail category isFree description');
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const isCourseFree = Boolean(course.isFree || course.price === 0);
+
+    // If free course, allow access immediately to guests & logged in users!
+    if (isCourseFree) {
+      // If user is logged in, auto-enroll them in background so their progress is saved
+      if (req.user) {
+        const user = await User.findById(req.user._id);
+        if (user) {
+          const isEnrolled = user.enrolledCourses.some(
+            (c) => (c.courseId?._id || c.courseId)?.toString() === course._id.toString()
+          );
+          if (!isEnrolled) {
+            user.enrolledCourses.push({
+              courseId: course._id,
+              progress: 0,
+              completed: false,
+              completedChapters: [],
+            });
+            await user.save();
+          }
+        }
+      }
+      return res.json(course);
+    }
+
+    // For paid courses:
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required. Please sign in to access this course.' });
     }
 
     const user = await User.findById(req.user._id);
@@ -320,7 +361,7 @@ router.post('/', protect, admin, async (req, res) => {
     title, description, type, category, isFree, outcomes,
     packageType, price, discountedPrice, affiliateCommission,
     thumbnail, languages, content, continuationCourses, salesPageConfig,
-    isFeatured
+    isFeatured, resourceBundles
   } = req.body;
 
   try {
@@ -350,6 +391,7 @@ router.post('/', protect, admin, async (req, res) => {
       thumbnail: thumbnail || '',
       languages: languages || [],
       content: content || [],
+      resourceBundles: resourceBundles || [],
       continuationCourses: continuationCourses || [],
       salesPageConfig: salesPageConfig || {}
     });
@@ -379,7 +421,7 @@ router.put('/:id', protect, admin, async (req, res) => {
   const {
     title, description, type, category, isFree, outcomes, packageType,
     price, discountedPrice, thumbnail, languages, content,
-    continuationCourses, salesPageConfig, isFeatured
+    continuationCourses, salesPageConfig, isFeatured, resourceBundles
   } = req.body;
 
   try {
@@ -408,6 +450,7 @@ router.put('/:id', protect, admin, async (req, res) => {
     course.thumbnail = thumbnail || course.thumbnail;
     course.languages = languages || course.languages;
     course.content = content || course.content;
+    if (resourceBundles !== undefined) course.resourceBundles = resourceBundles;
     if (continuationCourses !== undefined) course.continuationCourses = continuationCourses;
     if (salesPageConfig !== undefined) course.salesPageConfig = salesPageConfig;
 

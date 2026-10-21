@@ -186,6 +186,23 @@ window.CoursesModule = {
                         </div>
                     </div>
 
+                    <!-- Resource Bundles (Zip, PDF, Sheets, Project Files) -->
+                    <div class="form-group full-width" style="margin-top:24px; background:var(--bg-dark); padding:16px; border-radius:8px; border:1px solid var(--border);">
+                        <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                            <div>
+                                <label class="form-label" style="margin-bottom:2px; font-weight:600; color:var(--text-main); font-size:1rem;">📦 Course Resource Bundles (.ZIP, Sheets, PDFs)</label>
+                                <p class="text-muted" style="font-size:0.82rem; margin:0;">Attach course-wide downloadable packs, project starter archives, spreadsheets, or cheatsheets.</p>
+                            </div>
+                            <button type="button" class="btn btn-secondary" style="padding:6px 14px; font-size:0.82rem;" 
+                                    onclick="CoursesModule.addBundle()">+ Add Bundle</button>
+                        </div>
+                        <div id="bundles-list" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+                            ${(course?.resourceBundles && course.resourceBundles.length > 0)
+                                ? course.resourceBundles.map(b => this.renderBundleRow(b)).join('')
+                                : '<p id="no-bundles-msg" class="text-muted" style="margin:8px 0; font-size:0.85rem;">No resource bundles attached yet. Click "+ Add Bundle" to add files.</p>'}
+                        </div>
+                    </div>
+
                     <div style="margin-top:32px;display:flex;justify-content:flex-end;gap:12px;">
                         <button type="button" class="btn btn-secondary" onclick="App.navigateTo('content')">Cancel</button>
                         <button type="submit" class="btn btn-primary">${isEdit ? 'Update Course' : 'Create Course'}</button>
@@ -225,6 +242,94 @@ window.CoursesModule = {
     addLanguage() {
         const list = document.getElementById('languages-list');
         list.insertAdjacentHTML('beforeend', this.renderLanguageRow());
+    },
+
+    renderBundleRow(bundle = {}) {
+        const title = bundle.title || '';
+        const desc = bundle.description || '';
+        const fileType = bundle.fileType || 'zip';
+        const fileUrl = bundle.fileUrl || '';
+        const fileSize = bundle.fileSize || '';
+        const isFree = !!bundle.isFreePreview;
+        const uid = 'bundle_' + Math.floor(Math.random() * 1000000);
+
+        return `
+            <div class="bundle-row" style="background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; padding:12px;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:center;">
+                    <input type="text" class="form-control bundle-title" placeholder="Bundle Title (e.g. Project Code .ZIP, Cheat Sheet .PDF)" value="${title}" required>
+                    <select class="form-control bundle-type">
+                        <option value="zip" ${fileType === 'zip' ? 'selected' : ''}>📦 ZIP Package</option>
+                        <option value="pdf" ${fileType === 'pdf' ? 'selected' : ''}>📄 PDF Document</option>
+                        <option value="sheet" ${fileType === 'sheet' ? 'selected' : ''}>📊 Spreadsheet / Excel</option>
+                        <option value="code" ${fileType === 'code' ? 'selected' : ''}>💻 Code Files</option>
+                        <option value="notes" ${fileType === 'notes' ? 'selected' : ''}>📑 Notes / Slides</option>
+                        <option value="other" ${fileType === 'other' ? 'selected' : ''}>📁 Other Asset</option>
+                    </select>
+                    <input type="text" class="form-control bundle-size" placeholder="Size (e.g. 25 MB)" value="${fileSize}">
+                    <button type="button" class="btn btn-danger" style="padding:6px 12px;" onclick="this.closest('.bundle-row').remove()">✕</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; margin-bottom:8px;">
+                    <input type="text" id="${uid}_url" class="form-control bundle-url" placeholder="File URL / server link" value="${fileUrl}" required>
+                    <label class="btn btn-secondary" style="margin:0; padding:8px 14px; cursor:pointer; font-size:0.82rem; white-space:nowrap;">
+                        ⬆ Upload File
+                        <input type="file" style="display:none;" onchange="CoursesModule.handleBundleUpload(this, '${uid}_url')">
+                    </label>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center;">
+                    <input type="text" class="form-control bundle-desc" placeholder="Brief description (e.g. Full source code and exercise starter files)" value="${desc}">
+                    <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-main); margin:0; cursor:pointer; white-space:nowrap;">
+                        <input type="checkbox" class="bundle-free-preview" ${isFree ? 'checked' : ''}> Free Preview?
+                    </label>
+                </div>
+            </div>
+        `;
+    },
+
+    addBundle() {
+        const list = document.getElementById('bundles-list');
+        const emptyMsg = document.getElementById('no-bundles-msg');
+        if (emptyMsg) emptyMsg.remove();
+        if (list) {
+            const temp = document.createElement('div');
+            temp.innerHTML = this.renderBundleRow();
+            list.appendChild(temp.firstElementChild);
+        }
+    },
+
+    async handleBundleUpload(inputEl, targetInputId) {
+        const file = inputEl.files?.[0];
+        if (!file) return;
+
+        const targetInput = document.getElementById(targetInputId);
+        if (!targetInput) return;
+        const originalText = targetInput.value;
+        targetInput.value = 'Uploading ' + file.name + '...';
+
+        try {
+            const formData = new FormData();
+            formData.append('material', file);
+
+            const res = await this.uploadWithProgress('/api/upload/material', formData, (percent) => {
+                targetInput.value = `Uploading... ${percent}%`;
+            });
+
+            if (res.downloadUrl || res.url) {
+                targetInput.value = res.downloadUrl || res.url;
+                const row = targetInput.closest('.bundle-row');
+                const sizeInput = row?.querySelector('.bundle-size');
+                if (sizeInput && !sizeInput.value) {
+                    const mb = (file.size / (1024 * 1024)).toFixed(1);
+                    sizeInput.value = mb > 0.1 ? `${mb} MB` : `${Math.round(file.size / 1024)} KB`;
+                }
+            } else {
+                targetInput.value = originalText;
+                alert('Upload did not return a valid URL');
+            }
+        } catch (err) {
+            console.error('Bundle upload error:', err);
+            targetInput.value = originalText;
+            alert('Upload failed: ' + err.message);
+        }
     },
 
     togglePricing(value) {
@@ -485,6 +590,15 @@ window.CoursesModule = {
         const continuationCourses = Array.from(document.querySelectorAll('.continuation-checkbox:checked'))
             .map(cb => cb.value);
 
+        const resourceBundles = Array.from(document.querySelectorAll('.bundle-row')).map(row => ({
+            title: row.querySelector('.bundle-title')?.value.trim() || '',
+            description: row.querySelector('.bundle-desc')?.value.trim() || '',
+            fileType: row.querySelector('.bundle-type')?.value || 'zip',
+            fileUrl: row.querySelector('.bundle-url')?.value.trim() || '',
+            fileSize: row.querySelector('.bundle-size')?.value.trim() || '',
+            isFreePreview: row.querySelector('.bundle-free-preview')?.checked || false
+        })).filter(b => b.title && b.fileUrl);
+
         const courseData = {
             title: document.getElementById('course-title').value.trim(),
             description: document.getElementById('course-description').value.trim(),
@@ -499,7 +613,8 @@ window.CoursesModule = {
             isFeatured: document.getElementById('course-featured')?.value === 'true',
             outcomes,
             languages,
-            continuationCourses
+            continuationCourses,
+            resourceBundles
         };
 
         // Validation

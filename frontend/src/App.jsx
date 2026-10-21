@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api';
+import tracker from './utils/tracker';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -26,6 +27,12 @@ function AppContent() {
   const [mockPaymentData, setMockPaymentData] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Track page views on route change
+  useEffect(() => {
+    tracker.trackPageView(location.pathname + location.search, document.title);
+  }, [location.pathname, location.search]);
 
   const refreshUser = async () => {
     const token = localStorage.getItem('token');

@@ -1,9 +1,20 @@
 import mongoose from 'mongoose';
 
 const MaterialSchema = new mongoose.Schema({
-  type: { type: String, enum: ['video', 'pdf', 'notes', 'slides', 'sheet', 'image', 'document', 'other'], default: 'other' },
+  type: { type: String, enum: ['video', 'pdf', 'notes', 'slides', 'sheet', 'image', 'document', 'zip', 'code', 'archive', 'other'], default: 'other' },
   title: { type: String },
-  link: { type: String, required: true } // Drive link or server file URL
+  link: { type: String, required: true }, // Drive link or server file URL
+  fileSize: { type: String }
+});
+
+const ResourceBundleSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  fileType: { type: String, enum: ['zip', 'pdf', 'sheet', 'notes', 'slides', 'code', 'archive', 'document', 'other'], default: 'zip' },
+  fileUrl: { type: String, required: true }, // Server upload path or external download link
+  fileSize: { type: String }, // e.g. "45 MB"
+  isFreePreview: { type: Boolean, default: false }, // Allow download without login/enrollment
+  createdAt: { type: Date, default: Date.now }
 });
 
 const ChapterSchema = new mongoose.Schema({
@@ -34,6 +45,7 @@ const CourseSchema = new mongoose.Schema({
   thumbnail: { type: String }, // Image/Cover URL
   languages: [{ type: String }], // List of available languages
   content: [LanguageContentSchema], // Grouped by language
+  resourceBundles: [ResourceBundleSchema], // Course-level downloadable bundles (.zip, .pdf, .xlsx sheets)
   continuationCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
   salesPageConfig: {
     slug: { type: String, sparse: true, unique: true },

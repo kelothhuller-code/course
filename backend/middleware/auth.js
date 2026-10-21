@@ -26,16 +26,22 @@ export const protect = async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, getJwtSecret());
-      
+
       req.user = await User.findById(decoded.id).select('-password');
       if (!req.user) {
         return res.status(401).json({ message: 'User not found' });
       }
 
       // Concurrent Login Restriction (F2):
-      // If tokenVersion doesn't match, previous session was invalidated by another device login
-      if (decoded.tokenVersion !== undefined && req.user.tokenVersion !== undefined && decoded.tokenVersion !== req.user.tokenVersion) {
-        return res.status(401).json({ message: 'Session expired: You have been logged in on another device.' });
+      // Admins are exempt to permit multi-session access (admin portal, testing, and frontend)
+      if (!isUserAdmin(req.user)) {
+        if (
+          typeof decoded.tokenVersion === 'number' &&
+          typeof req.user.tokenVersion === 'number' &&
+          decoded.tokenVersion < req.user.tokenVersion
+        ) {
+          return res.status(401).json({ message: 'Session expired: You have been logged in on another device.' });
+        }
       }
 
       next();
@@ -90,7 +96,7 @@ export const getAdminEmail = () => {
             if (email) break;
           }
         }
-      } catch {}
+      } catch { }
     }
   }
   return email;

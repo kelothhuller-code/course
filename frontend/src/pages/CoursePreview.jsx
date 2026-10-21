@@ -23,17 +23,18 @@ export default function CoursePreview({ user }) {
   }, [id, navigate]);
 
   const handleEnroll = () => {
-    if (!localStorage.getItem('token')) {
-      navigate('/auth');
-      return;
-    }
     const isEnrolled = user?.enrolledCourses?.some(
       c => (c.courseId?._id || c.courseId)?.toString() === id
     );
     if (isEnrolled) {
       navigate(`/course/${id}`);
-    } else if (course.isFree || course.price === 0) {
-      api.enrollFree(id).then(() => navigate(`/course/${id}`)).catch(e => alert(e.message));
+      return;
+    }
+    if (course?.isFree || course?.price === 0) {
+      if (localStorage.getItem('token')) {
+        api.enrollFree(id).catch(e => console.log('Auto enroll note:', e.message));
+      }
+      navigate(`/course/${id}`);
     } else {
       navigate(`/checkout/${id}`);
     }

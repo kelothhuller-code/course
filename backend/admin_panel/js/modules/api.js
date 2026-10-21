@@ -220,5 +220,18 @@ replyAsAdmin(courseId, commentId, text) {
 
     deleteSubscriber(id) {
         return this.delete(`/api/leads/subscribers/${id}`);
+    },
+
+    // Analytics & Abandoned Checkout Endpoints
+    getAnalyticsOverview() {
+        return this.get('/api/analytics/admin/overview');
+    },
+
+    updateAbandonedStatus(id, status) {
+        return this.patch(`/api/analytics/admin/abandoned/${id}/status`, { status });
+    },
+
+    deleteAbandonedLead(id) {
+        return this.delete(`/api/analytics/admin/abandoned/${id}`);
     }
 };
