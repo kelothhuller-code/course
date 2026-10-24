@@ -59,11 +59,41 @@
     "sameAs": ["https://www.instagram.com/broffydiaries/"]
   }
   </script>
+  <!-- Instant loading shell: painted from this HTML alone, before any JS/CSS downloads.
+       React replaces everything inside #root when the app starts. Keep it tiny. -->
+  <style>
+    html { background: #f7f8fb; }
+    body { margin: 0; }
+    .boot { min-height: 100vh; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #0b1220; }
+    .boot-bar { height: 64px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+    .boot-logo { width: 32px; height: 32px; }
+    .boot-name { font-weight: 800; letter-spacing: .08em; font-size: 15px; }
+    .boot-hero { max-width: 1120px; margin: 0 auto; padding: 56px 20px; }
+    .boot-line { height: 14px; border-radius: 7px; background: #e8eaf3; margin: 14px 0; }
+    .boot-title { height: 34px; width: min(560px, 90%); background: #dfe1f5; }
+    .boot-title2 { height: 34px; width: min(420px, 70%); background: #dfe1f5; }
+    .boot-btn { display: inline-block; width: 160px; height: 46px; margin-top: 22px; border-radius: 12px; background: #4338ca; }
+    @media (prefers-reduced-motion: no-preference) {
+      .boot-line { animation: boot-pulse 1.4s ease-in-out infinite; }
+      @keyframes boot-pulse { 50% { opacity: .55; } }
+    }
+  </style>
 </head>
 
 <body>
   <noscript>WideTech needs JavaScript to run. Email support@widetech.in if you need help.</noscript>
-  <div id="root"></div>
+  <div id="root">
+    <div class="boot" aria-busy="true" aria-label="Loading WideTech">
+      <div class="boot-bar"><img class="boot-logo" src="/logo.svg" alt="" width="32" height="32" /><span class="boot-name">WIDETECH</span></div>
+      <div class="boot-hero">
+        <div class="boot-line boot-title"></div>
+        <div class="boot-line boot-title2"></div>
+        <div class="boot-line" style="width:min(640px,95%)"></div>
+        <div class="boot-line" style="width:min(520px,80%)"></div>
+        <span class="boot-btn"></span>
+      </div>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

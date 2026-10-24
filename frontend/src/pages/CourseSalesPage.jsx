@@ -235,6 +235,10 @@ export default function CourseSalesPage({ user }) {
                   src={getMediaUrl(course?.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
                   alt={course?.title || 'Course Thumbnail'}
                   className="sales-thumbnail-img"
+                  width="640"
+                  height="360"
+                  fetchPriority="high"
+                  decoding="async"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = FALLBACK_COURSE_THUMBNAIL;
@@ -293,6 +297,10 @@ export default function CourseSalesPage({ user }) {
                     src={getMediaUrl(nextCourse.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
                     alt={nextCourse.title}
                     className="sales-next-thumb"
+                    width="120"
+                    height="120"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = FALLBACK_COURSE_THUMBNAIL;
