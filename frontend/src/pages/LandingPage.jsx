@@ -23,6 +23,7 @@ import FeaturedCatalog from './Landing/FeaturedCatalog';
 import EnquirySection from './Landing/EnquirySection';
 import StickyBuyBar from './Landing/StickyBuyBar';
 import './Landing/premium.css';
+import { toast } from '../components/Toast';
 
 export default function LandingPage({ user }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
@@ -109,10 +110,10 @@ export default function LandingPage({ user }) {
       if (isFreeEvent) {
         try {
           await api.registerFreeEvent(item._id);
-          alert('🎉 Successfully registered for this free event!');
+          toast.success('🎉 Successfully registered for this free event!');
           navigate('/dashboard');
         } catch (err) {
-          alert(err.message || 'Registration failed');
+          toast.error(err.message || 'Registration failed');
         }
         return;
       }

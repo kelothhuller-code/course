@@ -4,6 +4,23 @@ export const SERVICE_PRICING_TYPES = ['fixed', 'starting_from', 'quote'];
 export const SERVICE_CTA_TYPES = ['book_call', 'quote', 'enquire'];
 export const SERVICE_ICONS = ['briefcase', 'automation', 'code', 'chart', 'support', 'cloud', 'document', 'spark'];
 
+// How a service is sold: fixed price only (Buy now), quotation only (enquiry form) or both.
+export const SERVICE_PURCHASE_MODES = ['quote', 'fixed', 'both'];
+
+// A fixed-price package (e.g. Basic / Standard / Premium). Price is always read from here server-side.
+const PackageSchema = new mongoose.Schema({
+  name: { type: String, required: true, maxlength: 60 },
+  price: { type: Number, required: true, min: 1 },
+  discountedPrice: { type: Number, min: 0 },
+  deliverables: [{ type: String }],
+  deliveryTime: { type: String, default: '' },               // e.g. "5 working days"
+  gstRate: { type: Number, default: null, min: 0, max: 40 }, // null = service / store default
+  gstInclusive: { type: Boolean, default: null },            // null = service default
+  hsnSacCode: { type: String, default: '' },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+});
+
 const ServiceSchema = new mongoose.Schema({
   title: { type: String, required: true },          // service name
   slug: { type: String, index: true, sparse: true }, // URL: /services/:slug
@@ -26,6 +43,11 @@ const ServiceSchema = new mongoose.Schema({
   startingPrice: { type: Number, default: 0, min: 0 }, // the price (fixed or "starting from"); ignored for "quote"
   discountedPrice: { type: Number, min: 0 },
   ctaType: { type: String, enum: SERVICE_CTA_TYPES, default: 'enquire' },
+  purchaseMode: { type: String, enum: SERVICE_PURCHASE_MODES, default: 'quote' },
+  packages: [PackageSchema],
+  gstRate: { type: Number, default: null, min: 0, max: 40 },
+  gstInclusive: { type: Boolean, default: true },
+  hsnSacCode: { type: String, default: '' }, // TODO(owner): confirm with your CA
   couponEligible: { type: Boolean, default: false },
   highlightBadge: { type: String, default: '' },
   isFeatured: { type: Boolean, default: false },

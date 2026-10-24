@@ -3,6 +3,23 @@ import mongoose from 'mongoose';
 export const SOFTWARE_PRICING_TYPES = ['one_time', 'subscription_monthly', 'subscription_yearly', 'starting_from', 'quote'];
 export const SOFTWARE_CTA_TYPES = ['buy', 'demo', 'enquire'];
 
+export const PLAN_BILLING = ['monthly', 'yearly', 'lifetime', 'custom_days'];
+
+// A paid plan. Price is read from here on the server for every order (never from the browser).
+const PlanSchema = new mongoose.Schema({
+  name: { type: String, required: true, maxlength: 60 },
+  price: { type: Number, required: true, min: 1 },
+  billing: { type: String, enum: PLAN_BILLING, default: 'yearly' },
+  customDays: { type: Number, min: 1, max: 3650 },      // only for billing "custom_days"
+  maxDevices: { type: Number, default: 1, min: 1, max: 1000 },
+  features: [{ type: String }],
+  gstRate: { type: Number, default: null, min: 0, max: 40 }, // null = product / store default
+  gstInclusive: { type: Boolean, default: null },            // null = product default
+  hsnSacCode: { type: String, default: '' },                 // empty = product / store default
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+});
+
 const SoftwareSchema = new mongoose.Schema({
   title: { type: String, required: true },          // product name
   slug: { type: String, index: true, sparse: true }, // URL: /software/:slug
@@ -31,6 +48,21 @@ const SoftwareSchema = new mongoose.Schema({
   version: { type: String, default: '' },
   demoUrl: { type: String, default: '' },
   documentationUrl: { type: String, default: '' },
+  // ---- Licensing -----------------------------------------------------------------------
+  // appId is what the desktop app sends to the licence API. It is set from the slug when the
+  // product is created and does not change if you rename the page later.
+  appId: { type: String, index: { unique: true, sparse: true } },
+  licensingEnabled: { type: Boolean, default: false },
+  plans: [PlanSchema],
+  trialEnabled: { type: Boolean, default: true },
+  trialDays: { type: Number, default: 7, min: 1, max: 90 },
+  trialDownloadUrl: { type: String, default: '' },       // public https:// link to the installer
+  trialInstructions: { type: String, default: '' },      // short Markdown shown on the page
+  trialUsesPackage: { type: Boolean, default: false },   // let anyone download the uploaded package for the trial
+  // Product-level GST defaults for plans (store-wide settings when empty)
+  gstRate: { type: Number, default: null, min: 0, max: 40 },
+  gstInclusive: { type: Boolean, default: true },
+  hsnSacCode: { type: String, default: '' },             // TODO(owner): confirm with your CA
   // Visibility: only "active" is shown publicly
   status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
   createdAt: { type: Date, default: Date.now }

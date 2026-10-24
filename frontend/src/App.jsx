@@ -4,6 +4,7 @@ import { api } from './api';
 import tracker from './utils/tracker';
 import LoadingSpinner from './components/LoadingSpinner';
 import ScrollReveal from './components/Reveal';
+import { ToastProvider, toast } from './components/Toast';
 
 // The landing page is loaded eagerly (first thing most visitors see);
 // every other route is code-split so the landing bundle stays small.
@@ -12,6 +13,7 @@ const AuthPage = lazy(() => import('./pages/AuthPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CourseViewer = lazy(() => import('./pages/CourseViewer'));
 const Checkout = lazy(() => import('./pages/Checkout'));
+const ProductCheckout = lazy(() => import('./pages/ProductCheckout'));
 const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
 const AllCoursesPage = lazy(() => import('./pages/AllCoursesPage'));
 const CourseSalesPage = lazy(() => import('./pages/CourseSalesPage'));
@@ -111,7 +113,7 @@ function AppContent() {
         : '/dashboard';
       navigate(redirectPath);
     } catch (err) {
-      alert('Mock payment simulation error: ' + err.message);
+      toast.error(`Test payment error: ${err.message}`);
     } finally {
       setIsSimulating(false);
     }
@@ -131,8 +133,11 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<LandingPage user={user} onOpenMockPayment={setMockPaymentData} />} />
           <Route path="/auth" element={<AuthPage user={user} onLogout={handleLogout} onLoginSuccess={handleLoginSuccess} />} />
-          <Route path="/dashboard" element={<Dashboard user={user} onRefreshUser={refreshUser} />} />
-          <Route path="/certificate/verify/:certificateId" element={<CertificateVerify />} />
+          <Route path="/dashboard/*" element={<Dashboard user={user} onRefreshUser={refreshUser} onLogout={handleLogout} />} />
+          <Route path="/verify/:certificateId" element={<CertificateVerify user={user} />} />
+          <Route path="/certificate/verify/:certificateId" element={<CertificateVerify user={user} />} />
+          <Route path="/checkout/software/:slug" element={<ProductCheckout key="software" kind="software" user={user} onRefreshUser={refreshUser} />} />
+          <Route path="/checkout/service/:slug" element={<ProductCheckout key="service" kind="service" user={user} onRefreshUser={refreshUser} />} />
           <Route 
             path="/checkout/:id" 
             element={<Checkout user={user} onRefreshUser={refreshUser} />} 
@@ -211,7 +216,9 @@ function AppContent() {
 export default function App() {
   return (
     <Router>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </Router>
   );
 }

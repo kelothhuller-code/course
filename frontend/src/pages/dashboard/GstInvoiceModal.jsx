@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import { printDocument } from '../../utils/printDocument';
 
 export default function GstInvoiceModal({ txnid, onClose }) {
   const [invoiceData, setInvoiceData] = useState(null);
@@ -37,59 +38,27 @@ export default function GstInvoiceModal({ txnid, onClose }) {
   const handlePrint = () => {
     const printArea = document.getElementById('gst-invoice-printable-area');
     if (!printArea) return;
-
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Tax Invoice - ${invoiceData?.invoiceNo || txnid}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1e293b; padding: 20px; background: #fff; }
-            .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 8px; }
-            .header-table { width: 100%; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
-            .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #dbeafe; color: #1e40af; }
-            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .section-title { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px; }
-            table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            table.items th { background: #f8fafc; text-align: left; padding: 10px; border: 1px solid #cbd5e1; font-size: 12px; }
-            table.items td { padding: 10px; border: 1px solid #cbd5e1; font-size: 13px; }
-            .total-row { font-weight: bold; background: #f1f5f9; }
-            .footer-note { font-size: 11px; color: #64748b; margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-            @media print {
-              body { padding: 0; }
-              .invoice-box { border: none; padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-box">
-            ${printArea.innerHTML}
-          </div>
-        </body>
-      </html>
-    `);
-    frameDoc.close();
-
-    setTimeout(() => {
-      printFrame.contentWindow.focus();
-      printFrame.contentWindow.print();
-      setTimeout(() => {
-        if (document.body.contains(printFrame)) {
-          document.body.removeChild(printFrame);
-        }
-      }, 1000);
-    }, 500);
+    // Self-contained print document with the site fonts embedded (they were lost before).
+    printDocument({
+      title: `Tax Invoice - ${invoiceData?.invoiceNo || txnid}`,
+      pageCss: '@page { size: A4 portrait; margin: 12mm; }',
+      css: `
+        body { color: #1e293b; font-size: 13px; }
+        h1, h2, h3, h4, .invoice-title { font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif; }
+        .invoice-box { max-width: 800px; margin: auto; }
+        .header-table { width: 100%; border-bottom: 2px solid #4338ca; padding-bottom: 15px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #e0e7ff; color: #3730a3; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .section-title { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px; }
+        table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table.items th { background: #f8fafc; text-align: left; padding: 10px; border: 1px solid #cbd5e1; font-size: 12px; }
+        table.items td { padding: 10px; border: 1px solid #cbd5e1; font-size: 13px; }
+        .total-row { font-weight: bold; background: #f1f5f9; }
+        .footer-note { font-size: 11px; color: #64748b; margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+        tr, .details-grid { break-inside: avoid; }
+      `,
+      html: `<div class="invoice-box">${printArea.innerHTML}</div>`,
+    });
   };
 
   const handleClose = (e) => {
@@ -101,6 +70,10 @@ export default function GstInvoiceModal({ txnid, onClose }) {
   };
 
   if (!txnid) return null;
+
+  // Software/service invoices: HSN/SAC is blank until the owner sets one (never guessed)
+  const isProduct = ['software', 'service'].includes(invoiceData?.itemType);
+  const gstRate = Number(invoiceData?.gstDetails?.rate) || 18;
 
   return (
     <div 
@@ -319,14 +292,14 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                   fontWeight: 700
                 }}>
                   <span>ITEM SPECIFICATION</span>
-                  <span>SAC: {invoiceData.gstDetails?.hsnSacCode || '999249'}</span>
+                  <span>{isProduct ? 'HSN/SAC' : 'SAC'}: {invoiceData.gstDetails?.hsnSacCode || (isProduct ? '—' : '999249')}</span>
                 </div>
                 <div style={{ padding: '0.75rem' }}>
                   <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem', marginBottom: '0.2rem' }}>
                     {invoiceData.itemTitle}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.6rem' }}>
-                    Online Educational & Technology Program (SAC 999249)
+                    {invoiceData.itemType === 'software' ? 'Software licence' : invoiceData.itemType === 'service' ? 'Professional service' : 'Online Educational & Technology Program (SAC 999249)'}
                   </div>
                   
                   <div style={{
@@ -346,7 +319,7 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                     </div>
                     <div>
                       <span style={{ color: '#64748b', fontSize: '0.75rem' }}>GST Rate: </span>
-                      <strong>{invoiceData.gstDetails?.rate || 18}%</strong>
+                      <strong>{gstRate}%</strong>
                     </div>
                     <div>
                       <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Amount: </span>
@@ -379,23 +352,23 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                   {invoiceData.gstDetails?.isIntraState ? (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                        <span>CGST (9%):</span>
+                        <span>CGST ({gstRate / 2}%):</span>
                         <span>₹{invoiceData.gstDetails?.cgstAmount?.toFixed(2)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                        <span>SGST (9%):</span>
+                        <span>SGST ({gstRate / 2}%):</span>
                         <span>₹{invoiceData.gstDetails?.sgstAmount?.toFixed(2)}</span>
                       </div>
                     </>
                   ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                      <span>IGST (18%):</span>
+                      <span>IGST ({gstRate}%):</span>
                       <span>₹{invoiceData.gstDetails?.igstAmount?.toFixed(2)}</span>
                     </div>
                   )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderTop: '1px dashed #cbd5e1', marginTop: '0.3rem', fontWeight: 600, color: invoiceData.isRefunded ? '#dc2626' : '#2563eb' }}>
-                    <span>{invoiceData.isRefunded ? 'Total GST Reversed:' : 'Total GST (18%):'}</span>
+                    <span>{invoiceData.isRefunded ? 'Total GST Reversed:' : `Total GST (${gstRate}%):`}</span>
                     <span>₹{invoiceData.gstDetails?.gstAmount?.toFixed(2)}</span>
                   </div>
 

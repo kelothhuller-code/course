@@ -1,0 +1,25 @@
+.cv-page { min-height: 100vh; background: radial-gradient(ellipse at top, var(--color-primary-soft), var(--color-bg) 60%); display: flex; flex-direction: column; }
+.cv-wrap { width: min(980px, 100% - 2rem); margin: 0 auto; padding: var(--space-10, 2.5rem) 0 var(--space-16, 4rem); display: flex; flex-direction: column; gap: var(--space-8, 2rem); }
+.cv-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl, 20px); box-shadow: var(--shadow-md); padding: clamp(1.5rem, 4vw, 2.75rem); text-align: center; max-width: 680px; margin: 0 auto; width: 100%; }
+.cv-card h1 { font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.3rem); margin: 0.75rem 0 0.25rem; color: var(--color-ink); }
+.cv-card p { color: var(--color-text-muted); margin: 0.5rem 0; }
+.cv-card .wt-btn { margin-top: 1rem; }
+.cv-card--ok { border-top: 5px solid var(--color-success); }
+.cv-card--bad { border-top: 5px solid var(--color-danger); }
+.cv-card--warn { border-top: 5px solid var(--color-warm); }
+.cv-badge { width: 72px; height: 72px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.cv-badge--ok { background: var(--color-success-soft); color: var(--color-success); box-shadow: 0 0 0 8px rgba(4, 120, 87, .07); }
+.cv-badge--bad { background: var(--color-danger-soft); color: var(--color-danger); }
+.cv-badge--warn { background: var(--color-warm-soft); color: var(--color-warm); }
+.cv-eyebrow { text-transform: uppercase; letter-spacing: 0.16em; font-weight: 700; font-size: var(--text-xs); color: var(--color-success) !important; margin-top: 1rem !important; }
+.cv-lead { font-size: var(--text-md, 1.125rem); }
+.cv-lead strong { color: var(--color-ink); }
+.cv-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1.5rem 0 1rem; text-align: left; }
+.cv-facts div { background: var(--color-surface-2); border-radius: var(--radius-md); padding: 0.7rem 0.9rem; }
+.cv-facts dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-subtle); }
+.cv-facts dd { margin: 0.15rem 0 0; font-weight: 700; color: var(--color-ink); word-break: break-word; }
+.cv-facts .cv-fact--wide { grid-column: 1 / -1; }
+.cv-mono, .cv-card code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.cv-muted { color: var(--color-text-subtle) !important; }
+.cv-small { font-size: var(--text-sm); }
+.cv-preview { width: 100%; }

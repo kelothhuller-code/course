@@ -54,7 +54,7 @@ window.ReferralsModule = {
                         <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                             <div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);">TOTAL EARNED</div>
-                                <div style="font-weight:700;color:#f59e0b;">₹${totalEarnedMap[a._id] || 0}</div>
+                                <div style="font-weight:700;color: var(--warning);">₹${totalEarnedMap[a._id] || 0}</div>
                             </div>
                             <div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);">OUTSTANDING</div>
@@ -83,7 +83,7 @@ window.ReferralsModule = {
 
                 <div class="grid-cards" style="margin-bottom:24px;">
                     ${Renderers.statCard('Total Referral Transactions', logs.length)}
-                    ${Renderers.statCard('Total Commission Issued', `₹${totalCommission}`, '#f59e0b')}
+                    ${Renderers.statCard('Total Commission Issued', `₹${totalCommission}`, 'var(--warning)')}
                     ${Renderers.statCard('Total Settled', `₹${totalSettled}`, 'var(--success)')}
                     ${Renderers.statCard('Outstanding to Pay', `₹${totalOutstanding}`, 'var(--danger)')}
                 </div>

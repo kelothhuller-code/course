@@ -1,4 +1,5 @@
 import express from 'express';
+import { gstInput } from '../utils/catalog.js';
 import jwt from 'jsonwebtoken';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
@@ -10,6 +11,7 @@ import { getJwtSecret } from '../utils/jwtSecret.js';
 import Transaction from '../models/Transaction.js';
 import Review from '../models/Review.js';
 import { sanitizePublicCourse } from '../utils/publicCourse.js';
+import { createCertificateForUser } from '../controllers/certificateController.js';
 
 const router = express.Router();
 
@@ -452,11 +454,18 @@ router.post('/', protect, admin, async (req, res) => {
       });
     }
 
+    // Optional per-course GST (empty = store-wide settings)
+    const gstErrors = [];
+    const gstData = {};
+    gstInput(req.body, gstErrors, gstData);
+    if (gstErrors.length) return res.status(400).json({ message: gstErrors.join(' ') });
+
     if (isFeatured) {
       await Course.updateMany({}, { isFeatured: false });
     }
 
     const course = await Course.create({
+      ...gstData,
       title,
       description,
       type: type || 'Course',
@@ -510,6 +519,12 @@ router.put('/:id', protect, admin, async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
+
+    const gstErrors = [];
+    const gstData = {};
+    gstInput(req.body, gstErrors, gstData);
+    if (gstErrors.length) return res.status(400).json({ message: gstErrors.join(' ') });
+    Object.assign(course, gstData);
 
     if (isFeatured !== undefined) {
       if (isFeatured) {
@@ -619,7 +634,8 @@ router.post('/:id/progress', protect, async (req, res) => {
     }
 
     // Calculate progress based on the selected language contents
-    const languageContent = course.content.find((c) => c.language.toLowerCase() === language.toLowerCase());
+    const wanted = String(language || '').toLowerCase();
+    const languageContent = course.content.find((c) => String(c.language || '').toLowerCase() === wanted) || course.content[0];
 
     let progress = 0;
     if (languageContent && languageContent.chapters.length > 0) {
@@ -678,13 +694,16 @@ router.get('/:id/certificate', protect, async (req, res) => {
       return res.status(400).json({ message: 'Course not completed yet' });
     }
 
+    // Same stored, unguessable certificate as /api/certificates (created on first request)
+    const cert = await createCertificateForUser(user._id, course._id, course.title, enrollment.completedAt || undefined);
     res.json({
-      certificateId: `CERT-${course._id.toString().substring(18)}-${user._id.toString().substring(18)}`.toUpperCase(),
-      userName: user.name,
-      courseTitle: course.title,
+      certificateId: cert.certificateId,
+      userName: cert.userName,
+      courseTitle: cert.courseTitle,
       completedAt: enrollment.completedAt,
-      instructor: 'WIDETECHNOS Academy (Vision by @widetechai)',
-    })
+      issuedAt: cert.issuedAt,
+      instructor: 'WideTech',
+    });
   } catch (error) {
     console.error('Get Certificate Details error:', error);
     res.status(500).json({ message: 'Server error' });

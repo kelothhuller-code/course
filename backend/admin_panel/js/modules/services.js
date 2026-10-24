@@ -8,63 +8,63 @@ window.ServicesModule = {
                 { ...CatalogAdmin.configs.service, extraButtons: '<button class="btn btn-secondary" onclick="ServicesModule.showClientsModal()">View clients & enquiries</button>' },
                 items, categories) + `
                 <!-- Clients & Enquiries View Modal -->
-                <div id="service-clients-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
-                    <div class="modal-card" style="background:#fff; border-radius:16px; width:100%; max-width:900px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+                <div id="service-clients-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background: var(--overlay); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
+                    <div class="modal-card" style="background: var(--bg-card); border-radius:16px; width:100%; max-width:900px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
                             <div>
-                                <h3 style="margin:0; font-size:1.25rem; color:#0f172a; font-weight:800;">📋 Service Clients & Enquiries</h3>
-                                <p style="margin:4px 0 0; color:#64748b; font-size:0.85rem;">View clients who enquired or purchased custom services and dispatch commitments & project agreements.</p>
+                                <h3 style="margin:0; font-size:1.25rem; color: var(--text-main); font-weight:800;">📋 Service Clients & Enquiries</h3>
+                                <p style="margin:4px 0 0; color: var(--text-muted); font-size:0.85rem;">View clients who enquired or purchased custom services and dispatch commitments & project agreements.</p>
                             </div>
-                            <button onclick="ServicesModule.closeClientsModal()" style="border:none; background:#f1f5f9; border-radius:8px; width:34px; height:34px; font-size:1.2rem; cursor:pointer; color:#64748b;">✕</button>
+                            <button onclick="ServicesModule.closeClientsModal()" style="border:none; background: var(--bg-subtle); border-radius:8px; width:34px; height:34px; font-size:1.2rem; cursor:pointer; color: var(--text-muted);">✕</button>
                         </div>
 
                         <div id="service-clients-content">
-                            <div style="text-align:center; padding:2rem; color:#64748b;">Loading client requests...</div>
+                            <div style="text-align:center; padding:2rem; color: var(--text-muted);">Loading client requests...</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Email Deliverables & Commitments Modal -->
-                <div id="service-email-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); z-index:10000; justify-content:center; align-items:center; padding:1rem;">
-                    <div class="modal-card" style="background:#fff; border-radius:16px; width:100%; max-width:620px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
-                            <h3 style="margin:0; font-size:1.2rem; color:#0f172a; font-weight:800;">✉️ Dispatch Commitments & Documents</h3>
-                            <button onclick="ServicesModule.closeEmailModal()" style="border:none; background:#f1f5f9; border-radius:8px; width:34px; height:34px; font-size:1.2rem; cursor:pointer; color:#64748b;">✕</button>
+                <div id="service-email-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background: var(--overlay); backdrop-filter:blur(6px); z-index:10000; justify-content:center; align-items:center; padding:1rem;">
+                    <div class="modal-card" style="background: var(--bg-card); border-radius:16px; width:100%; max-width:620px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
+                            <h3 style="margin:0; font-size:1.2rem; color: var(--text-main); font-weight:800;">✉️ Dispatch Commitments & Documents</h3>
+                            <button onclick="ServicesModule.closeEmailModal()" style="border:none; background: var(--bg-subtle); border-radius:8px; width:34px; height:34px; font-size:1.2rem; cursor:pointer; color: var(--text-muted);">✕</button>
                         </div>
 
                         <form id="service-email-form" onsubmit="ServicesModule.handleSendEmail(event)" style="display:flex; flex-direction:column; gap:1rem;">
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                                 <div>
-                                    <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Recipient Name</label>
-                                    <input type="text" id="svc-mail-name" required style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" />
+                                    <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Recipient Name</label>
+                                    <input type="text" id="svc-mail-name" required style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" />
                                 </div>
                                 <div>
-                                    <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Recipient Email</label>
-                                    <input type="email" id="svc-mail-email" required style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" />
+                                    <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Recipient Email</label>
+                                    <input type="email" id="svc-mail-email" required style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" />
                                 </div>
                             </div>
 
                             <div>
-                                <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Subject</label>
-                                <input type="text" id="svc-mail-subject" required style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" />
+                                <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Subject</label>
+                                <input type="text" id="svc-mail-subject" required style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" />
                             </div>
 
                             <div>
-                                <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Official Commitments & Scope (One per line)</label>
-                                <textarea id="svc-mail-commitments" rows="4" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" placeholder="Project Scope: Meta WhatsApp API Setup&#10;Delivery Timeline: 10 Days&#10;SLA Guarantee: 30 Days Maintenance&#10;Direct WhatsApp Engineer Support"></textarea>
+                                <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Official Commitments & Scope (One per line)</label>
+                                <textarea id="svc-mail-commitments" rows="4" style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" placeholder="Project Scope: Meta WhatsApp API Setup&#10;Delivery Timeline: 10 Days&#10;SLA Guarantee: 30 Days Maintenance&#10;Direct WhatsApp Engineer Support"></textarea>
                             </div>
 
                             <div>
-                                <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Agreement / Document Links (One URL per line)</label>
-                                <textarea id="svc-mail-docs" rows="2" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" placeholder="https://drive.google.com/your-service-agreement&#10;https://widetech.in/docs/sla"></textarea>
+                                <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Agreement / Document Links (One URL per line)</label>
+                                <textarea id="svc-mail-docs" rows="2" style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" placeholder="https://drive.google.com/your-service-agreement&#10;https://widetech.in/docs/sla"></textarea>
                             </div>
 
                             <div>
-                                <label style="display:block; font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:4px;">Personalized Message / Notes</label>
-                                <textarea id="svc-mail-message" rows="3" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#0f172a; background:#fff;" placeholder="Thank you for partnering with WideTech. Our engineering team is starting implementation..."></textarea>
+                                <label style="display:block; font-size:0.82rem; font-weight:600; color: var(--text-secondary); margin-bottom:4px;">Personalized Message / Notes</label>
+                                <textarea id="svc-mail-message" rows="3" style="width:100%; padding:0.55rem; border:1px solid var(--border-strong); border-radius:8px; font-size:0.88rem; color: var(--text-main); background: var(--bg-card);" placeholder="Thank you for partnering with WideTech. Our engineering team is starting implementation..."></textarea>
                             </div>
 
-                            <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
+                            <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border); padding-top:1rem;">
                                 <button type="button" class="btn btn-secondary" onclick="ServicesModule.closeEmailModal()">Cancel</button>
                                 <button type="submit" class="btn btn-primary" id="svc-email-submit-btn">🚀 Send Official Email</button>
                             </div>
@@ -74,7 +74,7 @@ window.ServicesModule = {
             `;
         } catch (err) {
             console.error('Services render error:', err);
-            return `<div class="error" style="padding:2rem; text-align:center; color:#ef4444;">Failed to load services: ${Helpers.escapeHtml(err.message)}</div>`;
+            return `<div class="error" style="padding:2rem; text-align:center; color: var(--danger);">Failed to load services: ${Helpers.escapeHtml(err.message)}</div>`;
         }
     },
 
@@ -89,13 +89,13 @@ window.ServicesModule = {
         if (!content) return;
 
         try {
-            content.innerHTML = '<div style="text-align:center; padding:2rem; color:#64748b;">Loading client enquiries...</div>';
+            content.innerHTML = '<div style="text-align:center; padding:2rem; color: var(--text-muted);">Loading client enquiries...</div>';
             const res = await API.get('/api/admin/services/clients');
             const clients = res.clients || [];
 
             if (clients.length === 0) {
                 content.innerHTML = `
-                    <div style="text-align:center; padding:3rem; color:#64748b; background:#f8fafc; border-radius:12px;">
+                    <div style="text-align:center; padding:3rem; color: var(--text-muted); background: var(--bg-secondary); border-radius:12px;">
                         <h4>No client service enquiries yet</h4>
                         <p style="margin:4px 0 0; font-size:0.85rem;">Client service requests from the website will appear here with full contact details.</p>
                     </div>
@@ -107,7 +107,7 @@ window.ServicesModule = {
                 <div class="table-responsive">
                     <table class="data-table" style="width:100%; border-collapse:collapse; text-align:left;">
                         <thead>
-                            <tr style="border-bottom:1px solid #e2e8f0; color:#64748b; font-size:0.82rem;">
+                            <tr style="border-bottom:1px solid var(--border); color: var(--text-muted); font-size:0.82rem;">
                                 <th style="padding:0.6rem;">Client</th>
                                 <th style="padding:0.6rem;">Phone / Contact</th>
                                 <th style="padding:0.6rem;">Service Requested</th>
@@ -118,23 +118,23 @@ window.ServicesModule = {
                         </thead>
                         <tbody>
                             ${(this.clientsList = clients).map((c, ci) => `
-                                <tr style="border-bottom:1px solid #f1f5f9; font-size:0.85rem;">
+                                <tr style="border-bottom:1px solid var(--border); font-size:0.85rem;">
                                     <td style="padding:0.6rem;">
                                         <strong>${Helpers.escapeHtml(c.clientName)}</strong>
-                                        <div style="font-size:0.75rem; color:#64748b;">${Helpers.escapeHtml(c.clientEmail)}</div>
+                                        <div style="font-size:0.75rem; color: var(--text-muted);">${Helpers.escapeHtml(c.clientEmail)}</div>
                                     </td>
-                                    <td style="padding:0.6rem; color:#0284c7; font-weight:600;">
+                                    <td style="padding:0.6rem; color: var(--info); font-weight:600;">
                                         ${Helpers.escapeHtml(c.clientPhone || 'N/A')}
                                     </td>
                                     <td style="padding:0.6rem;">
-                                        <span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:4px; font-weight:600; font-size:0.78rem;">
+                                        <span style="background:#e0e7ff; color: var(--primary-text); padding:2px 8px; border-radius:4px; font-weight:600; font-size:0.78rem;">
                                             ${Helpers.escapeHtml(c.serviceTitle)}
                                         </span>
                                     </td>
-                                    <td style="padding:0.6rem; max-width:200px; color:#475569; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(c.requirements || '').replace(/"/g, '&quot;')}">
+                                    <td style="padding:0.6rem; max-width:200px; color: var(--text-secondary); font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(c.requirements || '').replace(/"/g, '&quot;')}">
                                         ${Helpers.escapeHtml(c.requirements || 'N/A')}
                                     </td>
-                                    <td style="padding:0.6rem; color:#64748b; font-size:0.8rem; white-space:nowrap;">
+                                    <td style="padding:0.6rem; color: var(--text-muted); font-size:0.8rem; white-space:nowrap;">
                                         ${new Date(c.enquiredAt).toLocaleDateString()}
                                     </td>
                                     <td style="padding:0.6rem; text-align:right;">
@@ -149,7 +149,7 @@ window.ServicesModule = {
                 </div>
             `;
         } catch (err) {
-            content.innerHTML = `<div style="color:#ef4444; padding:2rem; text-align:center;">Failed to load clients: ${Helpers.escapeHtml(err.message)}</div>`;
+            content.innerHTML = `<div style="color: var(--danger); padding:2rem; text-align:center;">Failed to load clients: ${Helpers.escapeHtml(err.message)}</div>`;
         }
     },
 

@@ -44,6 +44,10 @@ const CourseSchema = new mongoose.Schema({
   packageType: { type: String, enum: ['Starter', 'Professional', 'Master'], default: 'Starter' },
   price: { type: Number, required: true },
   discountedPrice: { type: Number },
+  // GST (optional per course). Empty = store-wide GST settings; prices are GST-inclusive unless gstInclusive is false.
+  gstRate: { type: Number, default: null, min: 0, max: 40 },
+  gstInclusive: { type: Boolean, default: true },
+  hsnSacCode: { type: String, default: '' }, // TODO(owner): confirm SAC with your CA; empty = store-wide code
   affiliateCommission: { type: Number, default: 0 },
   thumbnail: { type: String }, // Image/Cover URL
   languages: [{ type: String }], // List of available languages

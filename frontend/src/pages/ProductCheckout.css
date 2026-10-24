@@ -1,0 +1,30 @@
+/* Software licence / service checkout (extends Checkout.css) */
+.pc-back { margin: 0 0 0.75rem; font-size: 0.9rem; }
+.pc-back a { color: var(--primary, var(--color-primary)); text-decoration: none; }
+.pc-back a:hover { text-decoration: underline; }
+.pc-options { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.6rem; }
+.pc-legend { font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #0f172a); margin-bottom: 0.5rem; }
+.pc-option { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border: 1px solid var(--border, #cbd5e1); border-radius: 10px; cursor: pointer; background: var(--background-white, #fff); transition: border-color .15s, box-shadow .15s; }
+.pc-option:hover { border-color: var(--primary, var(--color-primary)); }
+.pc-option.is-selected { border-color: var(--primary, var(--color-primary)); box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.12); }
+.pc-option input { width: 18px; height: 18px; accent-color: var(--primary, var(--color-primary)); }
+.pc-option:focus-within { outline: 2px solid var(--primary, var(--color-primary)); outline-offset: 2px; }
+.pc-option-main { display: grid; gap: 0.15rem; }
+.pc-option-main small { color: var(--text-muted, #64748b); font-size: 0.8rem; }
+.pc-option-price { display: grid; justify-items: end; font-weight: 700; color: var(--text-primary, #0f172a); }
+.pc-option-price s { font-weight: 400; font-size: 0.8rem; color: var(--text-muted, #94a3b8); }
+.pc-option-price small { font-weight: 400; font-size: 0.75rem; color: var(--text-muted, #64748b); }
+.pc-success { max-width: 640px; }
+.pc-key { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin: 1rem 0; padding: 1rem; border: 2px dashed var(--primary, var(--color-primary)); border-radius: 12px; background: rgba(67, 56, 202, 0.05); }
+.pc-key code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: clamp(0.95rem, 3.6vw, 1.3rem); font-weight: 700; letter-spacing: 0.04em; color: var(--text-primary, #0f172a); word-break: break-all; user-select: all; }
+.pc-orderno { font-size: 1.05rem; }
+.pc-help { font-size: 0.85rem; color: var(--text-muted, #64748b); }
+.pc-modal { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 1.5rem; background: rgba(15, 23, 42, 0.6); }
+.pc-modal-card { width: 100%; max-width: 440px; background: #fff; border-radius: 14px; padding: 1.75rem; text-align: center; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3); }
+.pc-modal-card p { color: #475569; margin: 0.4rem 0 1rem; }
+.pc-modal-card dl { margin: 0 0 1.25rem; padding: 0.9rem; border-radius: 10px; background: #f8fafc; display: grid; gap: 0.4rem; text-align: left; }
+.pc-modal-card dl div { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.88rem; }
+.pc-modal-card dt { color: #64748b; }
+.pc-modal-card dd { margin: 0; font-weight: 600; word-break: break-all; }
+.pc-modal-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+@media (max-width: 560px) { .pc-option { grid-template-columns: auto 1fr; } .pc-option-price { grid-column: 2; justify-items: start; } }

@@ -6,8 +6,9 @@
  * Object.assign'ed onto documents, so unknown or internal fields can't be set.
  */
 import mongoose from 'mongoose';
-import { SOFTWARE_PRICING_TYPES, SOFTWARE_CTA_TYPES } from '../models/Software.js';
-import { SERVICE_PRICING_TYPES, SERVICE_CTA_TYPES, SERVICE_ICONS } from '../models/Service.js';
+import { SOFTWARE_PRICING_TYPES, SOFTWARE_CTA_TYPES, PLAN_BILLING } from '../models/Software.js';
+import { SERVICE_PRICING_TYPES, SERVICE_CTA_TYPES, SERVICE_ICONS, SERVICE_PURCHASE_MODES } from '../models/Service.js';
+import { GST_RATES, taxSettingsFor } from './gst.js';
 
 export const CATEGORY_KINDS = ['course', 'software', 'service'];
 
@@ -106,6 +107,92 @@ const common = (body, partial, errors, data) => {
   }
 };
 
+const bool = (v) => v === true || v === 'true';
+
+/**
+ * GST fields shared by courses, software, plans, services and packages.
+ * gstRate: '' / null → use the default (store-wide or parent item); else one of the GST slabs.
+ * gstInclusive: true/false, or null (inherit) when allowInherit.
+ * hsnSacCode: 4–8 digits or empty. TODO(owner): confirm codes with your CA.
+ */
+export const gstInput = (body, errors, data, label = '', { allowInherit = false } = {}) => {
+  const p = label ? `${label}: ` : '';
+  if (has(body, 'gstRate')) {
+    const v = body.gstRate;
+    if (v === '' || v === null || v === undefined) data.gstRate = null;
+    else if (!GST_RATES.includes(Number(v))) errors.push(`${p}GST rate must be one of ${GST_RATES.join(', ')} (or empty for the default).`);
+    else data.gstRate = Number(v);
+  }
+  if (has(body, 'gstInclusive')) {
+    const v = body.gstInclusive;
+    if (allowInherit && (v === '' || v === null || v === 'inherit')) data.gstInclusive = null;
+    else data.gstInclusive = !(v === false || v === 'false' || v === 'exclusive');
+  }
+  if (has(body, 'hsnSacCode')) {
+    const code = str(body.hsnSacCode, 12).replace(/\s/g, '');
+    if (code && !/^[0-9]{4,8}$/.test(code)) errors.push(`${p}HSN/SAC must be 4–8 digits (or empty).`);
+    else data.hsnSacCode = code;
+  }
+};
+
+const idOrNew = (v) => (isValidId(String(v || '')) ? String(v) : undefined);
+
+const toPlans = (value, errors) => {
+  const arr = Array.isArray(value) ? value.slice(0, 12) : [];
+  return arr.map((raw, i) => {
+    const p = raw || {};
+    const label = `Plan ${i + 1}`;
+    const plan = { name: str(p.name, 60) };
+    const id = idOrNew(p._id);
+    if (id) plan._id = id;
+    if (!plan.name) errors.push(`${label}: name is required.`);
+    const price = toMoney(p.price);
+    if (!(price > 0)) errors.push(`${label}: price must be more than 0.`);
+    plan.price = price || 0;
+    plan.billing = PLAN_BILLING.includes(p.billing) ? p.billing : 'yearly';
+    if (plan.billing === 'custom_days') {
+      const d = Number.parseInt(p.customDays, 10);
+      if (!(d >= 1 && d <= 3650)) errors.push(`${label}: number of days must be 1–3650.`);
+      plan.customDays = d || 30;
+    }
+    const md = p.maxDevices === '' || p.maxDevices === undefined ? 1 : Number.parseInt(p.maxDevices, 10);
+    if (!(md >= 1 && md <= 1000)) errors.push(`${label}: devices must be 1–1000.`);
+    plan.maxDevices = md || 1;
+    plan.features = toList(p.features, { maxItems: 20, maxLen: 160 });
+    plan.isActive = p.isActive === undefined ? true : bool(p.isActive);
+    plan.order = i;
+    gstInput(p, errors, plan, label, { allowInherit: true });
+    return plan;
+  });
+};
+
+const toPackages = (value, errors) => {
+  const arr = Array.isArray(value) ? value.slice(0, 8) : [];
+  return arr.map((raw, i) => {
+    const p = raw || {};
+    const label = `Package ${i + 1}`;
+    const pkg = { name: str(p.name, 60) };
+    const id = idOrNew(p._id);
+    if (id) pkg._id = id;
+    if (!pkg.name) errors.push(`${label}: name is required.`);
+    const price = toMoney(p.price);
+    if (!(price > 0)) errors.push(`${label}: price must be more than 0.`);
+    pkg.price = price || 0;
+    const dp = toMoney(p.discountedPrice);
+    if (dp === null) errors.push(`${label}: offer price must be a positive number.`);
+    else if (dp !== undefined && dp > 0 && dp >= pkg.price) errors.push(`${label}: offer price must be lower than the price.`);
+    else pkg.discountedPrice = dp || undefined;
+    pkg.deliverables = toList(p.deliverables, { maxItems: 20, maxLen: 200 });
+    pkg.deliveryTime = str(p.deliveryTime, 60);
+    pkg.isActive = p.isActive === undefined ? true : bool(p.isActive);
+    pkg.order = i;
+    gstInput(p, errors, pkg, label, { allowInherit: true });
+    return pkg;
+  });
+};
+
+export const APP_ID_RE = /^[a-z0-9][a-z0-9._-]{1,79}$/;
+
 export const validateSoftwareInput = (body = {}, { partial = false } = {}) => {
   const errors = [];
   const data = {};
@@ -145,8 +232,34 @@ export const validateSoftwareInput = (body = {}, { partial = false } = {}) => {
   if (has(body, 'version')) data.version = str(body.version, 30);
   if (has(body, 'couponEligible')) data.couponEligible = body.couponEligible === true || body.couponEligible === 'true';
 
+  // Licensing: plans, free trial, app id, GST
+  if (has(body, 'licensingEnabled')) data.licensingEnabled = bool(body.licensingEnabled);
+  if (has(body, 'plans')) data.plans = toPlans(body.plans, errors);
+  if (has(body, 'trialEnabled')) data.trialEnabled = bool(body.trialEnabled);
+  if (has(body, 'trialDays')) {
+    const d = Number.parseInt(body.trialDays, 10);
+    if (!(d >= 1 && d <= 90)) errors.push('Trial days must be between 1 and 90.');
+    else data.trialDays = d;
+  }
+  if (has(body, 'trialDownloadUrl')) {
+    const u = cleanUrl(body.trialDownloadUrl, { allowRelative: false });
+    if (u === null) errors.push('Trial download link must start with https://');
+    else data.trialDownloadUrl = u;
+  }
+  if (has(body, 'trialUsesPackage')) data.trialUsesPackage = bool(body.trialUsesPackage);
+  if (has(body, 'trialInstructions')) data.trialInstructions = str(body.trialInstructions, 2000);
+  if (has(body, 'appId')) {
+    const a = str(body.appId, 80).toLowerCase();
+    if (a && !APP_ID_RE.test(a)) errors.push('App ID may only use lowercase letters, numbers, dot, dash and underscore.');
+    else if (a) data.appId = a;
+  }
+  gstInput(body, errors, data);
+  if (data.licensingEnabled && has(body, 'plans') && !data.plans.some((p) => p.isActive) && !data.trialEnabled) {
+    errors.push('Online licensing needs at least one active plan or the free trial.');
+  }
+
   const pt = data.pricingType;
-  if (pt && pt !== 'quote' && !partial && !(data.price > 0)) {
+  if (pt && pt !== 'quote' && !partial && !(data.price > 0) && !(data.licensingEnabled && data.plans?.length)) {
     errors.push('Please enter a price, or choose "Contact for quote".');
   }
   if (data.discountedPrice !== undefined && data.price !== undefined && data.discountedPrice > data.price) {
@@ -186,8 +299,20 @@ export const validateServiceInput = (body = {}, { partial = false } = {}) => {
     else data.icon = input.icon || 'briefcase';
   }
   if (has(input, 'couponEligible')) data.couponEligible = input.couponEligible === true || input.couponEligible === 'true';
+  if (has(input, 'purchaseMode')) {
+    if (!SERVICE_PURCHASE_MODES.includes(input.purchaseMode)) errors.push('Invalid way of selling (fixed / quote / both).');
+    else data.purchaseMode = input.purchaseMode;
+  }
+  if (has(input, 'packages')) data.packages = toPackages(input.packages, errors);
+  gstInput(input, errors, data);
+  const mode = data.purchaseMode;
+  if (mode && mode !== 'quote' && has(input, 'packages')) {
+    const activePk = (data.packages || []).filter((p) => p.isActive);
+    if (mode === 'both' && !activePk.length) errors.push('"Fixed packages + quote" needs at least one active package.');
+    if (mode === 'fixed' && !activePk.length && (has(input, 'startingPrice') || !partial) && !(data.startingPrice > 0)) errors.push('"Fixed price" needs a price or at least one package.');
+  }
   const pt = data.pricingType;
-  if (pt && pt !== 'quote' && !partial && !(data.startingPrice > 0)) {
+  if (pt && pt !== 'quote' && !partial && !(data.startingPrice > 0) && !(mode && mode !== 'quote' && data.packages?.length)) {
     errors.push('Please enter a price, or choose "Quote on request".');
   }
   return errors.length ? { error: errors.join(' ') } : { data };
@@ -215,19 +340,57 @@ export const validateCategoryInput = (body = {}, { partial = false } = {}) => {
 };
 
 /** Public view of a software product — never exposes the paid download location. */
-export const publicSoftware = (doc) => {
+const r2 = (n) => Math.round(n * 100) / 100;
+const sortByOrder = (a, b) => (a.order || 0) - (b.order || 0);
+
+/** Adds what the buyer will actually pay (GST-exclusive prices get GST added). */
+const withPayable = (price, layers, gstConfig) => {
+  const tax = taxSettingsFor(layers, gstConfig || {});
+  const payable = tax.inclusive ? price : r2(price * (1 + tax.rate / 100));
+  return { payable, gstRate: tax.rate, gstInclusive: tax.inclusive };
+};
+
+export const publicSoftware = (doc, gstConfig = null) => {
   const s = typeof doc?.toObject === 'function' ? doc.toObject() : { ...doc };
+  const hasPackage = Boolean(s.fileName || s.downloadUrl);
   delete s.downloadUrl;
   delete s.filePath;
   delete s.fileName;
   delete s.__v;
+  s.plans = (s.plans || []).filter((p) => p.isActive).sort(sortByOrder).map((p) => ({
+    _id: p._id, name: p.name, price: p.price, billing: p.billing, customDays: p.customDays, maxDevices: p.maxDevices,
+    features: p.features || [], ...withPayable(p.price, [p, s], gstConfig),
+  }));
+  s.hasTrialDownload = Boolean(s.trialEnabled && (s.trialDownloadUrl || (s.trialUsesPackage && hasPackage)));
+  if (!s.licensingEnabled) { s.plans = []; s.hasTrialDownload = false; }
+  s.fromPrice = s.plans.length ? Math.min(...s.plans.map((p) => p.payable)) : null;
   return s;
 };
 
-export const publicService = (doc) => {
+export const publicService = (doc, gstConfig = null) => {
   const s = typeof doc?.toObject === 'function' ? doc.toObject() : { ...doc };
   delete s.enquiryCount;
   delete s.__v;
+  const mode = s.purchaseMode || 'quote';
+  s.packages = mode === 'quote' ? [] : (s.packages || []).filter((p) => p.isActive).sort(sortByOrder).map((p) => {
+    const price = (p.discountedPrice > 0 && p.discountedPrice < p.price) ? p.discountedPrice : p.price;
+    return {
+      _id: p._id, name: p.name, price, originalPrice: price < p.price ? p.price : null, deliverables: p.deliverables || [],
+      deliveryTime: p.deliveryTime || '', ...withPayable(price, [p, s], gstConfig),
+    };
+  });
+  s.purchaseMode = mode;
+  // A "fixed" service without packages is sold at its own price
+  if (mode !== 'quote' && !s.packages.length) {
+    const p = Number(s.startingPrice) || 0;
+    const d = Number(s.discountedPrice);
+    const price = (d > 0 && d < p) ? d : p;
+    s.mainOffer = price > 0 ? { price, originalPrice: price < p ? p : null, ...withPayable(price, [s], gstConfig) } : null;
+  }
+  const offers = [...s.packages.map((p) => p.payable), ...(s.mainOffer ? [s.mainOffer.payable] : [])];
+  s.fromPrice = offers.length ? Math.min(...offers) : null;
+  s.canBuy = mode !== 'quote' && offers.length > 0;
+  s.canQuote = mode !== 'fixed';
   return s;
 };
 

@@ -26,7 +26,7 @@ window.SubscribersModule = {
                         <p style="color:var(--text-muted);font-size:0.9rem;">Manage newsletter leads, configure automated welcome emails (free course links & PDFs), and broadcast updates.</p>
                     </div>
                     <div style="display:flex;gap:10px;">
-                        <button class="btn" style="background:rgba(255,255,255,0.08);color:#fff;" onclick="SubscribersModule.exportCsv()">
+                        <button class="btn" style="background: var(--bg-subtle);color: var(--text-main);" onclick="SubscribersModule.exportCsv()">
                             📥 Export CSV
                         </button>
                     </div>
@@ -40,27 +40,27 @@ window.SubscribersModule = {
                     </div>
                     <div class="stat-card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
                         <div class="stat-title" style="color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;font-weight:600;">Active Subscribers</div>
-                        <div style="font-size:1.9rem;font-weight:700;color:#10b981;margin-top:4px;">${active}</div>
+                        <div style="font-size:1.9rem;font-weight:700;color: var(--success);margin-top:4px;">${active}</div>
                     </div>
                     <div class="stat-card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
                         <div class="stat-title" style="color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;font-weight:600;">Welcome Sent</div>
-                        <div style="font-size:1.9rem;font-weight:700;color:#38bdf8;margin-top:4px;">${welcomeSent}</div>
+                        <div style="font-size:1.9rem;font-weight:700;color: var(--info);margin-top:4px;">${welcomeSent}</div>
                     </div>
                     <div class="stat-card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
                         <div class="stat-title" style="color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;font-weight:600;">Unsubscribed</div>
-                        <div style="font-size:1.9rem;font-weight:700;color:#94a3b8;margin-top:4px;">${unsubscribed}</div>
+                        <div style="font-size:1.9rem;font-weight:700;color: var(--text-muted);margin-top:4px;">${unsubscribed}</div>
                     </div>
                 </div>
 
                 <!-- Tab Controls -->
                 <div style="display:flex;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">
-                    <button class="btn ${this.activeTab === 'list' ? 'btn-primary' : ''}" style="${this.activeTab !== 'list' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('list')">
+                    <button class="btn ${this.activeTab === 'list' ? 'btn-primary' : ''}" style="${this.activeTab !== 'list' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('list')">
                         📋 Subscribers List (${active})
                     </button>
-                    <button class="btn ${this.activeTab === 'config' ? 'btn-primary' : ''}" style="${this.activeTab !== 'config' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('config')">
+                    <button class="btn ${this.activeTab === 'config' ? 'btn-primary' : ''}" style="${this.activeTab !== 'config' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('config')">
                         ⚙️ Automated Welcome Email & Links Setup
                     </button>
-                    <button class="btn ${this.activeTab === 'broadcast' ? 'btn-primary' : ''}" style="${this.activeTab !== 'broadcast' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('broadcast')">
+                    <button class="btn ${this.activeTab === 'broadcast' ? 'btn-primary' : ''}" style="${this.activeTab !== 'broadcast' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="SubscribersModule.switchTab('broadcast')">
                         📢 Broadcast Email Campaign
                     </button>
                 </div>
@@ -72,7 +72,7 @@ window.SubscribersModule = {
             `;
         } catch (error) {
             console.error('SubscribersModule render error:', error);
-            return `<div class="card" style="padding:24px;color:#ef4444;">Error loading subscribers: ${error.message}</div>`;
+            return `<div class="card" style="padding:24px;color: var(--danger);">Error loading subscribers: ${error.message}</div>`;
         }
     },
 
@@ -109,11 +109,11 @@ window.SubscribersModule = {
             rows = this.subscribers.map(s => {
                 const isActive = s.isSubscribed !== false;
                 const statusBadge = isActive
-                    ? `<span class="badge" style="background:rgba(16,185,129,0.2);color:#34d399;">Active</span>`
-                    : `<span class="badge" style="background:rgba(148,163,184,0.2);color:#94a3b8;">Unsubscribed</span>`;
+                    ? `<span class="badge" style="background: var(--success-soft);color: var(--success);">Active</span>`
+                    : `<span class="badge" style="background: var(--bg-hover);color: var(--text-muted);">Unsubscribed</span>`;
 
                 const welcomeBadge = s.welcomeEmailSent
-                    ? `<span style="color:#10b981;font-size:0.8rem;font-weight:600;">✓ Dispatched</span>`
+                    ? `<span style="color: var(--success);font-size:0.8rem;font-weight:600;">✓ Dispatched</span>`
                     : `<span style="color:var(--text-muted);font-size:0.8rem;">Pending</span>`;
 
                 const dateStr = new Date(s.createdAt).toLocaleDateString('en-IN', {
@@ -130,7 +130,7 @@ window.SubscribersModule = {
                         <td>${statusBadge}</td>
                         <td>${welcomeBadge}</td>
                         <td>
-                            <button class="btn btn-sm" style="padding:5px 8px;font-size:0.8rem;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);"
+                            <button class="btn btn-sm" style="padding:5px 8px;font-size:0.8rem;background: var(--danger-soft);color: var(--danger);border:1px solid var(--danger);"
                                     onclick="SubscribersModule.deleteSub('${s._id}', '${s.email}')" title="Delete">
                                 🗑️
                             </button>
@@ -176,7 +176,7 @@ window.SubscribersModule = {
                 </div>
 
                 <form id="welcomeConfigForm" onsubmit="SubscribersModule.saveConfig(event)">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:12px 16px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:12px 16px;background: var(--info-soft);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
                         <input type="checkbox" id="cfgAutoSend" ${c.autoSendWelcome !== false ? 'checked' : ''} style="width:18px;height:18px;" />
                         <label for="cfgAutoSend" style="font-size:0.9rem;font-weight:600;cursor:pointer;">
                             Enable Automated Welcome Email (Dispatches instantly upon subscription)
@@ -186,32 +186,32 @@ window.SubscribersModule = {
                     <div style="margin-bottom:16px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Email Subject Line *</label>
                         <input type="text" id="cfgSubject" class="form-control" required value="${Helpers.safeString(c.welcomeSubject)}"
-                               style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;" />
+                               style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);" />
                     </div>
 
                     <div style="margin-bottom:16px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Email Headline *</label>
                         <input type="text" id="cfgHeadline" class="form-control" required value="${Helpers.safeString(c.welcomeHeadline)}"
-                               style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;" />
+                               style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);" />
                     </div>
 
                     <div style="margin-bottom:16px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Welcome Message Body *</label>
                         <textarea id="cfgMessage" rows="4" class="form-control" required
-                                  style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;font-family:inherit;resize:vertical;">${Helpers.safeString(c.welcomeMessage)}</textarea>
+                                  style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);font-family:inherit;resize:vertical;">${Helpers.safeString(c.welcomeMessage)}</textarea>
                     </div>
 
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
                         <div>
                             <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Free Courses Landing Link *</label>
                             <input type="url" id="cfgCourseUrl" class="form-control" required value="${Helpers.safeString(c.freeCourseUrl, 'https://widetech.in/#courses')}"
-                                   style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;" />
+                                   style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);" />
                             <small style="color:var(--text-muted);font-size:0.75rem;">Button in email linking to free course catalog</small>
                         </div>
                         <div>
                             <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Free AI Toolkit PDF Download URL (Optional)</label>
                             <input type="url" id="cfgPdfUrl" class="form-control" value="${Helpers.safeString(c.toolkitPdfUrl)}" placeholder="https://.../ai-toolkit.pdf"
-                                   style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;" />
+                                   style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);" />
                             <small style="color:var(--text-muted);font-size:0.75rem;">Download button for cheat sheets & prompt PDFs</small>
                         </div>
                     </div>
@@ -241,13 +241,13 @@ window.SubscribersModule = {
                     <div style="margin-bottom:16px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Campaign Subject *</label>
                         <input type="text" id="bcSubject" class="form-control" required placeholder="e.g. 🚀 New Free AI Workshop & Updated Prompt Library Available"
-                               style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;" />
+                               style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);" />
                     </div>
 
                     <div style="margin-bottom:20px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Message Content *</label>
                         <textarea id="bcBody" rows="7" class="form-control" required placeholder="Write your announcement or newsletter update here..."
-                                  style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;font-family:inherit;resize:vertical;"></textarea>
+                                  style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);font-family:inherit;resize:vertical;"></textarea>
                     </div>
 
                     <div id="bcFeedback" style="display:none;margin-bottom:14px;padding:10px;border-radius:6px;font-size:0.85rem;"></div>
@@ -282,13 +282,13 @@ window.SubscribersModule = {
             const res = await API.updateNewsletterConfig(payload);
             this.config = res.config || payload;
 
-            feedback.style.background = 'rgba(16,185,129,0.15)';
-            feedback.style.color = '#34d399';
+            feedback.style.background = 'var(--success-soft)';
+            feedback.style.color = 'var(--success)';
             feedback.textContent = '✓ Template saved successfully! Future subscribers will receive these updated links.';
             feedback.style.display = 'block';
         } catch (error) {
-            feedback.style.background = 'rgba(239,68,68,0.15)';
-            feedback.style.color = '#f87171';
+            feedback.style.background = 'var(--danger-soft)';
+            feedback.style.color = 'var(--danger)';
             feedback.textContent = error.message || 'Failed to save configuration';
             feedback.style.display = 'block';
         } finally {
@@ -312,15 +312,15 @@ window.SubscribersModule = {
 
         try {
             const res = await API.broadcastToSubscribers({ subject, bodyContent: body });
-            feedback.style.background = 'rgba(16,185,129,0.15)';
-            feedback.style.color = '#34d399';
+            feedback.style.background = 'var(--success-soft)';
+            feedback.style.color = 'var(--success)';
             feedback.textContent = `✓ ${res.message || 'Campaign broadcast successfully!'}`;
             feedback.style.display = 'block';
             document.getElementById('bcSubject').value = '';
             document.getElementById('bcBody').value = '';
         } catch (error) {
-            feedback.style.background = 'rgba(239,68,68,0.15)';
-            feedback.style.color = '#f87171';
+            feedback.style.background = 'var(--danger-soft)';
+            feedback.style.color = 'var(--danger)';
             feedback.textContent = error.message || 'Broadcast failed';
             feedback.style.display = 'block';
         } finally {

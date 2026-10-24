@@ -10,10 +10,10 @@ window.InquiriesModule = {
     expanded: {},
 
     STATUS: {
-        new: ['New', '#f87171', 'rgba(239,68,68,0.15)'],
-        contacted: ['Contacted', '#60a5fa', 'rgba(59,130,246,0.15)'],
-        qualified: ['Qualified', '#34d399', 'rgba(16,185,129,0.15)'],
-        closed: ['Closed', '#94a3b8', 'rgba(148,163,184,0.15)'],
+        new: ['New', 'var(--danger)', 'var(--danger-soft)'],
+        contacted: ['Contacted', 'var(--info)', 'var(--info-soft)'],
+        qualified: ['Qualified', 'var(--success)', 'var(--success-soft)'],
+        closed: ['Closed', 'var(--text-muted)', 'var(--bg-hover)'],
     },
     normStatus(s) { return s === 'unread' ? 'new' : s === 'replied' ? 'contacted' : (s || 'new'); },
 
@@ -41,7 +41,7 @@ window.InquiriesModule = {
                     const st = this.normStatus(m.status);
                     const [stLabel, stColor, stBg] = this.STATUS[st] || this.STATUS.new;
                     const pr = m.priority || '';
-                    const prColor = pr === 'high' ? '#f87171' : pr === 'medium' ? '#fbbf24' : '#94a3b8';
+                    const prColor = pr === 'high' ? 'var(--danger)' : pr === 'medium' ? 'var(--warning)' : 'var(--text-muted)';
                     const dateStr = new Date(m.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                     const answers = (m.answers || []);
                     const open = this.expanded[m._id];
@@ -57,8 +57,8 @@ window.InquiriesModule = {
                                 ${m.company || m.country ? `<div style="font-size:0.78rem;color:var(--text-muted);">${escInquiry([m.company, m.country].filter(Boolean).join(' · '))}</div>` : ''}
                             </td>
                             <td>
-                                <span class="badge" style="background:rgba(139,92,246,0.15);color:#c084fc;font-size:0.75rem;">${escInquiry(m.categoryLabel || m.interest || 'General')}</span>
-                                ${m.relatedTitle ? `<div style="margin-top:4px;font-size:0.75rem;color:#cbd5e1;">${escInquiry(m.relatedTitle)}</div>` : ''}
+                                <span class="badge" style="background: var(--primary-soft);color: var(--primary-text);font-size:0.75rem;">${escInquiry(m.categoryLabel || m.interest || 'General')}</span>
+                                ${m.relatedTitle ? `<div style="margin-top:4px;font-size:0.75rem;color: var(--text-secondary);">${escInquiry(m.relatedTitle)}</div>` : ''}
                                 <div style="margin-top:4px;font-size:0.72rem;color:var(--text-muted);">${escInquiry(m.source || '')}</div>
                             </td>
                             <td>${pr ? `<span style="color:${prColor};font-weight:700;text-transform:capitalize;">${escInquiry(pr)}</span><div style="font-size:0.72rem;color:var(--text-muted);">score ${Number(m.score) || 0}</div>` : '<span style="color:var(--text-muted);">—</span>'}</td>
@@ -68,10 +68,10 @@ window.InquiriesModule = {
                                         ${(open ? answers : answers.slice(0, 3)).map((a) => `<div><dt>${escInquiry(a.label)}</dt><dd>${escInquiry(a.value)}</dd></div>`).join('')}
                                     </dl>
                                     ${answers.length > 3 || note ? `<button class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:0.75rem;" onclick="InquiriesModule.toggle('${escInquiry(m._id)}')">${open ? 'Show less' : 'Show all answers'}</button>` : ''}
-                                ` : `<div style="font-size:0.86rem;color:#cbd5e1;line-height:1.4;${open ? '' : 'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;'}white-space:pre-wrap;">${escInquiry(m.message)}</div>
+                                ` : `<div style="font-size:0.86rem;color: var(--text-secondary);line-height:1.4;${open ? '' : 'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;'}white-space:pre-wrap;">${escInquiry(m.message)}</div>
                                    ${(m.message || '').length > 140 ? `<button class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:0.75rem;" onclick="InquiriesModule.toggle('${escInquiry(m._id)}')">${open ? 'Show less' : 'Show full message'}</button>` : ''}`}
-                                ${open && answers.length && note ? `<div style="margin-top:6px;font-size:0.8rem;color:#cbd5e1;white-space:pre-wrap;"><strong>Message:</strong> ${escInquiry(note)}</div>` : ''}
-                                ${m.replyMessage ? `<div style="margin-top:6px;font-size:0.75rem;color:#10b981;"><strong>Your reply:</strong> ${escInquiry(Helpers.truncate(m.replyMessage, 60))}</div>` : ''}
+                                ${open && answers.length && note ? `<div style="margin-top:6px;font-size:0.8rem;color: var(--text-secondary);white-space:pre-wrap;"><strong>Message:</strong> ${escInquiry(note)}</div>` : ''}
+                                ${m.replyMessage ? `<div style="margin-top:6px;font-size:0.75rem;color: var(--success);"><strong>Your reply:</strong> ${escInquiry(Helpers.truncate(m.replyMessage, 60))}</div>` : ''}
                             </td>
                             <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">${dateStr}</td>
                             <td>
@@ -82,7 +82,7 @@ window.InquiriesModule = {
                             <td>
                                 <div style="display:flex;gap:6px;align-items:center;">
                                     <button class="btn btn-sm btn-primary" style="padding:6px 12px;font-size:0.8rem;" onclick="InquiriesModule.openReplyModal('${escInquiry(m._id)}')">✉️ Reply</button>
-                                    <button class="btn btn-sm" style="padding:6px 8px;font-size:0.8rem;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);" onclick="InquiriesModule.deleteMessage('${escInquiry(m._id)}')" title="Delete" aria-label="Delete">🗑️</button>
+                                    <button class="btn btn-sm" style="padding:6px 8px;font-size:0.8rem;background: var(--danger-soft);color: var(--danger);border:1px solid var(--danger);" onclick="InquiriesModule.deleteMessage('${escInquiry(m._id)}')" title="Delete" aria-label="Delete">🗑️</button>
                                 </div>
                             </td>
                         </tr>`;
@@ -103,7 +103,7 @@ window.InquiriesModule = {
                     <button class="btn btn-secondary" onclick="InquiriesModule.exportCsv()">⬇ Export CSV (current filters)</button>
                 </div>
                 <div class="dashboard-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:12px;margin-bottom:18px;">
-                    ${[['Shown', this.messages.length, 'var(--text-main)'], ['New', count('new'), '#f87171'], ['Contacted', count('contacted'), '#60a5fa'], ['Qualified', count('qualified'), '#34d399'], ['High priority', this.messages.filter((m) => m.priority === 'high').length, '#fbbf24']]
+                    ${[['Shown', this.messages.length, 'var(--text-main)'], ['New', count('new'), 'var(--danger)'], ['Contacted', count('contacted'), 'var(--info)'], ['Qualified', count('qualified'), 'var(--success)'], ['High priority', this.messages.filter((m) => m.priority === 'high').length, 'var(--warning)']]
                         .map(([l, n, c]) => `<div class="stat-card" style="padding:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;"><div style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">${l}</div><div style="font-size:1.6rem;font-weight:700;color:${c};">${n}</div></div>`).join('')}
                 </div>
                 <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 16px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
@@ -135,26 +135,26 @@ window.InquiriesModule = {
 
                 <!-- Reply Modal -->
                 <div id="inquiryReplyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
-                    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);width:100%;max-width:560px;border-radius:16px;padding:26px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.6);margin:20px;max-height:90vh;overflow-y:auto;">
+                    <div style="background: var(--bg-card);border:1px solid var(--border);width:100%;max-width:560px;border-radius:16px;padding:26px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.6);margin:20px;max-height:90vh;overflow-y:auto;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
                             <h3 style="font-size:1.25rem;font-weight:700;">Reply to Inquiry</h3>
                             <button onclick="InquiriesModule.closeReplyModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">&times;</button>
                         </div>
-                        <div id="inquiryDetails" style="background:rgba(15,23,42,0.6);padding:14px;border-radius:8px;border:1px solid var(--border);margin-bottom:16px;font-size:0.88rem;"></div>
+                        <div id="inquiryDetails" style="background: var(--bg-subtle);padding:14px;border-radius:8px;border:1px solid var(--border);margin-bottom:16px;font-size:0.88rem;"></div>
                         <form id="inquiryReplyForm" onsubmit="InquiriesModule.submitReply(event)">
                             <input type="hidden" id="replyMsgId" />
                             <div style="margin-bottom:14px;">
                                 <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Your Reply Message *</label>
                                 <textarea id="replyText" rows="6" class="form-control" required placeholder="Type your response to the student..."
-                                          style="width:100%;padding:10px 14px;border-radius:8px;background:rgba(15,23,42,0.6);border:1px solid var(--border);color:#fff;font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+                                          style="width:100%;padding:10px 14px;border-radius:8px;background: var(--input-bg);border:1px solid var(--border-strong);color: var(--text-main);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
                             </div>
-                            <div id="replyModalError" style="display:none;color:#ef4444;font-size:0.85rem;margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,0.1);border-radius:6px;"></div>
+                            <div id="replyModalError" style="display:none;color: var(--danger);font-size:0.85rem;margin-bottom:12px;padding:8px 12px;background: var(--danger-soft);border-radius:6px;"></div>
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                                <a id="directMailtoBtn" href="#" target="_blank" class="btn" style="background:rgba(255,255,255,0.08);color:#94a3b8;font-size:0.82rem;text-decoration:none;padding:8px 14px;border-radius:6px;">
+                                <a id="directMailtoBtn" href="#" target="_blank" class="btn" style="background: var(--bg-subtle);color: var(--text-muted);font-size:0.82rem;text-decoration:none;padding:8px 14px;border-radius:6px;">
                                     ↗️ Open in Email App (Mailto)
                                 </a>
                                 <div style="display:flex;gap:8px;">
-                                    <button type="button" class="btn" onclick="InquiriesModule.closeReplyModal()" style="padding:9px 16px;background:rgba(255,255,255,0.08);color:#fff;">Cancel</button>
+                                    <button type="button" class="btn" onclick="InquiriesModule.closeReplyModal()" style="padding:9px 16px;background: var(--bg-subtle);color: var(--text-main);">Cancel</button>
                                     <button type="submit" id="replySubmitBtn" class="btn btn-primary" style="padding:9px 18px;font-weight:600;">
                                         Send & Record Reply
                                     </button>
@@ -166,7 +166,7 @@ window.InquiriesModule = {
             `;
         } catch (error) {
             console.error('InquiriesModule render error:', error);
-            return `<div class="card" style="padding:24px;color:#ef4444;">Error loading inquiries: ${error.message}</div>`;
+            return `<div class="card" style="padding:24px;color: var(--danger);">Error loading inquiries: ${error.message}</div>`;
         }
     },
 
@@ -211,7 +211,7 @@ window.InquiriesModule = {
                 <span style="color:var(--text-muted);">${new Date(msg.createdAt).toLocaleDateString()}</span>
             </div>
             <div style="color:var(--primary);font-size:0.82rem;margin-bottom:6px;">📧 ${escInquiry(msg.email)}${msg.phone ? ` | 📞 ${escInquiry(msg.phone)}` : ''} | Topic: ${escInquiry(msg.subject)}${msg.interest ? ` | Interest: ${escInquiry(msg.interest)}` : ''}</div>
-            <div style="color:#cbd5e1;margin-top:6px;background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;font-style:italic;white-space:pre-wrap;">"${escInquiry(msg.message)}"</div>
+            <div style="color: var(--text-secondary);margin-top:6px;background: var(--bg-subtle);padding:8px;border-radius:6px;font-style:italic;white-space:pre-wrap;">"${escInquiry(msg.message)}"</div>
         `;
 
         document.getElementById('replyText').value = `Hi ${msg.name},\n\nThank you for contacting WIDETECHNOS Academy regarding "${msg.subject}".\n\n\n\nBest regards,\nWIDETECHNOS Academy Support Desk`;

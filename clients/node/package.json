@@ -1,0 +1,10 @@
+{
+  "name": "widetech-license-client",
+  "version": "1.0.0",
+  "description": "WideTech licence client for Node.js / Electron (no dependencies)",
+  "main": "widetech-license.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": { "demo": "node demo.js" }
+}
