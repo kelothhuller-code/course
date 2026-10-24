@@ -202,6 +202,100 @@ const verifyResponseHash = (key, txnid, amount, productinfo, firstname, email, s
   return calculatedHash === responseHash;
 };
 
+/**
+ * Server-side price of a course/event before GST: its sale price, minus a valid coupon.
+ * Used by create-order (what is charged) and by POST /quote (what checkout shows), so both
+ * always agree. Logic is unchanged from the original inline code in create-order.
+ */
+async function priceCourseItem(item, itemId, couponCode) {
+  let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
+    ? item.discountedPrice
+    : item.price;
+  const salePrice = price;
+
+  // Apply coupon discount server-side
+  let appliedCoupon = null;
+  if (couponCode) {
+    const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
+    if (coupon) {
+      const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
+      const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
+      const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
+
+      if (!isExpired && !isLimitReached && isApplicable) {
+        if (coupon.discountType === 'percentage') {
+          price = Math.round(price * (1 - coupon.discountValue / 100));
+        } else {
+          price = Math.max(0, price - coupon.discountValue);
+        }
+        appliedCoupon = coupon;
+      }
+    }
+  }
+  return { price, salePrice, appliedCoupon };
+}
+
+// @desc    Price breakdown for the checkout page (read-only: creates nothing, charges nothing).
+//          Uses exactly the same server-side pricing and GST helpers as create-order.
+// @route   POST /api/payment/quote
+// @access  Public / Optional Auth
+router.post('/quote', optionalAuth, async (req, res) => {
+  const { itemId, itemType, variantId, renewLicenseId, couponCode, buyerState } = req.body || {};
+  const r2 = (n) => Math.round(Number(n) * 100) / 100;
+  try {
+    const gstConfig = await getOrInitGstConfig();
+    const sellerState = gstConfig.sellerState || 'Kerala';
+    const state = typeof buyerState === 'string' ? buyerState.trim().slice(0, 60) : '';
+    const breakdown = (gst) => ({
+      rate: gst.rate, isInclusive: gst.isInclusive, baseAmount: gst.baseAmount, gstAmount: gst.gstAmount,
+      cgstAmount: gst.cgstAmount, sgstAmount: gst.sgstAmount, igstAmount: gst.igstAmount, isIntraState: gst.isIntraState,
+    });
+
+    if (itemType === 'software' || itemType === 'service') {
+      const order = await resolveProductOrder({ itemType, itemId, variantId, renewLicenseId, user: req.user || null, gstConfig });
+      // Same place-of-supply rule as createProductOrder
+      const posState = state || gstConfig.sellerState || 'Kerala';
+      const gst = computeGst({ price: order.listPrice, rate: order.tax.rate, inclusive: order.tax.inclusive, buyerState: posState, sellerState: gstConfig.sellerState });
+      const v = order.variant;
+      const regular = itemType === 'service'
+        ? (v ? Number(v.price) || 0 : Number(order.item.startingPrice) || 0)
+        : order.listPrice;
+      const itemDiscount = regular > order.listPrice ? r2(regular - order.listPrice) : 0;
+      return res.json({
+        success: true, itemType, itemTitle: order.itemTitle, sellerState, posState,
+        listPrice: itemDiscount ? regular : order.listPrice, itemDiscount, couponDiscount: 0, coupon: null,
+        price: order.listPrice, gst: breakdown(gst), total: gst.total,
+      });
+    }
+
+    if (itemType !== 'course' && itemType !== 'event') return res.status(400).json({ message: 'Unsupported item type' });
+    if (typeof itemId !== 'string' || !/^[a-f0-9]{24}$/i.test(itemId)) return res.status(404).json({ message: 'Item not found' });
+    const item = itemType === 'course' ? await Course.findById(itemId) : await Event.findById(itemId);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    const code = typeof couponCode === 'string' && couponCode.trim() ? couponCode.slice(0, 40) : null;
+    const { price, salePrice, appliedCoupon } = await priceCourseItem(item, itemId, code);
+    // Same place-of-supply and tax settings as create-order
+    const tax = taxSettingsFor([item], gstConfig);
+    const posState = state || gstConfig.sellerState || 'Kerala';
+    const gst = computeGst({ price, rate: tax.rate, inclusive: tax.inclusive, buyerState: posState, sellerState: gstConfig.sellerState });
+    const listPrice = Number(item.price) || 0;
+    res.json({
+      success: true, itemType, itemTitle: item.title, sellerState, posState,
+      listPrice: Math.max(listPrice, salePrice),
+      itemDiscount: listPrice > salePrice ? r2(listPrice - salePrice) : 0,
+      couponDiscount: appliedCoupon ? r2(salePrice - price) : 0,
+      coupon: code ? { code: code.toUpperCase().trim(), applied: Boolean(appliedCoupon) } : null,
+      price, gst: breakdown(gst), total: price > 0 ? gst.total : 0,
+      isFree: !(price > 0),
+    });
+  } catch (error) {
+    if (error instanceof OrderError) return res.status(error.status).json({ message: error.message });
+    console.error('Quote error:', error.message);
+    res.status(500).json({ message: 'Could not calculate the price. Please try again.' });
+  }
+});
+
 // @desc    Validate a coupon code
 // @route   POST /api/payment/validate-coupon
 // @access  Public / Optional Auth
@@ -727,30 +821,8 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       }
     }
 
-    // Determine price
-    let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
-      ? item.discountedPrice
-      : item.price;
-
-    // Apply coupon discount server-side
-    let appliedCoupon = null;
-    if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
-      if (coupon) {
-        const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
-        const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
-        const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
-
-        if (!isExpired && !isLimitReached && isApplicable) {
-          if (coupon.discountType === 'percentage') {
-            price = Math.round(price * (1 - coupon.discountValue / 100));
-          } else {
-            price = Math.max(0, price - coupon.discountValue);
-          }
-          appliedCoupon = coupon;
-        }
-      }
-    }
+    // Determine price (server-side only; shared with POST /quote so the preview always matches)
+    let { price, appliedCoupon } = await priceCourseItem(item, itemId, couponCode);
 
     if (price <= 0) {
       return res.status(400).json({ message: 'Item is free. No payment required.' });

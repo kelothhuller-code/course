@@ -258,6 +258,16 @@ export const api = {
     return handleResponse(res);
   },
 
+  /** Server-computed price breakdown for checkout (read-only; the order is priced again on create). */
+  getCheckoutQuote: async (body) => {
+    const res = await fetch(`${BASE_URL}/payment/quote`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body),
+    });
+    return handleResponse(res);
+  },
+
   verifyRazorpayPayment: async (paymentData) => {
     const res = await fetch(`${BASE_URL}/payment/razorpay/verify`, {
       method: 'POST',

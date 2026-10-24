@@ -16,6 +16,9 @@ import mongoose from 'mongoose';
 import Transaction from '../../models/Transaction.js';
 import Course from '../../models/Course.js';
 import User from '../../models/User.js';
+import Coupon from '../../models/Coupon.js';
+import Software from '../../models/Software.js';
+import Service from '../../models/Service.js';
 
 const API = (process.env.E2E_API || 'http://localhost:5001/api').replace(/\/$/, '');
 const BASE = process.env.E2E_BASE_API?.replace(/\/$/, '');
@@ -92,6 +95,48 @@ const main = async () => {
   ok(badGstin.status === 400, 'invalid GSTIN rejected', badGstin.body.message);
   const forged = await post(API, '/payment/razorpay/create-order', { itemType: 'software', itemId: 'sample-billing-desk', variantId: '000000000000000000000000', buyerName: 'X', buyerEmail: `v-${tag}@example.com`, phone: '9000000000' });
   ok(forged.status === 400, 'unknown plan id rejected', forged.body.message);
+
+  console.log('\nCheckout quote (POST /payment/quote) = what create-order charges');
+  const txnsBefore = await Transaction.countDocuments();
+  const same = async (label, body) => {
+    const q = await post(API, '/payment/quote', body);
+    const o = await post(API, '/payment/razorpay/create-order', { ...body, buyerName: 'Quote Buyer', buyerEmail: `quote-${tag}-${Math.random().toString(36).slice(2, 8)}@example.com`, phone: '9000000000' });
+    ok(q.status === 200 && o.status === 200 && Math.round(q.body.total * 100) === Number(o.body.amount), `${label}: quote total = charged amount`, `₹${q.body.total} vs ₹${o.body.amount / 100}`);
+    const txn = await Transaction.findOne({ txnid: o.body.txnid }).lean();
+    ok(txn && txn.gstDetails?.gstAmount === q.body.gst.gstAmount && txn.gstDetails?.igstAmount === q.body.gst.igstAmount && txn.gstDetails?.cgstAmount === q.body.gst.cgstAmount,
+      `  ${label}: quote GST split = stored GST split`, `${q.body.gst.cgstAmount}/${q.body.gst.sgstAmount}/${q.body.gst.igstAmount}`);
+    return q.body;
+  };
+  for (const c of courses) {
+    for (const state of ['Kerala', 'Tamil Nadu']) await same(`course ${c.title.slice(0, 24)} (${state})`, { itemType: 'course', itemId: String(c._id), buyerState: state });
+  }
+  const code = `QT${tag}`.toUpperCase().slice(0, 20);
+  await Coupon.create({ code, discountType: 'percentage', discountValue: 20, usageLimit: 1000 });
+  const qc = await same('course + 20% coupon', { itemType: 'course', itemId: String(courses[0]._id), buyerState: 'Karnataka', couponCode: code });
+  ok(qc.coupon?.applied === true && qc.couponDiscount > 0, '  coupon applied in the quote', `-₹${qc.couponDiscount}`);
+  const usedBefore = (await Coupon.findOne({ code }).lean()).usedCount;
+  await post(API, '/payment/quote', { itemType: 'course', itemId: String(courses[0]._id), couponCode: code });
+  ok((await Coupon.findOne({ code }).lean()).usedCount === usedBefore, '  quote does not use up the coupon');
+  const badCode = await post(API, '/payment/quote', { itemType: 'course', itemId: String(courses[0]._id), couponCode: 'NOPE-NOT-REAL' });
+  ok(badCode.status === 200 && badCode.body.coupon?.applied === false && badCode.body.couponDiscount === 0, '  unknown coupon → not applied, full price');
+  await Coupon.deleteOne({ code });
+  for (const sw of await Software.find({ status: 'active' }).lean()) {
+    for (const p of sw.plans || []) await same(`software ${sw.slug}/${p.name}`, { itemType: 'software', itemId: sw.slug, variantId: String(p._id), buyerState: 'Maharashtra' });
+  }
+  for (const sv of await Service.find({ status: 'active', purchaseMode: { $in: ['fixed', 'both'] } }).lean()) {
+    const pk = sv.packages?.[0];
+    if (!pk && !(Number(sv.startingPrice) > 0)) continue;
+    await same(`service ${sv.slug}${pk ? `/${pk.name}` : ''}`, { itemType: 'service', itemId: sv.slug, ...(pk ? { variantId: String(pk._id) } : {}), buyerState: 'Kerala' });
+  }
+  const txnsMid = await Transaction.countDocuments();
+  await post(API, '/payment/quote', { itemType: 'course', itemId: String(courses[0]._id) });
+  ok(await Transaction.countDocuments() === txnsMid && txnsMid > txnsBefore, 'quote is read-only (creates no transaction)');
+  const qQuoteOnly = await post(API, '/payment/quote', { itemType: 'service', itemId: 'sample-custom-software' });
+  ok(qQuoteOnly.status === 400, 'quote-only service has no checkout quote', qQuoteOnly.body.message);
+  const qBad = await post(API, '/payment/quote', { itemType: 'course', itemId: { $ne: null } });
+  ok(qBad.status === 404, 'non-string item id rejected');
+  const qForged = await post(API, '/payment/quote', { itemType: 'software', itemId: 'sample-billing-desk', variantId: '000000000000000000000000' });
+  ok(qForged.status === 400, 'unknown plan id rejected by quote', qForged.body.message);
 
   if (SIG) {
     console.log('\nRazorpay signature checks (test key, orders inserted directly)');
