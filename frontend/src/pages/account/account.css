@@ -12,7 +12,7 @@
   font-family: var(--font-text);
 }
 .acc h1, .acc h2, .acc h3 { font-family: var(--font-display); color: var(--color-ink); letter-spacing: -0.01em; }
-.acc a { color: inherit; }
+.acc :where(a:not(.wt-btn, .btn)) { color: inherit; } /* plain links only; buttons keep their own colours */
 .acc-skip { position: absolute; left: -999px; top: 8px; z-index: 2000; background: var(--color-primary); color: #fff !important; padding: 8px 14px; border-radius: var(--radius-sm); }
 .acc-skip:focus { left: 8px; }
 .acc-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

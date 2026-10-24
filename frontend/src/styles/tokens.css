@@ -72,7 +72,8 @@
   --color-primary: #4338ca;      /* indigo-700: 7.9:1 on white */
   --color-primary-hover: #3730a3;
   --color-primary-soft: #eef0ff;
-  --color-primary-contrast: #ffffff;
+  --color-on-primary: #ffffff;   /* text/icons on any primary (violet) surface */
+  --color-primary-contrast: var(--color-on-primary);
   --color-accent: #0f766e;       /* teal-700: 5.5:1 on white */
   --color-accent-soft: #e6f5f3;
   --color-warm: #b45309;         /* amber-700, for badges: 5.0:1 */
@@ -170,6 +171,11 @@ img, svg, video { max-width: 100%; }
   transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration) var(--ease-out), background-color var(--duration) var(--ease-out), color var(--duration);
 }
 .wt-btn:hover { transform: translateY(-1px); }
+/* A button keeps its own text colour in every state, even when it is an <a> inside an area
+   that recolours links (e.g. `.acc a { color: inherit }`). :is() lifts specificity to 0,2,0 so
+   contextual link rules (0,1,1) can no longer turn a violet button's label dark. */
+.wt-btn:is(:link, :visited, :hover, :focus, :focus-visible, :active, :disabled), .wt-btn:is(a, button) { color: var(--btn-fg); }
+.wt-btn--primary { --btn-fg: var(--color-on-primary); }
 .wt-btn:active { transform: translateY(0); }
 .wt-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .wt-btn:disabled, .wt-btn[aria-disabled='true'] { opacity: .55; cursor: not-allowed; transform: none; }
@@ -287,8 +293,12 @@ button, input, select, textarea { font-family: inherit; }
 .btn:hover { transform: translateY(-1px); }
 .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-.btn-primary { background: var(--color-primary); color: var(--color-primary-contrast); box-shadow: var(--shadow-primary); }
+.btn-primary { background: var(--color-primary); color: var(--color-on-primary); box-shadow: var(--shadow-primary); }
 .btn-primary:hover { background: var(--color-primary-hover); }
+.btn-primary:is(:link, :visited, :hover, :focus, :focus-visible, :active, :disabled), .btn-primary:is(a, button) { color: var(--color-on-primary); }
+.btn-accent:is(:link, :visited, :hover, :focus, :active), .btn-accent:is(a, button) { color: #fff; }
+.btn-secondary:is(:link, :visited, a, button) { color: var(--color-ink); }
+.btn-secondary:is(:hover, :focus-visible) { color: var(--color-primary); }
 .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-border-strong); }
 .btn-secondary:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .btn-accent { background: var(--color-accent); color: #fff; }
