@@ -98,6 +98,7 @@
 .acc-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
 .acc-card__head h2, .acc-card__title { margin: 0; font-size: 1.1rem; }
 .acc-card__title + p { margin-top: 4px; }
+.acc-card__body { margin-top: var(--space-5); }
 .acc-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .acc-page-head__text { display: flex; align-items: center; gap: var(--space-3); }
 .acc-page-head__icon { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); flex: none; }

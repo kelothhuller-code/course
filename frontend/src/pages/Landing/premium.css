@@ -141,6 +141,7 @@ a.lp-hero-card:hover { transform: rotate(0) translateY(-4px); }
 .lp-enquiry-card { background: var(--color-surface); color: var(--color-text); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg); }
 .lp-enquiry-card .wt-h3 { margin-bottom: var(--space-4); color: var(--color-ink); }
 @media (max-width: 900px) { .lp-enquiry-grid { grid-template-columns: 1fr; gap: var(--space-8); } .lp-enquiry-card { padding: var(--space-6); } }
+@media (max-width: 560px) { .lp-enquiry-card { padding: var(--space-5); border-radius: var(--radius-lg); } }
 
 /* ---------- FAQ (token restyle) ---------- */
 .faq-section .faq-list { display: grid; gap: var(--space-3); }

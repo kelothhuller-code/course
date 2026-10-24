@@ -47,7 +47,7 @@ export default function ContactPage({ user }) {
             <div className="contact-form-card">
               <h2 className="wt-h3">Business enquiry</h2>
               <p className="wt-muted contact-form-lead">Three short steps. Your answers help us reply with something useful the first time.</p>
-              <SmartEnquiryForm user={user} initialCategory={initialCategory} related={related} source="contact_page" />
+              <SmartEnquiryForm user={user} initialCategory={initialCategory} related={related} source="contact_page" embedded />
             </div>
           </div>
 

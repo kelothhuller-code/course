@@ -65,3 +65,4 @@
 .cd-offer-btn { margin-top: auto; justify-content: center; }
 .cd-custom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-8); padding: var(--space-6); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); background: var(--color-bg); }
 .cd-custom .wt-h3 { margin-bottom: var(--space-1); }
+@media (max-width: 560px) { .cd-form-card { padding: var(--space-5); border-radius: var(--radius-lg); } }
