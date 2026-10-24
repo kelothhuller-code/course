@@ -1,5 +1,7 @@
 import express from 'express';
+import { getOrInitGstConfig } from './gstRoutes.js';
 import crypto from 'crypto';
+import License from '../models/License.js';
 import Software from '../models/Software.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
@@ -30,7 +32,8 @@ router.get('/', async (req, res) => {
 
     let query = Software.find(filter).sort(CATALOG_SORT);
     if (limit) query = query.limit(limit);
-    const softwares = (await query).map(publicSoftware);
+    const gstConfig = await getOrInitGstConfig();
+    const softwares = (await query).map((d) => publicSoftware(d, gstConfig));
     res.json({ success: true, count: softwares.length, softwares });
   } catch (err) {
     console.error('Error fetching softwares:', err);
@@ -47,7 +50,9 @@ router.get('/:slugOrId', async (req, res) => {
     if (!software) {
       return res.status(404).json({ success: false, message: 'Software product not found' });
     }
-    res.json({ success: true, software: publicSoftware(software) });
+    const gstConfig = await getOrInitGstConfig();
+    // sellerState lets checkout preview CGST+SGST vs IGST (the server recalculates when ordering)
+    res.json({ success: true, software: publicSoftware(software, gstConfig), sellerState: gstConfig.sellerState || '' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving software details' });
   }
@@ -169,9 +174,70 @@ router.post('/:id/unlock', authenticateToken, async (req, res) => {
   }
 });
 
+/** Streams the uploaded package (private storage first) or redirects to the external link. Returns false if none. */
+const sendPackage = (res, software, { json = false } = {}) => {
+  const privateDir = path.join(__dirname, '..', 'private_storage', 'software');
+  const safeBaseName = (name) => path.basename(name);
+
+  if (software.fileName) {
+    const fileName = safeBaseName(software.fileName);
+    const privatePath = path.join(privateDir, fileName);
+    if (fs.existsSync(privatePath)) {
+      res.download(privatePath, fileName);
+      return true;
+    }
+    const publicPath = path.join(softwareUploadDir, fileName);
+    if (fs.existsSync(publicPath)) {
+      res.download(publicPath, fileName);
+      return true;
+    }
+  }
+
+  if (software.downloadUrl) {
+    if (software.downloadUrl.startsWith('/uploads/software/')) {
+      const localName = safeBaseName(software.downloadUrl);
+      const privatePath = path.join(privateDir, localName);
+      if (fs.existsSync(privatePath)) {
+        res.download(privatePath, localName);
+        return true;
+      }
+      const publicPath = path.join(softwareUploadDir, localName);
+      if (fs.existsSync(publicPath)) {
+        res.download(publicPath, localName);
+        return true;
+      }
+    }
+    // An external package URL: the dashboard fetches downloads with the login token, so it asks
+    // for JSON (?format=json) and opens the URL itself instead of following a cross-site redirect.
+    if (json) res.json({ success: true, url: software.downloadUrl });
+    else res.redirect(software.downloadUrl);
+    return true;
+  }
+
+  return false;
+};
+
+// GET free-trial download (public). Only when the admin turned on the trial for this product:
+// an external trial link, or the uploaded package if "use the package for the trial" is on.
+// The app itself stays locked until it gets a trial or licence from the licence API.
+router.get('/:id/trial-download', async (req, res) => {
+  try {
+    if (!isValidObjectId(String(req.params.id))) return res.status(400).json({ success: false, message: 'Invalid id' });
+    const software = await Software.findOne({ _id: req.params.id, status: 'active', licensingEnabled: true });
+    if (!software || !software.trialEnabled) return res.status(404).json({ success: false, message: 'No free trial for this product' });
+    if (software.trialDownloadUrl) return res.redirect(software.trialDownloadUrl);
+    if (software.trialUsesPackage && sendPackage(res, software)) return undefined;
+    return res.status(404).json({ success: false, message: 'Trial download is not configured yet' });
+  } catch (err) {
+    console.error('Trial download error:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to download' });
+  }
+});
+
 // GET download software package file from server folder (Protected: Requires Purchase, Admin, or Free)
 router.get('/:id/download', authenticateToken, async (req, res) => {
   try {
+    if (!isValidObjectId(String(req.params.id))) return res.status(400).json({ success: false, message: 'Invalid id' });
     const software = await Software.findById(req.params.id);
     if (!software) {
       return res.status(404).json({ success: false, message: 'Software product not found' });
@@ -180,46 +246,30 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
     const user = req.user;
     const isAdmin = isUserAdmin(user);
     const isFree = software.price === 0 || software.isFree;
+    // Enquiries are stored in the same list with status "enquired" — they must not unlock downloads
     const isPurchased = user.purchasedSoftware?.some(
-      p => p.softwareId?.toString() === software._id.toString()
+      p => p.softwareId?.toString() === software._id.toString() && p.status !== 'enquired'
     );
 
-    if (!isAdmin && !isFree && !isPurchased) {
+    // Licence holders may download too.
+    const hasLicense = !isAdmin && !isFree && !isPurchased && await License.exists({
+      software: software._id,
+      revoked: false,
+      // Same rule as the dashboard: email-only licences count if issued after the account existed.
+      $or: [
+        { userId: user._id },
+        { email: String(user.email || '').toLowerCase(), createdAt: { $gte: user.createdAt ? new Date(user.createdAt) : new Date() } },
+      ],
+    });
+
+    if (!isAdmin && !isFree && !isPurchased && !hasLicense) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: You must purchase or unlock this software product before downloading.'
       });
     }
 
-    const privateDir = path.join(__dirname, '..', 'private_storage', 'software');
-    const safeBaseName = (name) => path.basename(name);
-
-    if (software.fileName) {
-      const fileName = safeBaseName(software.fileName);
-      const privatePath = path.join(privateDir, fileName);
-      if (fs.existsSync(privatePath)) {
-        return res.download(privatePath, fileName);
-      }
-      const publicPath = path.join(softwareUploadDir, fileName);
-      if (fs.existsSync(publicPath)) {
-        return res.download(publicPath, fileName);
-      }
-    }
-
-    if (software.downloadUrl) {
-      if (software.downloadUrl.startsWith('/uploads/software/')) {
-        const localName = safeBaseName(software.downloadUrl);
-        const privatePath = path.join(privateDir, localName);
-        if (fs.existsSync(privatePath)) {
-          return res.download(privatePath, localName);
-        }
-        const publicPath = path.join(softwareUploadDir, localName);
-        if (fs.existsSync(publicPath)) {
-          return res.download(publicPath, localName);
-        }
-      }
-      return res.redirect(software.downloadUrl);
-    }
+    if (sendPackage(res, software, { json: req.query.format === 'json' })) return undefined;
 
     res.status(404).json({ success: false, message: 'Software download package not configured on server' });
   } catch (err) {

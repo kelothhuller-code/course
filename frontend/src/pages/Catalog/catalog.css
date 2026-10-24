@@ -50,3 +50,18 @@
   .cd-side { position: static; }
 }
 @media (max-width: 560px) { .cd-buy .wt-btn { width: 100%; } }
+
+/* Plans (software licences) and packages (services) */
+.cd-offers-section { background: var(--color-surface); border-bottom: 1px solid var(--color-border); scroll-margin-top: calc(var(--header-h) + var(--space-4)); }
+.cd-offers-lead { margin: var(--space-2) 0 var(--space-8); max-width: 44rem; }
+.cd-offers { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-6); }
+.cd-offer { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+.cd-offer h3 { font-family: var(--font-display); font-size: var(--text-xl); color: var(--color-ink); }
+.cd-offer-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.cd-offer-price .wt-price { font-size: var(--text-2xl); }
+.cd-offer-price s, .cd-offer-price small { color: var(--color-text-subtle); font-size: var(--text-sm); }
+.cd-offer-meta { color: var(--color-text-muted); font-size: var(--text-sm); }
+.cd-offer-list { display: grid; gap: var(--space-2); font-size: var(--text-sm); }
+.cd-offer-btn { margin-top: auto; justify-content: center; }
+.cd-custom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-8); padding: var(--space-6); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); background: var(--color-bg); }
+.cd-custom .wt-h3 { margin-bottom: var(--space-1); }

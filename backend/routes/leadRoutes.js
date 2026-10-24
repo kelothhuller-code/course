@@ -38,11 +38,11 @@ const getOrInitNewsletterConfig = async () => {
   let config = await NewsletterConfig.findOne({});
   if (!config) {
     config = await NewsletterConfig.create({
-      welcomeSubject: '🎁 Your Free AI Starter Toolkit & Free Courses Access - WIDETECHNOS Academy',
-      welcomeHeadline: 'Welcome to WIDETECHNOS Academy! Here is your Free AI Toolkit & Resources',
-      welcomeMessage: 'Thank you for joining our community! We are thrilled to share our curated AI tools cheat sheet, prompt templates, and structured learning roadmap with you.',
-      freeCourseUrl: 'https://widetech.in/#courses',
-      toolkitPdfUrl: 'https://widetech.in/resources/ai-starter-toolkit.pdf',
+      welcomeSubject: 'Welcome to WideTech',
+      welcomeHeadline: 'Thanks for subscribing to WideTech updates',
+      welcomeMessage: 'Thank you for subscribing. We will occasionally email you about new courses, software and services from WideTech. You can unsubscribe at any time.',
+      freeCourseUrl: 'https://widetech.in/all-courses',
+      toolkitPdfUrl: '', // TODO(owner): add a real resource URL in the admin newsletter settings if you have one
       autoSendWelcome: true,
     });
   }
@@ -106,24 +106,24 @@ router.post('/', async (req, res) => {
               <!-- Resource Download Cards -->
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0;">
                 <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 0; margin-bottom: 14px;">
-                  🚀 Your Free Toolkit & Learning Resources:
+                  Useful links:
                 </h3>
                 
                 <div style="margin-bottom: 14px;">
                   <a href="${config.freeCourseUrl}" target="_blank" 
                      style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
-                    🎓 Access Free Courses & Lessons →
+                    Browse courses →
                   </a>
-                  <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Explore our hands-on free AI tutorials and modules</div>
+                  <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Courses, software and services from WideTech</div>
                 </div>
 
                 ${config.toolkitPdfUrl ? `
                 <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed #cbd5e1;">
                   <a href="${config.toolkitPdfUrl}" target="_blank" 
                      style="display: inline-block; background: #10b981; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                    📥 Download Free AI Toolkit & Prompts (PDF) →
+                    Open the resource →
                   </a>
-                  <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Top AI tools cheat sheet, curated prompts & study roadmap</div>
+                  <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Shared by the WideTech team</div>
                 </div>
                 ` : ''}
               </div>
@@ -137,7 +137,7 @@ router.post('/', async (req, res) => {
 
             <!-- Unsubscribe Footer -->
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 12px; color: #94a3b8;">
-              You received this email because you signed up for the Free AI Starter Toolkit on <a href="${frontendBaseUrl}" style="color: #64748b;">widetech.in</a>.<br>
+              You received this email because you subscribed to updates on <a href="${frontendBaseUrl}" style="color: #64748b;">widetech.in</a>.<br>
               <a href="${unsubscribeLink}" style="color: #64748b; text-decoration: underline; margin-top: 6px; display: inline-block;">
                 Unsubscribe from these emails anytime
               </a>
@@ -148,7 +148,7 @@ router.post('/', async (req, res) => {
         await sendCustomEmail(
           cleanEmail,
           config.welcomeSubject,
-          `${config.welcomeHeadline}\n\n${config.welcomeMessage}\n\nFree Courses: ${config.freeCourseUrl}\nToolkit PDF: ${config.toolkitPdfUrl}\n\nUnsubscribe: ${unsubscribeLink}`,
+          `${config.welcomeHeadline}\n\n${config.welcomeMessage}\n\nCourses: ${config.freeCourseUrl}\n${config.toolkitPdfUrl ? `Resource: ${config.toolkitPdfUrl}` : ''}\n\nUnsubscribe: ${unsubscribeLink}`,
           welcomeHtml
         );
 
@@ -162,7 +162,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Successfully subscribed! Your Free AI Toolkit & Course access details have been emailed to your inbox.',
+      message: 'Successfully subscribed! Check your inbox for a welcome email.',
       alreadyExists: !isNewSubscriber
     });
   } catch (error) {
@@ -200,7 +200,7 @@ router.get('/unsubscribe', async (req, res) => {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Unsubscribed - WIDETECHNOS Academy</title>
+        <title>Unsubscribed - WideTech</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
@@ -213,7 +213,7 @@ router.get('/unsubscribe', async (req, res) => {
       <body>
         <div class="card">
           <h2>✓ You have been unsubscribed</h2>
-          <p>Your email <strong>${safeEmail}</strong> has been removed from our active subscriber list. You will no longer receive newsletter announcements or promotional emails from WIDETECHNOS Academy.</p>
+          <p>Your email <strong>${safeEmail}</strong> has been removed from our active subscriber list. You will no longer receive newsletter announcements or promotional emails from WideTech.</p>
           <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">Return to Academy Website</a>
         </div>
       </body>
@@ -447,7 +447,7 @@ router.post('/messages/:id/reply', protect, admin, async (req, res) => {
       return res.status(404).json({ message: 'Contact message not found.' });
     }
 
-    const emailSubject = customSubject || `Re: ${msg.subject} - WIDETECHNOS Academy Support`;
+    const emailSubject = customSubject || `Re: ${msg.subject} - WideTech Support`;
 
     let emailSent = false;
     try {

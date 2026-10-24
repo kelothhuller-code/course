@@ -129,6 +129,8 @@ window.CoursesModule = {
                             <input type="number" id="course-discount" class="form-control" 
                                    value="${course?.discountedPrice || 0}" min="0">
                         </div>
+
+                        ${LicAdmin.courseGstHtml(course)}
                         
                         <div class="form-group">
                             <label class="form-label">Affiliate Commission (INR)</label>
@@ -167,11 +169,11 @@ window.CoursesModule = {
                         <label class="form-label" style="font-weight:600; color:var(--text-main); font-size:1rem;">🚀 Mapped Continuation / Follow-up Courses</label>
                         <p class="text-muted" style="font-size:0.85rem; margin-bottom:12px;">Select next-step programs (Free or Paid) to showcase under the Dedicated Sales Page & Course Viewer funnel.</p>
                         
-                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:10px; max-height:220px; overflow-y:auto; padding:8px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid var(--border);">
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:10px; max-height:220px; overflow-y:auto; padding:8px; background: var(--bg-subtle); border-radius:6px; border:1px solid var(--border);">
                             ${allCoursesList.filter(c => !courseId || c._id !== courseId).map(c => {
                                 const isChecked = selectedContinuationIds.includes(c._id);
                                 return `
-                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.88rem; padding:6px 8px; border-radius:4px; background:${isChecked ? 'rgba(59,130,246,0.2)' : 'transparent'}; border:1px solid ${isChecked ? 'var(--primary)' : 'transparent'};">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.88rem; padding:6px 8px; border-radius:4px; background:${isChecked ? 'var(--info-soft)' : 'transparent'}; border:1px solid ${isChecked ? 'var(--primary)' : 'transparent'};">
                                         <input type="checkbox" class="continuation-checkbox" value="${c._id}" ${isChecked ? 'checked' : ''}>
                                         <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${c.title}</span>
                                         <span class="badge" style="font-size:0.7rem; background:${c.isFree ? 'var(--success)' : 'var(--primary)'};">${c.isFree ? 'FREE' : '₹' + (c.discountedPrice || c.price)}</span>
@@ -273,7 +275,7 @@ window.CoursesModule = {
         const uid = 'bundle_' + Math.floor(Math.random() * 1000000);
 
         return `
-            <div class="bundle-row" style="background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; padding:12px;">
+            <div class="bundle-row" style="background: var(--bg-subtle); border:1px solid var(--border); border-radius:8px; padding:12px;">
                 <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:center;">
                     <input type="text" class="form-control bundle-title" placeholder="Bundle Title (e.g. Project Code .ZIP, Cheat Sheet .PDF)" value="${title}" required>
                     <select class="form-control bundle-type">
@@ -443,11 +445,11 @@ window.CoursesModule = {
                 statusText.innerHTML = `✅ Uploaded successfully: <strong>${data.fileName || file.name}</strong>`;
             }
             if (percentText) percentText.textContent = '100%';
-            if (progressBar) progressBar.style.background = '#10b981';
+            if (progressBar) progressBar.style.background = 'var(--success)';
         } catch (err) {
             console.error('Thumbnail upload error:', err);
             if (statusText) {
-                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+                statusText.innerHTML = `<span style="color: var(--danger);">❌ Upload failed: ${err.message}</span>`;
             }
             alert('Thumbnail upload failed: ' + err.message);
         }
@@ -490,7 +492,7 @@ window.CoursesModule = {
             if (!attachedBadge && formGroup) {
                 attachedBadge = document.createElement('div');
                 attachedBadge.className = 'chapter-attached-badge';
-                attachedBadge.style = 'font-size:0.78rem; color:var(--text-main); margin-top:5px; background:rgba(99,102,241,0.12); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;';
+                attachedBadge.style = 'font-size:0.78rem; color:var(--text-main); margin-top:5px; background: var(--primary-soft); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;';
                 formGroup.appendChild(attachedBadge);
             }
             if (attachedBadge) {
@@ -501,11 +503,11 @@ window.CoursesModule = {
                 statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
             }
             if (percentText) percentText.textContent = '100%';
-            if (progressBar) progressBar.style.background = '#10b981';
+            if (progressBar) progressBar.style.background = 'var(--success)';
         } catch (err) {
             console.error('Chapter file upload error:', err);
             if (statusText) {
-                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+                statusText.innerHTML = `<span style="color: var(--danger);">❌ Upload failed: ${err.message}</span>`;
             }
             alert('File upload failed: ' + err.message);
         }
@@ -578,11 +580,11 @@ window.CoursesModule = {
                 statusText.innerHTML = `✅ Saved to server: <strong>${data.fileName || file.name}</strong> (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
             }
             if (percentText) percentText.textContent = '100%';
-            if (progressBar) progressBar.style.background = '#10b981';
+            if (progressBar) progressBar.style.background = 'var(--success)';
         } catch (err) {
             console.error('Material upload error:', err);
             if (statusText) {
-                statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+                statusText.innerHTML = `<span style="color: var(--danger);">❌ Upload failed: ${err.message}</span>`;
             }
             alert('File upload failed: ' + err.message);
         }
@@ -637,6 +639,7 @@ window.CoursesModule = {
             price: parseFloat(document.getElementById('course-price').value) || 0,
             discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
             affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
+            ...LicAdmin.courseGstRead(),
             isFeatured: document.getElementById('course-featured')?.value === 'true',
             landingOrder: document.getElementById('course-landing-order')?.value ?? '',
             outcomes,
@@ -763,7 +766,7 @@ window.CoursesModule = {
                         <input type="text" class="form-control chapter-drive" value="${ch.driveLink || ''}" placeholder="or paste Drive / Material URL" style="flex:1; min-width:220px;">
                     </div>
                     ${ch.driveLink ? `
-                    <div style="font-size:0.78rem; color:var(--text-main); margin-top:5px; background:rgba(99,102,241,0.12); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;">
+                    <div style="font-size:0.78rem; color:var(--text-main); margin-top:5px; background: var(--primary-soft); padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;">
                         <span>📎 Attached:</span>
                         <a href="${ch.driveLink}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:underline;">
                             ${decodeURIComponent(ch.driveLink.split('/').pop().split('?')[0])}
@@ -1412,7 +1415,7 @@ async replyToComment(courseId, commentId) {
                                 <span style="font-size:0.8rem;color:var(--text-muted);margin-left:8px;">${r.userId?.email || ''}</span>
                                 ${r.isVerifiedPurchase ? `<span class="badge" style="background:var(--success);margin-left:8px;">✓ Verified Student</span>` : ''}
                             </div>
-                            <div style="color:#f59e0b;font-weight:700;font-size:1.1rem;">
+                            <div style="color: var(--warning);font-weight:700;font-size:1.1rem;">
                                 ${renderStars(r.rating)} (${r.rating}/5)
                             </div>
                         </div>
@@ -1423,7 +1426,7 @@ async replyToComment(courseId, commentId) {
 
                         <!-- Admin Reply Display -->
                         ${r.adminReply && r.adminReply.text ? `
-                            <div style="background:rgba(59,130,246,0.1);border-left:4px solid var(--primary);padding:12px;border-radius:6px;margin-bottom:12px;">
+                            <div style="background: var(--info-soft);border-left:4px solid var(--primary);padding:12px;border-radius:6px;margin-bottom:12px;">
                                 <div style="font-size:0.8rem;font-weight:700;color:var(--primary);margin-bottom:4px;">
                                     💬 Admin Official Reply (${new Date(r.adminReply.repliedAt).toLocaleDateString()}):
                                 </div>

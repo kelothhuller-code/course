@@ -1,0 +1,63 @@
+/* Lesson player polish: top bar, outline sidebar and nav buttons. Uses tokens from styles/tokens.css. */
+.lp-topbar {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  max-width: 1320px; margin: 0.25rem auto 1rem; padding: 0.75rem 1rem;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.lp-back { display: inline-flex; align-items: center; gap: 0.4rem; font: 600 var(--text-sm) var(--font-text); color: var(--color-primary); text-decoration: none; padding: 0.4rem 0.6rem; border-radius: 10px; }
+.lp-back:hover { background: var(--color-primary-soft); }
+.lp-back:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lp-topbar__title { flex: 1 1 240px; min-width: 0; }
+.lp-topbar__title strong { display: block; font-family: var(--font-display); font-size: 1.05rem; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-topbar__title span { font-size: var(--text-xs); color: var(--color-text-subtle); }
+.lp-topbar__progress { display: flex; align-items: center; gap: 0.6rem; min-width: 200px; font: 700 var(--text-sm) var(--font-text); color: var(--color-ink); }
+.lp-progress { position: relative; flex: 1; height: 8px; border-radius: 99px; background: var(--color-surface-2); overflow: hidden; }
+.lp-progress > span { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, var(--color-primary), #0e7490); transition: width 0.4s ease; }
+
+/* Two-column layout on wide screens */
+.course-viewer-layout.lp-layout { max-width: 1320px; }
+.lp-outline { display: none; }
+@media (min-width: 1100px) {
+  .course-viewer-layout.lp-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 1.5rem; align-items: start; }
+  .lp-outline {
+    display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 88px; max-height: calc(100vh - 110px);
+    background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; padding: 1rem;
+  }
+}
+.lp-outline__head { display: flex; justify-content: space-between; align-items: baseline; }
+.lp-outline__head strong { font-family: var(--font-display); color: var(--color-ink); }
+.lp-outline__head span { font-size: var(--text-xs); color: var(--color-text-subtle); }
+.lp-outline__list { list-style: none; margin: 0; padding: 0 2px 2px 0; overflow-y: auto; display: grid; gap: 4px; }
+.lp-outline__item {
+  width: 100%; display: flex; align-items: center; gap: 0.7rem; text-align: left;
+  padding: 0.6rem 0.65rem; border: 1px solid transparent; border-radius: 12px; background: transparent; cursor: pointer;
+  font: inherit; color: var(--color-text); transition: background 0.15s, border-color 0.15s;
+}
+.lp-outline__item:hover { background: var(--color-surface-2); }
+.lp-outline__item:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lp-outline__item.is-active { background: var(--color-primary-soft); border-color: rgba(67, 56, 202, 0.25); }
+.lp-outline__item.is-locked { cursor: not-allowed; color: var(--color-text-subtle); }
+.lp-outline__num {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 0.75rem; font-weight: 700; background: var(--color-surface-2); color: var(--color-text-muted);
+}
+.lp-outline__item.is-active .lp-outline__num { background: var(--color-primary); color: #fff; }
+.lp-outline__item.is-done .lp-outline__num { background: var(--color-success); color: #fff; }
+.lp-outline__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.lp-outline__title { font-size: var(--text-sm); font-weight: 600; color: inherit; line-height: 1.35; }
+.lp-outline__item.is-active .lp-outline__title { color: var(--color-primary); }
+.lp-outline__meta { font-size: 0.72rem; color: var(--color-text-subtle); margin-top: 1px; }
+.lp-outline__play { color: var(--color-primary); flex: none; }
+
+/* Prev / complete / next */
+.lesson-nav-bar-container .lesson-nav-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 46px; font-weight: 700; }
+.lesson-nav-bar-container .lesson-nav-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+@media (max-width: 640px) {
+  .lp-topbar { border-radius: 12px; padding: 0.6rem 0.75rem; gap: 0.5rem; }
+  .lp-topbar__progress { min-width: 0; flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-progress > span, .lp-outline__item { transition: none; }
+}

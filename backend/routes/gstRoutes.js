@@ -225,7 +225,8 @@ router.get('/report', protect, admin, async (req, res) => {
       let igst = txn.gstDetails?.igstAmount || 0;
       const isIntra = txn.gstDetails?.isIntraState ?? true;
       const posState = txn.billingDetails?.buyerState || txn.gstDetails?.posState || gstConfig.sellerState || 'Kerala';
-      const sac = txn.gstDetails?.hsnSacCode || gstConfig.hsnSacCode || '999249';
+      // Products (software/service) never fall back to the course SAC: blank until the owner sets one (TODO, confirm with CA)
+      const sac = txn.gstDetails?.hsnSacCode || (['software', 'service'].includes(txn.itemType) ? '' : (gstConfig.hsnSacCode || '999249'));
       const isB2B = Boolean(txn.billingDetails?.buyerGstin && txn.billingDetails.buyerGstin.trim().length > 5);
 
       // If old transaction created prior to GST fields update, compute on the fly
@@ -488,7 +489,7 @@ router.get('/report/export', protect, admin, async (req, res) => {
         `"${gstin}"`,
         `"${isB2B ? 'B2B' : 'B2C'}"`,
         `"${pos}"`,
-        `"${t.gstDetails?.hsnSacCode || '999249'}"`,
+        `"${t.gstDetails?.hsnSacCode || (['software', 'service'].includes(t.itemType) ? '' : '999249')}"`,
         `${sign}${gross.toFixed(2)}`,
         `${sign}${base.toFixed(2)}`,
         '18%',
@@ -550,7 +551,7 @@ router.get('/report/export-json', protect, admin, async (req, res) => {
       const gstin = t.billingDetails?.buyerGstin?.toUpperCase().trim() || '';
       const isB2B = Boolean(gstin && gstin.length > 5);
       const pos = t.billingDetails?.buyerState || gstConfig.sellerState;
-      const sac = t.gstDetails?.hsnSacCode || '999249';
+      const sac = t.gstDetails?.hsnSacCode || (['software', 'service'].includes(t.itemType) ? '' : '999249');
 
       if (!isRefunded) {
         totalGross += gross;

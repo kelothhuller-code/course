@@ -1,239 +1,222 @@
-// src/pages/dashboard.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../api';
-import NavHeader from './NavHeader';
-import LoadingSpinner from '../components/LoadingSpinner';
-import DashboardTabs from './dashboard/DashboardTabs';
-import CertificateModal from './dashboard/CertificateModal';
+// The logged-in account area (/dashboard/*): app shell + nested pages.
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import Icon from '../components/Icon';
+import { useToast } from '../components/Toast';
+import { SITE_NAME } from '../config/site';
+import Overview from './account/Overview';
+import { SkeletonList } from './account/ui';
+import './account/account.css';
 
-export default function Dashboard({ user, onRefreshUser }) {
-  const [searchParams] = useSearchParams();
+const MyCourses = lazy(() => import('./account/MyCourses'));
+const Certificates = lazy(() => import('./account/Certificates'));
+const MySoftware = lazy(() => import('./account/MySoftware'));
+const ServiceOrders = lazy(() => import('./account/ServiceOrders'));
+const Orders = lazy(() => import('./account/Orders'));
+const Enquiries = lazy(() => import('./account/Enquiries'));
+const Profile = lazy(() => import('./account/Profile'));
+const Help = lazy(() => import('./account/Help'));
+const Events = lazy(() => import('./account/Events'));
+const GstReportTab = lazy(() => import('./dashboard/GstReportTab'));
+
+const NAV = [
+  { group: 'Learning', items: [
+    { to: '/dashboard', end: true, icon: 'home', label: 'Overview' },
+    { to: '/dashboard/courses', icon: 'book', label: 'My courses' },
+    { to: '/dashboard/certificates', icon: 'award', label: 'Certificates' },
+    { to: '/dashboard/events', icon: 'calendar', label: 'Live events' },
+  ] },
+  { group: 'Products', items: [
+    { to: '/dashboard/software', icon: 'key', label: 'My software' },
+    { to: '/dashboard/services', icon: 'briefcase', label: 'Service orders' },
+    { to: '/dashboard/orders', icon: 'receipt', label: 'Orders & invoices' },
+  ] },
+  { group: 'Account', items: [
+    { to: '/dashboard/enquiries', icon: 'chat', label: 'My enquiries' },
+    { to: '/dashboard/profile', icon: 'user', label: 'Profile & security' },
+    { to: '/dashboard/help', icon: 'help-circle', label: 'Help & support' },
+  ] },
+];
+const ADMIN_NAV = { to: '/dashboard/gst', icon: 'chart', label: 'GST report' };
+const TABBAR = [
+  { to: '/dashboard', end: true, icon: 'home', label: 'Home' },
+  { to: '/dashboard/courses', icon: 'book', label: 'Courses' },
+  { to: '/dashboard/software', icon: 'key', label: 'Software' },
+  { to: '/dashboard/orders', icon: 'receipt', label: 'Orders' },
+];
+
+// Old links used /dashboard?tab=…; keep them working.
+const LEGACY_TABS = {
+  dashboard: '/dashboard', continue: '/dashboard/courses', courses: '/dashboard/courses', software: '/dashboard/software',
+  services: '/dashboard/services', events: '/dashboard/events', certs: '/dashboard/certificates', invoices: '/dashboard/orders',
+  gst_report: '/dashboard/gst', explore: '/all-courses',
+};
+
+const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('') || 'U';
+
+function NavItems({ items, onNavigate }) {
+  return items.map((it) => (
+    <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive }) => `acc-nav__link${isActive ? ' is-active' : ''}`} onClick={onNavigate}>
+      <Icon name={it.icon} size={20} />
+      <span>{it.label}</span>
+    </NavLink>
+  ));
+}
+
+export default function Dashboard({ user, onRefreshUser, onLogout }) {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const tabFromUrl = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabFromUrl || 'dashboard');
-  const [selectedCert, setSelectedCert] = useState(null);
-  const [certLoading, setCertLoading] = useState(false);
-  const [myLearning, setMyLearning] = useState(null);
-  const [allCourses, setAllCourses] = useState([]);
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const toast = useToast();
+  const [drawer, setDrawer] = useState(false);
+  const drawerRef = useRef(null);
+  const contentRef = useRef(null);
+  const isAdmin = user?.role === 'admin';
+  const groups = useMemo(() => (isAdmin ? [...NAV, { group: 'Admin', items: [ADMIN_NAV] }] : NAV), [isAdmin]);
 
-  // Sync tab with URL search params
+  // Not signed in: go to the sign-in page and come back here afterwards.
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTab(tabParam);
+    if (!user) navigate(`/auth?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Legacy ?tab= links and payment return messages.
+  useEffect(() => {
+    const tab = params.get('tab');
+    const payment = params.get('payment');
+    if (payment === 'success') {
+      toast.success('Payment verified. Your purchase is ready.');
+      onRefreshUser?.();
+    } else if (payment === 'failed') {
+      toast.error('The payment failed or was cancelled. You have not been charged; please try again.');
     }
-  }, [searchParams]);
-
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    navigate(`/dashboard?tab=${newTab}`, { replace: true });
-  };
-
-  // Memoized values to prevent unnecessary re-renders
-  const enrolledCourses = myLearning?.courses || [];
-  const enrolledEvents = myLearning?.events || [];
-  const completedCourses = enrolledCourses.filter(c => c.completed);
-  const inProgressCourses = enrolledCourses.filter(c => c.progress > 0 && c.progress < 100);
-  const certificates = myLearning?.certificates || [];
-  const enrolledCourseIds = new Set(enrolledCourses.map(c => c.course?._id || c.courseId));
-
-  // Fetch learning data
-  const fetchLearningData = useCallback(async () => {
-    try {
-      const [learning, courses, certs] = await Promise.all([
-        api.getMyLearning().catch(() => ({ courses: [], events: [] })),
-        api.getAllCourses().catch(() => ({ courses: [] })),
-        api.getCertificates().catch(() => ({ certificates: [] }))
-      ]);
-      
-      setMyLearning({
-        ...learning,
-        certificates: certs.certificates || []
-      });
-      setAllCourses(Array.isArray(courses?.courses) ? courses.courses : []);
-    } catch (err) {
-      console.error('Error fetching learning data:', err);
+    if (tab && LEGACY_TABS[tab]) {
+      const target = LEGACY_TABS[tab];
+      if (target.startsWith('/dashboard')) navigate(target, { replace: true });
+      else navigate(target);
+    } else if (payment) {
+      navigate(location.pathname, { replace: true });
     }
-  }, []);
+  }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close the drawer on navigation; move focus to the page for screen readers.
+  useEffect(() => {
+    setDrawer(false);
+    contentRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!drawer) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setDrawer(false); };
+    window.addEventListener('keydown', onKey);
+    drawerRef.current?.querySelector('a,button')?.focus();
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [drawer]);
 
-    const fetchProfile = async () => {
-      try {
-        const data = await api.getProfile();
-        setProfile(data);
-        await fetchLearningData();
-      } catch (err) {
-        console.error('Error fetching dashboard profile:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const logout = useCallback(() => { onLogout?.(); }, [onLogout]);
 
-    fetchProfile();
-  }, [user, navigate, fetchLearningData]);
+  if (!user) return null;
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'there';
 
-  // Handle payment callback
-  useEffect(() => {
-    const paymentStatus = searchParams.get('payment');
-    if (paymentStatus === 'success') {
-      alert('Success! Your payment was verified and enrollment completed.');
-      navigate('/dashboard', { replace: true });
-      if (onRefreshUser) onRefreshUser();
-      fetchLearningData();
-    } else if (paymentStatus === 'failed') {
-      alert('Payment failed or cancelled. Please try again.');
-      navigate('/dashboard', { replace: true });
-    }
-  }, [searchParams, navigate, onRefreshUser, fetchLearningData]);
-
-  const viewCertificate = async (courseId) => {
-    setCertLoading(true);
-    try {
-      const certData = await api.getCertificateByCourse(courseId);
-      setSelectedCert(certData.certificate);
-    } catch (err) {
-      alert(err.message || 'Could not load certificate');
-    } finally {
-      setCertLoading(false);
-    }
-  };
-
-  const handlePrintCert = () => {
-    const printContent = document.getElementById('cert-print-area');
-    if (!printContent) return;
-
-    // Use an isolated hidden iframe so React virtual DOM is never destroyed
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Certificate - WIDETECH Academy</title>
-          <style>
-            body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
-            * { box-sizing: border-box; }
-            @media print {
-              @page { size: landscape; margin: 10mm; }
-              body { padding: 0; }
-            }
-          </style>
-          ${Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('')}
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    frameDoc.close();
-
-    setTimeout(() => {
-      printFrame.contentWindow.focus();
-      printFrame.contentWindow.print();
-      setTimeout(() => {
-        if (document.body.contains(printFrame)) {
-          document.body.removeChild(printFrame);
-        }
-      }, 1000);
-    }, 500);
-  };
-
-  const handleContinueLearning = (courseId) => {
-    navigate(`/course/${courseId}`);
-  };
-
-  const handleStartLearning = async (courseId) => {
-    const course = allCourses.find(c => c._id === courseId);
-    if (course?.price === 0 || course?.isFree) {
-      try {
-        await api.enrollFree(courseId);
-        await fetchLearningData();
-        navigate(`/course/${courseId}`);
-      } catch (err) {
-        alert(err.message);
-      }
-    } else {
-      navigate(`/checkout/${courseId}`);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await api.logout();
-    } catch (e) {
-      localStorage.removeItem('token');
-    }
-    if (onRefreshUser) onRefreshUser();
-    navigate('/');
-  };
-
-  if (loading) {
-    return (
-      <>
-        <NavHeader user={user} onLogout={handleLogout} />
-        <LoadingSpinner />
-      </>
-    );
-  }
+  const userCard = (
+    <div className="acc-usercard">
+      <span className="acc-avatar" aria-hidden="true">{initials(user.name)}</span>
+      <div className="acc-usercard__text">
+        <strong>{user.name || 'Your account'}</strong>
+        <span>{user.email}</span>
+      </div>
+    </div>
+  );
 
   return (
-    <>
-      <NavHeader user={user} onLogout={handleLogout} />
-      <div className="landing-page" style={{ paddingTop: '1rem' }}>
-        <div className="container" style={{ flexGrow: 1, paddingBottom: '2rem' }}>
-          
-          <div style={{ width: '100%', maxWidth: '1360px', margin: '0 auto' }}>
-            {/* Main Content Area */}
-            <main style={{ minWidth: 0, width: '100%' }}>
-              <DashboardTabs 
-                activeTab={activeTab}
-                profile={profile}
-                inProgressCourses={inProgressCourses}
-                enrolledCourses={enrolledCourses}
-                completedCourses={completedCourses}
-                certificates={certificates}
-                enrolledEvents={enrolledEvents}
-                allCourses={allCourses}
-                enrolledCourseIds={enrolledCourseIds}
-                handleContinueLearning={handleContinueLearning}
-                handleStartLearning={handleStartLearning}
-                viewCertificate={viewCertificate}
-                setActiveTab={handleTabChange}
-                setSelectedCert={setSelectedCert}
-                certLoading={certLoading}
-                navigate={navigate}
-              />
-            </main>
-          </div>
-
-
-          {/* Certificate Modal */}
-          <CertificateModal 
-            selectedCert={selectedCert}
-            setSelectedCert={setSelectedCert}
-            profile={profile}
-            handlePrintCert={handlePrintCert}
-          />
-          
+    <div className="acc">
+      <a href="#account-content" className="acc-skip">Skip to content</a>
+      <aside className="acc-side" aria-label="Account navigation">
+        <Link to="/" className="acc-brand" aria-label={`${SITE_NAME} home`}>
+          <img src="/logo.svg" alt="" width="32" height="32" />
+          <span>{SITE_NAME}</span>
+        </Link>
+        <nav className="acc-nav">
+          {groups.map((g) => (
+            <div className="acc-nav__group" key={g.group}>
+              <p className="acc-nav__label">{g.group}</p>
+              <NavItems items={g.items} />
+            </div>
+          ))}
+        </nav>
+        <div className="acc-side__foot">
+          {userCard}
+          <button type="button" className="acc-nav__link acc-nav__logout" onClick={logout}>
+            <Icon name="logout" size={20} /><span>Log out</span>
+          </button>
         </div>
+      </aside>
+
+      <div className="acc-main">
+        <header className="acc-top">
+          <Link to="/" className="acc-brand acc-brand--top" aria-label={`${SITE_NAME} home`}>
+            <img src="/logo.svg" alt="" width="28" height="28" />
+            <span>{SITE_NAME}</span>
+          </Link>
+          <p className="acc-top__hello">Hi, {firstName}</p>
+          <nav className="acc-top__links" aria-label="Browse">
+            <Link to="/all-courses">Courses</Link>
+            <Link to="/software">Software</Link>
+            <Link to="/services">Services</Link>
+          </nav>
+          <Link to="/dashboard/profile" className="acc-avatar acc-avatar--sm" aria-label="Profile and security">{initials(user.name)}</Link>
+        </header>
+
+        <section id="account-content" className="acc-content" ref={contentRef} tabIndex={-1} aria-label="Account">
+          <Suspense fallback={<SkeletonList rows={3} />}>
+            <Routes>
+              <Route index element={<Overview user={user} />} />
+              <Route path="courses" element={<MyCourses />} />
+              <Route path="certificates" element={<Certificates user={user} />} />
+              <Route path="events" element={<Events />} />
+              <Route path="software" element={<MySoftware />} />
+              <Route path="services" element={<ServiceOrders />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="enquiries" element={<Enquiries />} />
+              <Route path="profile" element={<Profile user={user} onRefreshUser={onRefreshUser} onLogout={logout} />} />
+              <Route path="help" element={<Help user={user} />} />
+              {isAdmin && <Route path="gst" element={<div className="acc-card"><GstReportTab /></div>} />}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
+        </section>
       </div>
-    </>
+
+      <nav className="acc-tabbar" aria-label="Account sections">
+        <NavItems items={TABBAR} />
+        <button type="button" className={`acc-nav__link${drawer ? ' is-active' : ''}`} onClick={() => setDrawer(true)} aria-haspopup="dialog" aria-expanded={drawer}>
+          <Icon name="more" size={20} /><span>More</span>
+        </button>
+      </nav>
+
+      {drawer && (
+        <div className="acc-drawer" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setDrawer(false); }}>
+          <div className="acc-drawer__panel" role="dialog" aria-modal="true" aria-label="All account sections" ref={drawerRef}>
+            <div className="acc-drawer__head">
+              {userCard}
+              <button type="button" className="acc-icon-btn" onClick={() => setDrawer(false)} aria-label="Close menu"><Icon name="close" size={20} /></button>
+            </div>
+            <nav className="acc-nav">
+              {groups.map((g) => (
+                <div className="acc-nav__group" key={g.group}>
+                  <p className="acc-nav__label">{g.group}</p>
+                  <NavItems items={g.items} onNavigate={() => setDrawer(false)} />
+                </div>
+              ))}
+              <div className="acc-nav__group">
+                <p className="acc-nav__label">Browse</p>
+                <NavItems items={[{ to: '/all-courses', icon: 'book', label: 'All courses' }, { to: '/software', icon: 'code', label: 'Software' }, { to: '/services', icon: 'briefcase', label: 'Services' }]} />
+              </div>
+            </nav>
+            <button type="button" className="acc-nav__link acc-nav__logout" onClick={logout}><Icon name="logout" size={20} /><span>Log out</span></button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -22,6 +22,8 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import softwareRoutes from './routes/softwareRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
+import licenseRoutes, { accountRouter as licenseAccountRoutes } from './routes/licenseRoutes.js';
+import adminLicensingRoutes from './routes/adminLicensingRoutes.js';
 import { publicCategoryRouter, adminCatalogRouter } from './routes/catalogRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 
@@ -73,7 +75,8 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Disposition'] // lets the dashboard name downloaded files
 };
 
 // Mount CORS before all routes and rate limiters
@@ -236,6 +239,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/trials', trialRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin/gst', gstRoutes);
+app.use('/api/admin/licensing', adminLicensingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/enroll', enrollRoutes);
 app.use('/api/progress', progressRoutes);
@@ -246,6 +250,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/software', softwareRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/license/v1', licenseRoutes); // public licence API for desktop apps (own rate limits)
+app.use('/api/account', licenseAccountRoutes);
 app.use('/api/categories', publicCategoryRouter);
 app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/analytics', analyticsRoutes);

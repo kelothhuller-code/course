@@ -209,10 +209,10 @@ window.EventsModule = {
 
             if (statusText) statusText.innerHTML = `✅ Uploaded successfully: <strong>${data.fileName || file.name}</strong>`;
             if (percentText) percentText.textContent = '100%';
-            if (progressBar) progressBar.style.background = '#10b981';
+            if (progressBar) progressBar.style.background = 'var(--success)';
         } catch (err) {
             console.error('Event thumbnail upload error:', err);
-            if (statusText) statusText.innerHTML = `<span style="color:#ef4444;">❌ Upload failed: ${err.message}</span>`;
+            if (statusText) statusText.innerHTML = `<span style="color: var(--danger);">❌ Upload failed: ${err.message}</span>`;
             alert('Upload failed: ' + err.message);
         }
     },

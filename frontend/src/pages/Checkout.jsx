@@ -6,7 +6,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import tracker from '../utils/tracker';
 import { countChapters, SUPPORT_EMAIL } from '../config/site';
+import { previewGst, money } from '../utils/gst';
 import './Checkout.css';
+import { toast } from '../components/Toast';
 
 const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
@@ -425,7 +427,7 @@ export default function Checkout({ user, onRefreshUser }) {
                   if (onRefreshUser) onRefreshUser();
                   navigate('/dashboard');
                 } catch (err) {
-                  alert(err.message);
+                  toast.error(err.message);
                 }
               }}
             >
@@ -437,11 +439,15 @@ export default function Checkout({ user, onRefreshUser }) {
     );
   }
 
-  const taxableBase = Math.round((finalPrice / 1.18) * 100) / 100;
-  const gstTotal = Math.round((finalPrice - taxableBase) * 100) / 100;
-  const isIntraState = buyerState.trim().toLowerCase() === 'kerala';
-  const cgst = isIntraState ? Math.round((gstTotal / 2) * 100) / 100 : 0;
-  const sgst = isIntraState ? Math.round((gstTotal - cgst) * 100) / 100 : 0;
+  // Display only: the server recalculates GST when the order is created.
+  const gstPreview = previewGst({ price: finalPrice, rate: item.gstRate ?? undefined, inclusive: item.gstInclusive !== false, buyerState, sellerState: 'Kerala' });
+  const taxableBase = gstPreview.baseAmount;
+  const gstTotal = gstPreview.gstAmount;
+  const isIntraState = gstPreview.isIntraState;
+  const cgst = gstPreview.cgstAmount;
+  const sgst = gstPreview.sgstAmount;
+  const gstRateShown = gstPreview.rate;
+  const totalToPay = gstPreview.isInclusive ? finalPrice : gstPreview.total;
   const listPrice = Number(item.price) || 0;
   const savings = listPrice > finalPrice ? listPrice - finalPrice : 0;
   const chapterCount = countChapters(item);
@@ -515,7 +521,9 @@ export default function Checkout({ user, onRefreshUser }) {
               </div>
             </div>
             <p className="checkout-price-note">
-              ✅ Final price — 18% GST already included. No extra charges at payment.
+              {gstPreview.isInclusive
+                ? `✅ Final price — ${gstRateShown}% GST already included. No extra charges at payment.`
+                : `Price before GST. ${gstRateShown}% GST is added at checkout (see the total below).`}
             </p>
 
             {!user ? (
@@ -699,18 +707,18 @@ export default function Checkout({ user, onRefreshUser }) {
                 )}
                 <div className="checkout-summary-row checkout-total">
                   <span>Total to pay</span>
-                  <span>₹{finalPrice}</span>
+                  <span>₹{totalToPay}</span>
                 </div>
                 <details className="checkout-gst">
-                  <summary>Includes ₹{gstTotal.toFixed(2)} GST — see breakdown</summary>
+                  <summary>{gstPreview.isInclusive ? 'Includes' : 'Adds'} ₹{gstTotal.toFixed(2)} GST — see breakdown</summary>
                   <div className="checkout-summary-row"><span>Taxable value</span><span>₹{taxableBase.toFixed(2)}</span></div>
                   {isIntraState ? (
                     <>
-                      <div className="checkout-summary-row"><span>CGST (9%)</span><span>₹{cgst.toFixed(2)}</span></div>
-                      <div className="checkout-summary-row"><span>SGST (9%)</span><span>₹{sgst.toFixed(2)}</span></div>
+                      <div className="checkout-summary-row"><span>CGST ({gstRateShown / 2}%)</span><span>₹{cgst.toFixed(2)}</span></div>
+                      <div className="checkout-summary-row"><span>SGST ({gstRateShown / 2}%)</span><span>₹{sgst.toFixed(2)}</span></div>
                     </>
                   ) : (
-                    <div className="checkout-summary-row"><span>IGST (18%)</span><span>₹{gstTotal.toFixed(2)}</span></div>
+                    <div className="checkout-summary-row"><span>IGST ({gstRateShown}%)</span><span>₹{gstTotal.toFixed(2)}</span></div>
                   )}
                 </details>
               </div>
@@ -731,7 +739,7 @@ export default function Checkout({ user, onRefreshUser }) {
                 disabled={processing}
                 aria-busy={processing}
               >
-                {processing ? 'Opening secure payment…' : `🔒 Pay ₹${finalPrice} securely`}
+                {processing ? 'Opening secure payment…' : `🔒 Pay ₹${totalToPay} securely`}
               </button>
 
               <ul className="checkout-trust" aria-label="Purchase guarantees">
@@ -812,11 +820,12 @@ export default function Checkout({ user, onRefreshUser }) {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span>Amount</span>
-                    <span style={{ fontWeight: 'bold' }}>₹{paymentData?.amount}</span>
+                    {/* Razorpay order amounts are in paise; show rupees. */}
+                    <span style={{ fontWeight: 'bold' }}>{money((paymentData?.amount || 0) / 100)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span>Item</span>
-                    <span>{paymentData?.productinfo}</span>
+                    <span>{paymentData?.itemTitle || paymentData?.productinfo}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Transaction ID</span>

@@ -34,6 +34,13 @@ const UserSchema = new mongoose.Schema({
     requirements: { type: String },
     contactPhone: { type: String }
   }],
+  // Billing profile (optional). Pre-fills checkout and the GST invoice.
+  phone: { type: String, trim: true, default: '' },
+  state: { type: String, trim: true, default: '' },
+  gstin: { type: String, trim: true, uppercase: true, default: '' },
+  businessName: { type: String, trim: true, default: '' },
+  billingAddress: { type: String, trim: true, default: '' },
+  passwordChangedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   certificates: [{
     courseId: {
@@ -82,6 +89,13 @@ const UserSchema = new mongoose.Schema({
   toJSON: {
     transform: function (doc, ret) {
       delete ret.password;
+      delete ret.forgotPasswordOTP;
+      delete ret.forgotPasswordExpires;
+      delete ret.forgotPasswordAttempts;
+      delete ret.forgotRequestCount;
+      delete ret.forgotRequestWindow;
+      delete ret.lastForgotAttempt;
+      delete ret.tokenVersion;
       return ret;
     }
   }

@@ -103,7 +103,7 @@ window.ContentManager = {
         
         return `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;flex-wrap:wrap;">
-                ${course.thumbnail ? `<img src="${Helpers.getMediaUrl(course.thumbnail)}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${course.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>📚</div>';">` : 
+                ${course.thumbnail ? `<img src="${Helpers.getMediaUrl(course.thumbnail)}" class="cm-thumb" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${Helpers.escapeHtml(course.title || '')}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'cm-thumb-fallback',textContent:'📚'}))">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-hover);border-radius:8px;display:flex;align-items:center;justify-content:center;">📚</div>`}
                 <div style="flex:1;min-width:240px;">
                     <h4 style="margin-bottom:4px;">
@@ -111,7 +111,7 @@ window.ContentManager = {
                         <span class="badge" style="background:${course.isFree ? 'var(--success)' : 'var(--primary)'};margin-left:8px;">
                             ${course.isFree ? 'FREE' : '₹' + (course.discountedPrice || course.price || 0)}
                         </span>
-                        ${course.isFeatured ? '<span class="badge" style="background:#f59e0b;color:#1e1e24;font-weight:700;margin-left:8px;">⭐ HIGHLIGHTED ON HOME</span>' : ''}
+                        ${course.isFeatured ? '<span class="badge" style="background:#f59e0b;color: var(--text-main);font-weight:700;margin-left:8px;">⭐ HIGHLIGHTED ON HOME</span>' : ''}
                     </h4>
                     <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:4px;">${Helpers.safeString(course.description, '').substring(0, 100)}...</p>
                     <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:0.8rem;color:var(--text-muted);">
@@ -122,7 +122,7 @@ window.ContentManager = {
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button class="btn" style="font-size:0.85rem;${course.isFeatured ? 'background:#f59e0b;color:#1e1e24;font-weight:700;border:none;' : 'background:var(--bg-secondary);color:var(--text-main);'}" onclick="ContentManager.toggleHighlight('${course._id}')">
+                    <button class="btn" style="font-size:0.85rem;${course.isFeatured ? 'background:#f59e0b;color: var(--text-main);font-weight:700;border:none;' : 'background:var(--bg-secondary);color:var(--text-main);'}" onclick="ContentManager.toggleHighlight('${course._id}')">
                         ${course.isFeatured ? '⭐ Highlighted' : '☆ Highlight on Home'}
                     </button>
                     <button class="btn btn-secondary" style="font-size:0.85rem;" onclick="ContentManager.copySalesLink('${course._id}')">📋 Copy Sales Link</button>
@@ -150,7 +150,7 @@ window.ContentManager = {
 
         const tutorialsHtml = tutorials.map(t => `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;">
-                ${t.thumbnail ? `<img src="${Helpers.getMediaUrl(t.thumbnail)}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${t.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>🎯</div>';">` : 
+                ${t.thumbnail ? `<img src="${Helpers.getMediaUrl(t.thumbnail)}" class="cm-thumb" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${Helpers.escapeHtml(t.title || '')}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'cm-thumb-fallback',textContent:'📚'}))">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;">🎯</div>`}
                 <div style="flex:1;">
                     <h4 style="margin-bottom:4px;">${Helpers.safeString(t.title)}</h4>
@@ -190,7 +190,7 @@ window.ContentManager = {
 
         const eventsHtml = events.map(e => `
             <div class="panel" style="display:flex;gap:16px;align-items:center;padding:16px;">
-                ${e.thumbnail ? `<img src="${Helpers.getMediaUrl(e.thumbnail)}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${e.title}" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;\'>📅</div>';">` : 
+                ${e.thumbnail ? `<img src="${Helpers.getMediaUrl(e.thumbnail)}" class="cm-thumb" style="width:120px;height:80px;object-fit:cover;border-radius:8px;" alt="${Helpers.escapeHtml(e.title || '')}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'cm-thumb-fallback',textContent:'📚'}))">` : 
                   `<div style="width:120px;height:80px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;">📅</div>`}
                 <div style="flex:1;">
                     <h4 style="margin-bottom:4px;">${Helpers.safeString(e.title)}</h4>
