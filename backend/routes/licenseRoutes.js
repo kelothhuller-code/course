@@ -22,6 +22,7 @@ import TrialDevice from '../models/TrialDevice.js';
 import { protect } from '../middleware/auth.js';
 import { normalizeLicenseKey, hashLicenseKey, hashDeviceId, signResponse, publicKeyBase64, decryptKey } from '../utils/licensing.js';
 import ServiceOrder from '../models/ServiceOrder.js';
+import ContactMessage from '../models/ContactMessage.js';
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -234,53 +235,138 @@ router.get('/public-key', licenseLimiter, (req, res) => {
 
 export default router;
 
-// ---- Signed-in buyer: "My licences" / "My service orders" ----------------------------------
+// ---- Signed-in buyer: "My licences" / "My service orders" / "My enquiries" -------------------
+// Every route here is protect()-ed and only ever returns records owned by req.user
+// (matched by userId, or by the account email for guest purchases made with that email).
 export const accountRouter = express.Router();
+
+// Records linked to my account, plus records issued to my email address AFTER the account was
+// created (e.g. a licence the owner issued by email). Sign-up has no email verification, so an
+// account made later with someone else's address must not see that person's earlier licences.
+// (Purchases always link the account by userId, so normal buyers see everything.)
+const ownerFilter = (user, emailField = 'email') => ({
+  $or: [
+    { userId: user._id },
+    { [emailField]: String(user.email || '').toLowerCase(), createdAt: { $gte: user.createdAt ? new Date(user.createdAt) : new Date() } },
+  ],
+});
+// A short, stable reference for one bound device (never the full device hash).
+const deviceRef = (d) => String(d.deviceHash || '').slice(0, 16);
+// How many computers a buyer may remove themselves per 30 days (0 = only the owner/admin can).
+const selfDeactivateLimit = () => {
+  const n = Number.parseInt(process.env.LICENSE_SELF_DEACTIVATE_PER_30D ?? '3', 10);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 50) : 3;
+};
+const recentSelfDeactivations = (l) => {
+  const since = Date.now() - 30 * 24 * 3600 * 1000;
+  return (l.selfDeactivations || []).filter((d) => new Date(d).getTime() > since).length;
+};
+
+const accountLicense = (l) => {
+  const limit = selfDeactivateLimit();
+  const used = recentSelfDeactivations(l);
+  const sw = l.software && typeof l.software === 'object' && l.software._id ? l.software : null;
+  return {
+    _id: l._id,
+    key: decryptKey(l.keyEnc),
+    keyLast: l.keyLast,
+    software: sw ? { _id: sw._id, title: sw.title, slug: sw.slug, hasDownload: Boolean(sw.fileName || sw.downloadUrl) } : { title: l.softwareTitle },
+    planName: l.planName,
+    billing: l.billing,
+    expiresAt: l.expiresAt,
+    lifetime: l.expiresAt === null,
+    expired: Boolean(l.expiresAt && new Date(l.expiresAt) <= new Date()),
+    revoked: l.revoked,
+    maxDevices: l.maxDevices,
+    devices: (l.devices || []).map((d) => ({ ref: deviceRef(d), deviceName: d.deviceName, appVersion: d.appVersion, activatedAt: d.activatedAt, lastSeenAt: d.lastSeenAt })),
+    selfDeactivate: { limit, remaining: Math.max(0, limit - used) },
+    renewPlans: sw && l.expiresAt !== null
+      ? (sw.plans || []).filter((p) => p.isActive && p.billing !== 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing, customDays: p.customDays }))
+      : [],
+    upgradePlans: sw && l.expiresAt !== null
+      ? (sw.plans || []).filter((p) => p.isActive && p.billing === 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing }))
+      : [],
+    createdAt: l.createdAt,
+  };
+};
 
 accountRouter.get('/licenses', protect, async (req, res) => {
   try {
-    const email = String(req.user.email || '').toLowerCase();
-    const list = await License.find({ $or: [{ userId: req.user._id }, { email }] })
+    const list = await License.find(ownerFilter(req.user))
       .sort({ createdAt: -1 })
-      .populate('software', 'title slug appId plans trialDownloadUrl')
+      .populate('software', 'title slug appId plans fileName downloadUrl')
       .lean();
-    res.json({
-      success: true,
-      licenses: list.map((l) => ({
-        _id: l._id,
-        key: decryptKey(l.keyEnc),
-        software: l.software ? { _id: l.software._id, title: l.software.title, slug: l.software.slug } : { title: l.softwareTitle },
-        planName: l.planName,
-        billing: l.billing,
-        expiresAt: l.expiresAt,
-        lifetime: l.expiresAt === null,
-        expired: Boolean(l.expiresAt && new Date(l.expiresAt) <= new Date()),
-        revoked: l.revoked,
-        maxDevices: l.maxDevices,
-        devices: (l.devices || []).map((d) => ({ deviceName: d.deviceName, appVersion: d.appVersion, activatedAt: d.activatedAt, lastSeenAt: d.lastSeenAt })),
-        renewPlans: l.software && l.expiresAt !== null
-          ? (l.software.plans || []).filter((p) => p.isActive && p.billing !== 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing, customDays: p.customDays }))
-          : [],
-        createdAt: l.createdAt,
-      })),
-    });
+    res.json({ success: true, licenses: list.map(accountLicense) });
   } catch (e) {
     console.error('My licences error:', e.message);
     res.status(500).json({ message: 'Could not load your licences.' });
   }
 });
 
+// Free a computer slot on one of MY licences (e.g. moving to a new PC). Rate-limited per licence
+// so a single key cannot be rotated between many machines.
+accountRouter.post('/licenses/:id/devices/:ref/deactivate', protect, async (req, res) => {
+  try {
+    const { id, ref } = req.params;
+    if (!/^[a-f0-9]{24}$/i.test(id) || !/^[a-f0-9]{8,64}$/i.test(ref)) return res.status(400).json({ message: 'Invalid request' });
+    // Ownership is part of the query: someone else's licence id simply returns 404.
+    const lic = await License.findOne({ _id: id, ...ownerFilter(req.user) });
+    if (!lic) return res.status(404).json({ message: 'Licence not found' });
+    if (lic.revoked) return res.status(400).json({ message: 'This licence is revoked. Please contact support.' });
+    const limit = selfDeactivateLimit();
+    if (limit === 0) return res.status(403).json({ message: 'Please contact support to move this licence to another computer.' });
+    if (recentSelfDeactivations(lic) >= limit) {
+      return res.status(429).json({ message: `You can remove up to ${limit} computer(s) every 30 days. Please contact support if you need more.` });
+    }
+    const idx = (lic.devices || []).findIndex((d) => deviceRef(d) === ref.toLowerCase());
+    if (idx === -1) return res.status(404).json({ message: 'That computer is no longer linked to this licence.' });
+    lic.devices.splice(idx, 1);
+    lic.selfDeactivations = [...(lic.selfDeactivations || []).filter((d) => Date.now() - new Date(d).getTime() < 30 * 24 * 3600 * 1000), new Date()];
+    await lic.save();
+    await lic.populate('software', 'title slug appId plans fileName downloadUrl');
+    res.json({ success: true, message: 'Computer removed. You can now activate the key on another computer.', license: accountLicense(lic.toObject()) });
+  } catch (e) {
+    console.error('Self deactivate error:', e.message);
+    res.status(500).json({ message: 'Could not remove that computer.' });
+  }
+});
+
 accountRouter.get('/service-orders', protect, async (req, res) => {
   try {
-    const email = String(req.user.email || '').toLowerCase();
-    const orders = await ServiceOrder.find({ $or: [{ userId: req.user._id }, { buyerEmail: email }] })
+    const orders = await ServiceOrder.find(ownerFilter(req.user, 'buyerEmail'))
       .sort({ createdAt: -1 })
       .populate('service', 'title slug')
-      .select('orderNo serviceTitle packageName deliveryTime amount status createdAt txnid invoiceNo service')
+      .select('orderNo serviceTitle packageName deliveryTime amount status statusHistory createdAt updatedAt txnid invoiceNo service')
       .lean();
     res.json({ success: true, orders });
   } catch (e) {
     console.error('My service orders error:', e.message);
     res.status(500).json({ message: 'Could not load your orders.' });
+  }
+});
+
+// Enquiries sent with my account email. There is no email verification at sign-up, so only
+// enquiries sent AFTER the account was created are shown (an account made later with someone
+// else's address cannot read their earlier messages), and only the fields the sender typed.
+accountRouter.get('/enquiries', protect, async (req, res) => {
+  try {
+    const email = String(req.user.email || '').toLowerCase();
+    const since = req.user.createdAt ? new Date(req.user.createdAt) : new Date();
+    const list = await ContactMessage.find({ email, createdAt: { $gte: since } })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .select('subject message interest categoryLabel relatedType relatedTitle status replyMessage repliedAt createdAt')
+      .lean();
+    const label = (s) => ({ unread: 'received', new: 'received', replied: 'replied', contacted: 'replied', qualified: 'in discussion', closed: 'closed' }[s] || 'received');
+    res.json({
+      success: true,
+      enquiries: list.map((m) => ({
+        _id: m._id, subject: m.subject, message: m.message, topic: m.relatedTitle || m.categoryLabel || m.interest,
+        status: label(m.status), reply: m.replyMessage || '', repliedAt: m.repliedAt, createdAt: m.createdAt,
+      })),
+    });
+  } catch (e) {
+    console.error('My enquiries error:', e.message);
+    res.status(500).json({ message: 'Could not load your enquiries.' });
   }
 });

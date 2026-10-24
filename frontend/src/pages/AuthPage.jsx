@@ -1,508 +1,232 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api';
 import SiteHeader from '../components/SiteHeader';
 import Footer from './Landing/Footer';
+import Icon from '../components/Icon';
+import { SITE_NAME } from '../config/site';
 import './authpage.css';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MIN_PASSWORD = 6; // matches the server rule for sign-up and password reset
+
+/** Only same-site paths are allowed as a post-login destination (no open redirects). */
+const safeRedirect = (url) => (
+  url && typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\') ? url : '/dashboard'
+);
+
+const validators = {
+  name: (v) => (v.trim().length < 2 ? 'Please enter your name (at least 2 characters).' : ''),
+  email: (v) => (!v.trim() ? 'Please enter your email address.' : !EMAIL_RE.test(v.trim()) ? 'That email address does not look right.' : ''),
+  password: (v, mode) => (!v ? 'Please enter your password.' : mode !== 'login' && v.length < MIN_PASSWORD ? `Use at least ${MIN_PASSWORD} characters.` : ''),
+  otp: (v) => (!/^\d{6}$/.test(v.trim()) ? 'Enter the 6-digit code from the email.' : ''),
+};
+
+function Field({ id, label, icon, error, hint, aside, children }) {
+  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(' ') || undefined;
+  return (
+    <div className={`auth-field${error ? ' has-error' : ''}`}>
+      <div className="auth-field__label-row">
+        <label htmlFor={id}>{label}</label>
+        {aside}
+      </div>
+      <div className="auth-field__control">
+        <Icon name={icon} size={18} className="auth-field__icon" />
+        {children({ 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy })}
+      </div>
+      {hint && !error && <p className="auth-field__hint" id={`${id}-hint`}>{hint}</p>}
+      {error && <p className="auth-field__error" id={`${id}-error`}><Icon name="alert-triangle" size={14} /> {error}</p>}
+    </div>
+  );
+}
+
+function PasswordInput({ id, value, onChange, onBlur, autoComplete, placeholder, inputRef, a11y }) {
+  const [show, setShow] = useState(false);
+  return (
+    <>
+      <input ref={inputRef} id={id} type={show ? 'text' : 'password'} value={value} onChange={onChange} onBlur={onBlur}
+        autoComplete={autoComplete} placeholder={placeholder} required {...a11y} />
+      <button type="button" className="auth-field__toggle" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}>
+        <Icon name={show ? 'eye-off' : 'eye'} size={18} />
+      </button>
+    </>
+  );
+}
+
 export default function AuthPage({ user, onLogout, onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // Forgot password flow state
-  const [forgotStep, setForgotStep] = useState(0); // 0 = normal, 1 = request OTP, 2 = reset password
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const redirectTarget = safeRedirect(params.get('next') || params.get('redirect'));
 
-  const searchParams = new URLSearchParams(location.search);
-  const rawRedirect = searchParams.get('redirect');
-  const getSafeRedirect = (url) => {
-    if (url && typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\')) {
-      return url;
-    }
-    return '/dashboard';
+  // mode: login | signup | forgot | reset
+  const [mode, setMode] = useState(() => (params.get('signup') === 'true' || params.get('mode') === 'signup' ? 'signup' : 'login'));
+  const [values, setValues] = useState({ name: '', email: '', password: '', otp: '', newPassword: '' });
+  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(false);
+  const firstRef = useRef(null);
+  const headingRef = useRef(null);
+
+  // Follow ?mode=signup|login when the URL changes (adjusting state during render, not in an effect).
+  const [seenSearch, setSeenSearch] = useState(location.search);
+  if (seenSearch !== location.search) {
+    setSeenSearch(location.search);
+    const p = new URLSearchParams(location.search);
+    if (p.get('signup') === 'true' || p.get('mode') === 'signup') setMode('signup');
+    else if (p.get('mode') === 'login') setMode('login');
+  }
+  useEffect(() => { window.scrollTo(0, 0); }, [location.search]);
+
+  // Already signed in: go straight to the destination.
+  useEffect(() => { if (user) navigate(redirectTarget, { replace: true }); }, [user, navigate, redirectTarget]);
+
+  const fieldsFor = (m) => ({ login: ['email', 'password'], signup: ['name', 'email', 'password'], forgot: ['email'], reset: ['otp', 'newPassword'] }[m]);
+  const check = (field, v = values[field], m = mode) => (field === 'newPassword' ? validators.password(v, 'reset') : validators[field](v, m));
+
+  const switchMode = (m) => {
+    setMode(m); setErrors({}); setTouched({}); setFormError('');
+    if (m !== 'login') setNotice('');
+    requestAnimationFrame(() => headingRef.current?.focus());
   };
-  const redirectTarget = getSafeRedirect(rawRedirect);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('signup') === 'true' || params.get('mode') === 'signup') {
-      setIsLogin(false);
-    } else if (params.get('mode') === 'login') {
-      setIsLogin(true);
-    }
-    window.scrollTo(0, 0);
-  }, [location.search]);
+  const set = (field) => (e) => {
+    const v = e.target.value;
+    setValues((s) => ({ ...s, [field]: v }));
+    if (touched[field]) setErrors((s) => ({ ...s, [field]: check(field, v) }));
+  };
+  const blur = (field) => () => {
+    setTouched((s) => ({ ...s, [field]: true }));
+    setErrors((s) => ({ ...s, [field]: check(field) }));
+  };
 
-  const handleSubmit = async (e) => {
+  const validateAll = () => {
+    const fields = fieldsFor(mode);
+    const next = Object.fromEntries(fields.map((f) => [f, check(f)]));
+    setErrors(next);
+    setTouched(Object.fromEntries(fields.map((f) => [f, true])));
+    const first = fields.find((f) => next[f]);
+    if (first) document.getElementById(`auth-${first}`)?.focus();
+    return !first;
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccessMsg('');
+    setFormError('');
+    if (!validateAll()) return;
     setLoading(true);
-
     try {
-      let data;
-      if (isLogin) {
-        data = await api.login(email, password);
+      if (mode === 'login' || mode === 'signup') {
+        const data = mode === 'login'
+          ? await api.login(values.email.trim(), values.password)
+          : await api.register(values.name.trim(), values.email.trim(), values.password);
+        localStorage.setItem('token', data.token);
+        onLoginSuccess?.(data);
+        navigate(redirectTarget);
+      } else if (mode === 'forgot') {
+        await api.forgotPassword(values.email.trim());
+        setNotice('If an account exists for that email, a 6-digit code is on its way. It is valid for a few minutes.');
+        switchMode('reset');
       } else {
-        if (!name.trim()) {
-          throw new Error('Please enter your full name');
-        }
-        data = await api.register(name.trim(), email.trim(), password);
+        await api.resetPassword(values.email.trim(), values.otp.trim(), values.newPassword);
+        setValues((s) => ({ ...s, password: '', otp: '', newPassword: '' }));
+        switchMode('login');
+        setNotice('Password updated. Sign in with your new password.');
       }
-
-      localStorage.setItem('token', data.token);
-      if (onLoginSuccess) {
-        onLoginSuccess(data);
-      }
-      navigate(redirectTarget);
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please check your credentials.');
+      setFormError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotRequest = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMsg('');
-    setLoading(true);
-    try {
-      await api.forgotPassword(forgotEmail);
-      setForgotStep(2);
-      setSuccessMsg('A 6-digit OTP has been sent to your email address.');
-    } catch (err) {
-      setError(err.message || 'Failed to send OTP. Please check the email address.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMsg('');
-    setLoading(true);
-    try {
-      await api.resetPassword(forgotEmail, otp, newPassword);
-      setForgotStep(0);
-      setForgotEmail('');
-      setOtp('');
-      setNewPassword('');
-      setIsLogin(true);
-      setSuccessMsg('Password reset successful! You can now sign in with your new password.');
-    } catch (err) {
-      setError(err.message || 'Failed to reset password. Please check your OTP.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const copy = {
+    login: { title: 'Welcome back', sub: 'Sign in to continue your courses and manage your software and orders.', cta: 'Sign in', busy: 'Signing in…' },
+    signup: { title: 'Create your account', sub: 'One account for your courses, certificates, software licences and invoices.', cta: 'Create account', busy: 'Creating account…' },
+    forgot: { title: 'Reset your password', sub: 'Enter the email you signed up with and we will send you a 6-digit code.', cta: 'Send code', busy: 'Sending…' },
+    reset: { title: 'Choose a new password', sub: `Enter the code we emailed to ${values.email || 'you'} and pick a new password.`, cta: 'Update password', busy: 'Updating…' },
+  }[mode];
 
   return (
-    <div className="auth-page-wrapper">
-      {/* Standard Header with Logo, Brand Name & Navigation */}
+    <div className="wt-auth">
       <SiteHeader user={user} onLogout={onLogout} />
-
-      <main className="auth-main-section">
-        <div className="auth-ambient-glow" aria-hidden="true" />
-        <div className="container">
-          <div className="auth-card-container">
-            <div className="auth-card">
-              {/* Header Badge & Title */}
-              <div className="auth-card-header">
-                <div className="auth-brand-badge">
-                  <img src="/logo.svg" alt="WIDETECH" className="auth-badge-logo" />
-                  <span className="auth-badge-name">WIDETECH</span>
-                </div>
-
-                <h1 className="auth-title">
-                  {forgotStep === 1
-                    ? 'Forgot Password'
-                    : forgotStep === 2
-                    ? 'Create New Password'
-                    : isLogin
-                    ? 'Welcome Back'
-                    : 'Create Your Account'}
-                </h1>
-                <p className="auth-subtitle">
-                  {forgotStep === 1
-                    ? 'Enter your registered email address to receive a verification OTP'
-                    : forgotStep === 2
-                    ? 'Enter the 6-digit OTP code sent to your email and your new password'
-                    : isLogin
-                    ? 'Enter your credentials to access your courses & dashboard'
-                    : 'Get started with practical AI learning and hands-on projects'}
-                </p>
-              </div>
-
-              {/* Segmented Switcher (Sign In / Register) */}
-              {forgotStep === 0 && (
-                <div className="auth-tabs" role="tablist">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={isLogin}
-                    className={`auth-tab-btn ${isLogin ? 'active' : ''}`}
-                    onClick={() => {
-                      setIsLogin(true);
-                      setError('');
-                      setSuccessMsg('');
-                    }}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={!isLogin}
-                    className={`auth-tab-btn ${!isLogin ? 'active' : ''}`}
-                    onClick={() => {
-                      setIsLogin(false);
-                      setError('');
-                      setSuccessMsg('');
-                    }}
-                  >
-                    Create Account
-                  </button>
-                </div>
-              )}
-
-              {/* Alerts: Error & Success Messages */}
-              {error && (
-                <div className="auth-alert auth-alert-error" role="alert">
-                  <svg className="auth-alert-icon" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="auth-alert auth-alert-success" role="alert">
-                  <svg className="auth-alert-icon" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              {/* Normal Login / Register Form */}
-              {forgotStep === 0 && (
-                <form onSubmit={handleSubmit} className="auth-form" noValidate>
-                  {!isLogin && (
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="auth-name">Full Name</label>
-                      <div className="input-field-wrapper">
-                        <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                        <input
-                          id="auth-name"
-                          type="text"
-                          className="form-input"
-                          placeholder="Your full name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          autoComplete="name"
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="auth-email">Email Address</label>
-                    <div className="input-field-wrapper">
-                      <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                      </svg>
-                      <input
-                        id="auth-email"
-                        type="email"
-                        className="form-input"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <div className="form-label-row">
-                      <label className="form-label" htmlFor="auth-password">Password</label>
-                      {isLogin && (
-                        <button
-                          type="button"
-                          className="forgot-password-link"
-                          onClick={() => {
-                            setForgotStep(1);
-                            setError('');
-                            setSuccessMsg('');
-                            if (email) setForgotEmail(email);
-                          }}
-                        >
-                          Forgot password?
-                        </button>
-                      )}
-                    </div>
-                    <div className="input-field-wrapper">
-                      <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                      <input
-                        id="auth-password"
-                        type={showPassword ? 'text' : 'password'}
-                        className="form-input"
-                        placeholder={isLogin ? 'Enter your password' : 'Create a password (min. 6 characters)'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete={isLogin ? 'current-password' : 'new-password'}
-                        required
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                            <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                            <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.064 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="auth-primary-btn"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="btn-loading-content">
-                        <span className="auth-spinner" />
-                        <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
-                      </span>
-                    ) : (
-                      <span>{isLogin ? 'Sign In to Dashboard' : 'Create Free Account'}</span>
-                    )}
-                  </button>
-
-                  <div className="auth-footer-toggle">
-                    <p>
-                      {isLogin ? (
-                        <>
-                          New to WIDETECH?{' '}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsLogin(false);
-                              setError('');
-                              setSuccessMsg('');
-                            }}
-                            className="auth-link-button"
-                          >
-                            Create an account
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          Already have an account?{' '}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsLogin(true);
-                              setError('');
-                              setSuccessMsg('');
-                            }}
-                            className="auth-link-button"
-                          >
-                            Sign In
-                          </button>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </form>
-              )}
-
-              {/* Forgot Password Step 1: Request OTP */}
-              {forgotStep === 1 && (
-                <form onSubmit={handleForgotRequest} className="auth-form" noValidate>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="forgot-email">Registered Email</label>
-                    <div className="input-field-wrapper">
-                      <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                      </svg>
-                      <input
-                        id="forgot-email"
-                        type="email"
-                        className="form-input"
-                        placeholder="you@example.com"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="auth-primary-btn"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="btn-loading-content">
-                        <span className="auth-spinner" />
-                        <span>Sending OTP...</span>
-                      </span>
-                    ) : (
-                      'Send Verification OTP'
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="auth-secondary-btn"
-                    onClick={() => {
-                      setForgotStep(0);
-                      setError('');
-                      setSuccessMsg('');
-                    }}
-                  >
-                    ← Back to Sign In
-                  </button>
-                </form>
-              )}
-
-              {/* Forgot Password Step 2: Reset Password */}
-              {forgotStep === 2 && (
-                <form onSubmit={handleResetPassword} className="auth-form" noValidate>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="reset-otp">Verification OTP</label>
-                    <div className="input-field-wrapper">
-                      <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd" />
-                      </svg>
-                      <input
-                        id="reset-otp"
-                        type="text"
-                        className="form-input"
-                        placeholder="Enter 6-digit OTP code"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        maxLength={6}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="new-password">New Password</label>
-                    <div className="input-field-wrapper">
-                      <svg className="input-field-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                      <input
-                        id="new-password"
-                        type={showNewPassword ? 'text' : 'password'}
-                        className="form-input"
-                        placeholder="Enter new password (min. 6 characters)"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                        tabIndex={-1}
-                      >
-                        {showNewPassword ? (
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                            <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                            <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.064 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="auth-primary-btn"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="btn-loading-content">
-                        <span className="auth-spinner" />
-                        <span>Updating Password...</span>
-                      </span>
-                    ) : (
-                      'Save & Update Password'
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="auth-secondary-btn"
-                    onClick={() => {
-                      setForgotStep(0);
-                      setError('');
-                      setSuccessMsg('');
-                    }}
-                  >
-                    ← Back to Sign In
-                  </button>
-                </form>
-              )}
-
-              {/* Trust & Security Badge at the bottom of the card */}
-              <div className="auth-card-security">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span>256-bit encrypted secure access • WIDETECH Academy</span>
-              </div>
+      <section className="auth-shell" aria-labelledby="auth-heading">
+        <div className="auth-grid">
+          <aside className="auth-brand" aria-label={`Why a ${SITE_NAME} account`}>
+            <div className="auth-brand__inner">
+              <span className="auth-brand__logo"><img src="/logo.svg" alt="" width="34" height="28" /> {SITE_NAME}</span>
+              <h2>Everything you buy from {SITE_NAME}, in one place.</h2>
+              <ul>
+                <li><Icon name="book" size={18} /> Pick up every course where you left off</li>
+                <li><Icon name="award" size={18} /> Download and share verifiable certificates</li>
+                <li><Icon name="key" size={18} /> Manage licence keys, computers and renewals</li>
+                <li><Icon name="receipt" size={18} /> Download GST invoices for every purchase</li>
+              </ul>
+              <p className="auth-brand__note"><Icon name="shield" size={16} /> Your password is stored hashed and never shown to anyone.</p>
             </div>
+          </aside>
+
+          <div className="auth-card">
+            <h1 id="auth-heading" ref={headingRef} tabIndex={-1}>{copy.title}</h1>
+            <p className="auth-card__sub">{copy.sub}</p>
+
+            {(mode === 'login' || mode === 'signup') && (
+              <div className="auth-switch" role="group" aria-label="Sign in or create an account">
+                <button type="button" aria-pressed={mode === 'login'} className={mode === 'login' ? 'is-active' : ''} onClick={() => switchMode('login')}>Sign in</button>
+                <button type="button" aria-pressed={mode === 'signup'} className={mode === 'signup' ? 'is-active' : ''} onClick={() => switchMode('signup')}>Create account</button>
+              </div>
+            )}
+
+            <div aria-live="polite" className="auth-live">
+              {notice && <div className="auth-banner auth-banner--ok"><Icon name="check-circle" size={18} /> <span>{notice}</span></div>}
+            </div>
+            {formError && <div className="auth-banner auth-banner--err" role="alert"><Icon name="alert-triangle" size={18} /> <span>{formError}</span></div>}
+
+            <form onSubmit={submit} noValidate className="auth-form">
+              {mode === 'signup' && (
+                <Field id="auth-name" label="Full name" icon="user" error={errors.name} hint="This is the name printed on your certificates.">
+                  {(a) => <input ref={firstRef} id="auth-name" type="text" value={values.name} onChange={set('name')} onBlur={blur('name')} autoComplete="name" placeholder="Your full name" required {...a} />}
+                </Field>
+              )}
+              {mode !== 'reset' && (
+                <Field id="auth-email" label="Email address" icon="mail" error={errors.email}>
+                  {(a) => <input id="auth-email" type="email" inputMode="email" value={values.email} onChange={set('email')} onBlur={blur('email')} autoComplete="email" placeholder="you@example.com" required {...a} />}
+                </Field>
+              )}
+              {(mode === 'login' || mode === 'signup') && (
+                <Field id="auth-password" label="Password" icon="lock" error={errors.password}
+                  hint={mode === 'signup' ? `At least ${MIN_PASSWORD} characters. A longer passphrase is safer.` : undefined}
+                  aside={mode === 'login' && <button type="button" className="auth-textlink" onClick={() => switchMode('forgot')}>Forgot password?</button>}>
+                  {(a) => <PasswordInput id="auth-password" value={values.password} onChange={set('password')} onBlur={blur('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'login' ? 'Your password' : 'Create a password'} a11y={a} />}
+                </Field>
+              )}
+              {mode === 'reset' && (
+                <>
+                  <Field id="auth-otp" label="6-digit code" icon="key" error={errors.otp}>
+                    {(a) => <input id="auth-otp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={values.otp} onChange={set('otp')} onBlur={blur('otp')} placeholder="123456" required {...a} />}
+                  </Field>
+                  <Field id="auth-newPassword" label="New password" icon="lock" error={errors.newPassword} hint={`At least ${MIN_PASSWORD} characters.`}>
+                    {(a) => <PasswordInput id="auth-newPassword" value={values.newPassword} onChange={set('newPassword')} onBlur={blur('newPassword')} autoComplete="new-password" placeholder="New password" a11y={a} />}
+                  </Field>
+                </>
+              )}
+
+              <button type="submit" className="wt-btn wt-btn--primary wt-btn--lg wt-btn--block auth-submit" disabled={loading} aria-busy={loading || undefined}>
+                {loading ? <><span className="auth-spinner" aria-hidden="true" /> {copy.busy}</> : <>{copy.cta} <Icon name="arrow-right" size={18} /></>}
+              </button>
+
+              {(mode === 'forgot' || mode === 'reset') && (
+                <button type="button" className="auth-back" onClick={() => switchMode('login')}><Icon name="arrow-left" size={16} /> Back to sign in</button>
+              )}
+              {mode === 'signup' && (
+                <p className="auth-legal">By creating an account you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
+              )}
+            </form>
           </div>
         </div>
-      </main>
-
-      {/* Standard Full Footer identical to other screens */}
+      </section>
       <Footer />
     </div>
   );

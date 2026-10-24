@@ -19,6 +19,18 @@ import { resolveProductOrder, fulfilProduct, existingFulfilment, productResult, 
 
 const router = express.Router();
 
+/**
+ * Test ("mock") payments skip the real gateway, so they are only possible when BOTH:
+ *   - ALLOW_MOCK_PAYMENTS=true is set explicitly, and
+ *   - NODE_ENV is not "production".
+ * Without the flag, a missing gateway key is a configuration error, and an order whose id looks
+ * like a mock order (order_mock_…) can never be completed without a real gateway signature.
+ */
+export const mockPaymentsAllowed = () =>
+  process.env.NODE_ENV !== 'production' && String(process.env.ALLOW_MOCK_PAYMENTS || '').toLowerCase() === 'true';
+const MOCK_DISABLED_MESSAGE = 'Online payment is not configured yet. Please try again later or contact support.';
+
+
 // Helper to fulfill purchase, enroll user, credit affiliate, and send email safely
 async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
   if (txn.status === 'success') {
@@ -88,7 +100,7 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
     return { success: true, itemTitle: product.itemTitle, user, newlyCreated, tempPassword, product };
   }
 
-  let itemTitle = 'WIDETECHNOS Academy Item';
+  let itemTitle = 'WideTech item';
 
   if (txn.itemType === 'course') {
     const course = await Course.findById(txn.itemId);
@@ -387,6 +399,9 @@ router.post('/pay', optionalAuth, async (req, res) => {
 
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';
+    if (key === 'mock_key' && !mockPaymentsAllowed()) {
+      return res.status(503).json({ message: MOCK_DISABLED_MESSAGE });
+    }
     const actionUrl = key === 'mock_key'
       ? 'mock'
       : `${process.env.PAYU_BASE_URL || 'https://test.payu.in'}/_payment`;
@@ -447,8 +462,8 @@ router.post('/response', async (req, res) => {
 
     let isHashValid = false;
     if (key === 'mock_key') {
-      // In non-production dev environments only
-      isHashValid = process.env.NODE_ENV !== 'production';
+      // Test mode only (ALLOW_MOCK_PAYMENTS=true and not production)
+      isHashValid = mockPaymentsAllowed();
     } else {
       isHashValid = verifyResponseHash(key, txnid, amount, productinfo, firstname, email, status, salt, hash);
     }
@@ -481,6 +496,9 @@ router.post('/response', async (req, res) => {
 router.post('/mock-callback', async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ message: 'Mock payment callbacks are forbidden in production environment.' });
+  }
+  if (!mockPaymentsAllowed()) {
+    return res.status(403).json({ message: 'Test payments are disabled (set ALLOW_MOCK_PAYMENTS=true in a non-production environment).' });
   }
 
   const { txnid, status } = req.body;
@@ -541,11 +559,16 @@ router.get('/my-invoices', protect, async (req, res) => {
       }
     }
 
-    if (req.query.status) {
+    if (typeof req.query.status === 'string' && /^[a-z_]{1,20}$/.test(req.query.status)) {
       query.status = req.query.status;
     }
 
-    if (isPaginated) {
+    // Purchase type filter (older course payments have no itemType).
+    const type = String(req.query.type || '');
+    if (['software', 'service', 'event'].includes(type)) query.itemType = type;
+    else if (type === 'course') query.itemType = { $in: ['course', null] };
+
+    if (isPaginated || type) {
       const total = await Transaction.countDocuments(query);
       const transactions = await Transaction.find(query)
         .sort({ createdAt: -1 })
@@ -579,17 +602,18 @@ router.get('/my-invoices', protect, async (req, res) => {
 // @access  Private
 router.get('/invoice/:txnid', protect, async (req, res) => {
   try {
+    if (typeof req.params.txnid !== 'string' || req.params.txnid.length > 80) return res.status(400).json({ message: 'Invalid invoice id' });
     const txn = await Transaction.findOne({ txnid: req.params.txnid }).populate('userId', 'name email');
     if (!txn) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
     // Check authorization: must be transaction owner or authorized .env admin
-    if (txn.userId._id.toString() !== req.user._id.toString() && !isUserAdmin(req.user)) {
+    if (String(txn.userId?._id || '') !== req.user._id.toString() && !isUserAdmin(req.user)) {
       return res.status(403).json({ message: 'Not authorized to view this invoice' });
     }
 
-    let itemTitle = 'WIDETECHNOS Course Item';
+    let itemTitle = 'WideTech course';
     if (txn.itemType === 'course') {
       const c = await Course.findById(txn.itemId);
       if (c) itemTitle = c.title;
@@ -756,6 +780,9 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
         message: 'Production configuration error: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured with live credentials in production environment.' 
       });
     }
+    if (isMock && !mockPaymentsAllowed()) {
+      return res.status(503).json({ message: MOCK_DISABLED_MESSAGE });
+    }
 
     let razorpayOrderId = `order_mock_${txnid}`;
 
@@ -865,7 +892,13 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
     }
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
-    const isMock = (process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder') === 'rzp_test_placeholder' || txn.razorpayOrderId.startsWith('order_mock_');
+    // A test order (created while no gateway key was configured) can only be completed without a
+    // gateway signature when test payments are explicitly allowed. Every other order needs the
+    // real Razorpay signature, exactly as before.
+    const isMock = String(txn.razorpayOrderId || '').startsWith('order_mock_');
+    if (isMock && !mockPaymentsAllowed()) {
+      return res.status(400).json({ success: false, message: 'Security error: Test payments are disabled on this server.' });
+    }
 
     // Proof of payment for THIS transaction: Razorpay's signature over this transaction's own
     // order id. (Checking the order id stops a signature from a different, cheaper order being
@@ -1066,6 +1099,9 @@ async function createProductOrder(req, res) {
     const isMock = key_id === 'rzp_test_placeholder' || key_id.startsWith('mock');
     if (process.env.NODE_ENV === 'production' && isMock) {
       return res.status(500).json({ message: 'Production configuration error: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured with live credentials in production environment.' });
+    }
+    if (isMock && !mockPaymentsAllowed()) {
+      return res.status(503).json({ message: MOCK_DISABLED_MESSAGE });
     }
 
     let razorpayOrderId = `order_mock_${txnid}`;

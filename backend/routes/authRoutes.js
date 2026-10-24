@@ -5,6 +5,8 @@ import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { sendRegistrationEmail, sendCustomEmail } from '../utils/mailer.js';
 import crypto from 'crypto';
+import { isValidGstin } from '../utils/gst.js';
+import { INDIAN_STATES } from '../utils/indianStates.js';
 
 import { getJwtSecret } from '../utils/jwtSecret.js';
 
@@ -231,10 +233,10 @@ router.get('/profile', protect, async (req, res) => {
   // existing profile handler stays unchanged
   try {
     const user = await User.findById(req.user._id)
-      .select('-password')
+      .select('-password -forgotPasswordOTP -forgotPasswordExpires -forgotPasswordAttempts -forgotRequestCount -forgotRequestWindow -lastForgotAttempt -tokenVersion')
       .populate('enrolledCourses.courseId')
       .populate('enrolledEvents.eventId')
-      .populate('purchasedSoftware.softwareId')
+      .populate('purchasedSoftware.softwareId', 'title slug category thumbnail shortDescription version licensingEnabled price isFree')
       .populate('purchasedServices.serviceId');
 
     if (user) {
@@ -288,7 +290,7 @@ router.post('/forgot-password', async (req, res) => {
     user.forgotRequestCount = (user.forgotRequestCount || 0) + 1;
 
     // Generate 6‑digit numeric OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     user.forgotPasswordOTP = otp;
     user.forgotPasswordExpires = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
     user.forgotPasswordAttempts = 0; // Reset failed attempts counter on new OTP
@@ -362,11 +364,108 @@ router.post('/reset-password', async (req, res) => {
     user.forgotPasswordExpires = undefined;
     user.forgotPasswordAttempts = 0;
     user.lastForgotAttempt = undefined;
+    // Sign out every existing session: whoever had the old password loses access.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.passwordChangedAt = new Date();
     await user.save();
     res.json({ message: 'Password has been reset successfully' });
   } catch (err) {
     console.error('Reset password error:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ---- Profile & security (signed-in user, own account only) ---------------------------------
+const clean = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) : undefined);
+
+// @desc    Update my billing profile (name, phone, state, GSTIN, business name, address)
+// @route   PUT /api/auth/profile
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const update = {};
+    const errors = {};
+    if (b.name !== undefined) {
+      const name = clean(b.name, 80);
+      if (!name || name.length < 2) errors.name = 'Please enter your name (at least 2 characters).';
+      else update.name = name;
+    }
+    if (b.phone !== undefined) {
+      const phone = clean(b.phone, 20) || '';
+      if (phone && !/^\+?[0-9][0-9\s-]{6,17}$/.test(phone)) errors.phone = 'Enter a valid phone number (digits only, optional +country code).';
+      else update.phone = phone;
+    }
+    if (b.state !== undefined) {
+      const state = clean(b.state, 60) || '';
+      if (state && !INDIAN_STATES.includes(state)) errors.state = 'Choose your state from the list.';
+      else update.state = state;
+    }
+    if (b.gstin !== undefined) {
+      const gstin = (clean(b.gstin, 15) || '').toUpperCase();
+      if (gstin && !isValidGstin(gstin)) errors.gstin = 'That GSTIN does not look valid. Check the 15 characters.';
+      else update.gstin = gstin;
+    }
+    if (b.businessName !== undefined) update.businessName = clean(b.businessName, 120) || '';
+    if (b.billingAddress !== undefined) update.billingAddress = clean(b.billingAddress, 300) || '';
+    if (Object.keys(errors).length) return res.status(400).json({ message: Object.values(errors)[0], errors });
+    // Only whitelisted fields are ever written, and only to the caller's own document.
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: update }, { new: true, runValidators: true })
+      .select('name email phone state gstin businessName billingAddress role');
+    res.json({ success: true, message: 'Profile saved', user });
+  } catch (error) {
+    console.error('Profile update error:', error.message);
+    res.status(500).json({ message: 'Could not save your profile' });
+  }
+});
+
+// @desc    Change my password (needs the current one); signs out other sessions
+// @route   POST /api/auth/change-password
+// @access  Private
+router.post('/change-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword) {
+      return res.status(400).json({ message: 'Enter your current and new password.' });
+    }
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      return res.status(400).json({ message: 'New password must be 8–128 characters.', errors: { newPassword: 'Use 8–128 characters.' } });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ message: 'Your current password is not correct.', errors: { currentPassword: 'Not correct.' } });
+    }
+    if (await bcrypt.compare(newPassword, user.password)) {
+      return res.status(400).json({ message: 'Choose a password different from the current one.', errors: { newPassword: 'Same as the current password.' } });
+    }
+    user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    user.passwordChangedAt = new Date();
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // other sessions are signed out
+    await user.save();
+    const token = generateToken(user._id, user.tokenVersion); // keep THIS session signed in
+    setAuthCookie(res, token);
+    res.json({ success: true, message: 'Password changed. Other devices have been signed out.', token });
+  } catch (error) {
+    console.error('Change password error:', error.message);
+    res.status(500).json({ message: 'Could not change your password' });
+  }
+});
+
+// @desc    Sign out of all devices (including this one)
+// @route   POST /api/auth/logout-all
+// @access  Private
+router.post('/logout-all', protect, async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    });
+    res.json({ success: true, message: 'Signed out of all devices' });
+  } catch (error) {
+    console.error('Logout-all error:', error.message);
+    res.status(500).json({ message: 'Could not sign out of all devices' });
   }
 });
 

@@ -29,29 +29,29 @@ const SalesBuilderModule = {
                             const config = course.salesPageConfig || {};
 
                             return `
-                                <div class="panel" style="background:#fff; border-radius:14px; padding:1.25rem; border:1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-space-between;">
+                                <div class="panel" style="background: var(--bg-card); border-radius:14px; padding:1.25rem; border:1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-space-between;">
                                     <div>
                                         <div style="position:relative; height:150px; border-radius:10px; overflow:hidden; margin-bottom:1rem;">
                                             <img src="${course.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'}" alt="${course.title}" style="width:100%; height:100%; object-fit:cover;" />
-                                            <span style="position:absolute; top:0.5rem; right:0.5rem; background:${isFree ? '#10b981' : '#6366f1'}; color:#fff; padding:0.25rem 0.65rem; border-radius:40px; font-size:0.75rem; font-weight:700;">
+                                            <span style="position:absolute; top:0.5rem; right:0.5rem; background:${isFree ? 'var(--success)' : 'var(--primary)'}; color:#fff; padding:0.25rem 0.65rem; border-radius:40px; font-size:0.75rem; font-weight:700;">
                                                 ${isFree ? 'FREE' : `₹${course.discountedPrice || course.price} (Incl. GST)`}
                                             </span>
                                         </div>
 
-                                        <h3 style="font-size:1.15rem; font-weight:700; margin:0 0 0.5rem 0; color:#0f172a;">${course.title}</h3>
-                                        <p style="font-size:0.85rem; color:#64748b; line-height:1.5; margin:0 0 1rem 0;">${course.description?.substring(0, 90)}...</p>
+                                        <h3 style="font-size:1.15rem; font-weight:700; margin:0 0 0.5rem 0; color: var(--text-main);">${course.title}</h3>
+                                        <p style="font-size:0.85rem; color: var(--text-muted); line-height:1.5; margin:0 0 1rem 0;">${course.description?.substring(0, 90)}...</p>
 
-                                        <div style="background:#f8fafc; padding:0.75rem; border-radius:8px; border:1px solid #e2e8f0; font-size:0.8rem; margin-bottom:1rem;">
+                                        <div style="background: var(--bg-secondary); padding:0.75rem; border-radius:8px; border:1px solid var(--border); font-size:0.8rem; margin-bottom:1rem;">
                                             <div style="margin-bottom:0.35rem;">
-                                                <span style="color:#64748b;">Headline:</span>
-                                                <strong style="color:#0f172a; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${config.headline || course.title}</strong>
+                                                <span style="color: var(--text-muted);">Headline:</span>
+                                                <strong style="color: var(--text-main); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${config.headline || course.title}</strong>
                                             </div>
                                             <div style="margin-bottom:0.35rem;">
-                                                <span style="color:#64748b;">Badge:</span>
-                                                <span style="color:#4f46e5; font-weight:600;">${config.badgeText || (isFree ? '🎁 FREE ENROLLMENT' : '⚡ 18% GST INCLUSIVE')}</span>
+                                                <span style="color: var(--text-muted);">Badge:</span>
+                                                <span style="color: var(--primary-text); font-weight:600;">${config.badgeText || (isFree ? '🎁 FREE ENROLLMENT' : '⚡ 18% GST INCLUSIVE')}</span>
                                             </div>
                                             <div>
-                                                <span style="color:#64748b;">CTA Button:</span>
+                                                <span style="color: var(--text-muted);">CTA Button:</span>
                                                 <span style="color:#047857; font-weight:600;">${config.ctaText || (isFree ? 'Enroll Now - Free' : 'Buy Course')}</span>
                                             </div>
                                         </div>
@@ -73,7 +73,7 @@ const SalesBuilderModule = {
             `;
         } catch (err) {
             console.error('Error rendering Sales Builder module:', err);
-            return `<div class="panel"><h3 style="color:#ef4444;">Failed to load Sales Builder</h3><p>${err.message}</p></div>`;
+            return `<div class="panel"><h3 style="color: var(--danger);">Failed to load Sales Builder</h3><p>${err.message}</p></div>`;
         }
     }
 };

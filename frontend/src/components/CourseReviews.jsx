@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import './CourseReviews.css';
+import { toast } from './Toast';
 
 export default function CourseReviews({ courseId, user }) {
   const [stats, setStats] = useState({ totalReviews: 0, avgRating: 0, distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } });
@@ -37,7 +38,7 @@ export default function CourseReviews({ courseId, user }) {
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!comment.trim()) {
-      alert('Please enter your review comment.');
+      toast.info('Please enter your review comment.');
       return;
     }
     try {
@@ -57,7 +58,7 @@ export default function CourseReviews({ courseId, user }) {
         fetchReviews();
       }
     } catch (err) {
-      alert(err.message || 'Failed to submit review');
+      toast.error(err.message || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }

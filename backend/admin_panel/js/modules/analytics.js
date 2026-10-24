@@ -56,7 +56,7 @@ window.AnalyticsModule = {
                     <p style="color:var(--text-muted);font-size:0.9rem;">Real-time visitor counts, checkout drop-off rates, and abandoned cart leads saved inside your database.</p>
                 </div>
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-secondary" style="background:rgba(255,255,255,0.08);color:#fff;" onclick="AnalyticsModule.refresh()">
+                    <button class="btn btn-secondary" style="background: var(--bg-subtle);color: var(--text-main);" onclick="AnalyticsModule.refresh()">
                         🔄 Refresh Data
                     </button>
                     <button class="btn btn-primary" onclick="AnalyticsModule.exportCsv()">
@@ -73,7 +73,7 @@ window.AnalyticsModule = {
                         <span style="font-size:1.2rem;">⚡</span>
                     </div>
                     <div style="font-size:1.9rem;font-weight:700;color:var(--text-main);margin-top:6px;">${traffic.viewsToday} <span style="font-size:0.9rem;color:var(--text-muted);font-weight:400;">views</span></div>
-                    <div style="color:#38bdf8;font-size:0.85rem;margin-top:4px;">👤 ${traffic.visitorsToday} unique visitors</div>
+                    <div style="color: var(--info);font-size:0.85rem;margin-top:4px;">👤 ${traffic.visitorsToday} unique visitors</div>
                 </div>
 
                 <div class="stat-card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
@@ -82,7 +82,7 @@ window.AnalyticsModule = {
                         <span style="font-size:1.2rem;">📈</span>
                     </div>
                     <div style="font-size:1.9rem;font-weight:700;color:var(--text-main);margin-top:6px;">${traffic.views7d} <span style="font-size:0.9rem;color:var(--text-muted);font-weight:400;">views</span></div>
-                    <div style="color:#a855f7;font-size:0.85rem;margin-top:4px;">👤 ${traffic.visitors7d} unique visitors</div>
+                    <div style="color: var(--primary-text);font-size:0.85rem;margin-top:4px;">👤 ${traffic.visitors7d} unique visitors</div>
                 </div>
 
                 <div class="stat-card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;">
@@ -90,7 +90,7 @@ window.AnalyticsModule = {
                         <span style="color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;font-weight:600;">Cart Abandonments</span>
                         <span style="font-size:1.2rem;">🛒</span>
                     </div>
-                    <div style="font-size:1.9rem;font-weight:700;color:#f87171;margin-top:6px;">${abandonedStats.totalAbandoned} <span style="font-size:0.85rem;color:var(--text-muted);font-weight:400;">leads</span></div>
+                    <div style="font-size:1.9rem;font-weight:700;color: var(--danger);margin-top:6px;">${abandonedStats.totalAbandoned} <span style="font-size:0.85rem;color:var(--text-muted);font-weight:400;">leads</span></div>
                     <div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">Potential: ₹${abandonedStats.potentialLostRevenue.toLocaleString('en-IN')}</div>
                 </div>
 
@@ -99,8 +99,8 @@ window.AnalyticsModule = {
                         <span style="color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;font-weight:600;">Recovered Orders</span>
                         <span style="font-size:1.2rem;">🎉</span>
                     </div>
-                    <div style="font-size:1.9rem;font-weight:700;color:#34d399;margin-top:6px;">${abandonedStats.totalRecovered} <span style="font-size:0.85rem;color:var(--text-muted);font-weight:400;">(${abandonedStats.recoveryRate})</span></div>
-                    <div style="color:#34d399;font-size:0.85rem;margin-top:4px;">Recovered: ₹${abandonedStats.recoveredRevenue.toLocaleString('en-IN')}</div>
+                    <div style="font-size:1.9rem;font-weight:700;color: var(--success);margin-top:6px;">${abandonedStats.totalRecovered} <span style="font-size:0.85rem;color:var(--text-muted);font-weight:400;">(${abandonedStats.recoveryRate})</span></div>
+                    <div style="color: var(--success);font-size:0.85rem;margin-top:4px;">Recovered: ₹${abandonedStats.recoveredRevenue.toLocaleString('en-IN')}</div>
                 </div>
             </div>
 
@@ -111,25 +111,25 @@ window.AnalyticsModule = {
                         <h3 style="font-size:1.15rem;font-weight:600;margin-bottom:4px;">🔍 Sales Conversion & Drop-off Funnel (Last 30 Days)</h3>
                         <p style="color:var(--text-muted);font-size:0.85rem;">See exactly where visitors leave your website before completing their purchase.</p>
                     </div>
-                    <div style="background:rgba(99,102,241,0.12);color:#818cf8;padding:6px 14px;border-radius:20px;font-weight:600;font-size:0.88rem;border:1px solid rgba(99,102,241,0.25);">
+                    <div style="background: var(--primary-soft);color: var(--primary-text);padding:6px 14px;border-radius:20px;font-weight:600;font-size:0.88rem;border:1px solid rgba(99,102,241,0.25);">
                         Overall Conversion Rate: ${funnel.overallConversionRate}
                     </div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;">
                     ${funnel.stages.map((stage, idx) => {
-                        const colors = ['#6366f1', '#38bdf8', '#a855f7', '#fbbf24', '#10b981'];
-                        const color = colors[idx] || '#6366f1';
+                        const colors = ['var(--primary)', 'var(--info)', 'var(--primary-text)', 'var(--warning)', 'var(--success)'];
+                        const color = colors[idx] || 'var(--primary)';
                         return `
-                            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px;position:relative;">
+                            <div style="background: var(--bg-subtle);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;">
                                 <div style="font-size:0.82rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">${stage.name}</div>
                                 <div style="font-size:1.8rem;font-weight:700;color:${color};margin:8px 0 4px;">${stage.count}</div>
                                 ${idx < funnel.stages.length - 1 ? `
-                                    <div style="font-size:0.82rem;color:${stage.dropOffAfter > 50 ? '#f87171' : '#fb923c'};background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;">
+                                    <div style="font-size:0.82rem;color:${stage.dropOffAfter > 50 ? 'var(--danger)' : 'var(--warning)'};background: var(--danger-soft);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;">
                                         ⚠️ ${stage.dropOffLabel}
                                     </div>
                                 ` : `
-                                    <div style="font-size:0.82rem;color:#34d399;background:rgba(16,185,129,0.1);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;">
+                                    <div style="font-size:0.82rem;color: var(--success);background: var(--success-soft);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;">
                                         ✨ Paid Students
                                     </div>
                                 `}
@@ -139,8 +139,8 @@ window.AnalyticsModule = {
                 </div>
                 ${funnel.enquiries ? `
                     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;font-size:0.85rem;color:var(--text-muted);">
-                        <span style="background:rgba(56,189,248,0.1);color:#38bdf8;padding:4px 10px;border-radius:6px;">✉️ Enquiries received: <strong>${funnel.enquiries.stored}</strong> (see Inquiries)</span>
-                        <span style="background:rgba(248,113,113,0.1);color:#f87171;padding:4px 10px;border-radius:6px;">💳 Unrecovered payment failures: <strong>${funnel.paymentFailures || 0}</strong></span>
+                        <span style="background: var(--info-soft);color: var(--info);padding:4px 10px;border-radius:6px;">✉️ Enquiries received: <strong>${funnel.enquiries.stored}</strong> (see Inquiries)</span>
+                        <span style="background:rgba(248,113,113,0.1);color: var(--danger);padding:4px 10px;border-radius:6px;">💳 Unrecovered payment failures: <strong>${funnel.paymentFailures || 0}</strong></span>
                     </div>
                 ` : ''}
             </div>
@@ -160,11 +160,11 @@ window.AnalyticsModule = {
                         </thead>
                         <tbody>
                             ${topPages && topPages.length > 0 ? topPages.map(p => `
-                                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.9rem;">
-                                    <td style="padding:12px;font-family:monospace;color:#38bdf8;">${AnalyticsModule.escapeHtml(p.path)}</td>
+                                <tr style="border-bottom:1px solid var(--border);font-size:0.9rem;">
+                                    <td style="padding:12px;font-family:monospace;color: var(--info);">${AnalyticsModule.escapeHtml(p.path)}</td>
                                     <td style="padding:12px;color:var(--text-main);">${AnalyticsModule.escapeHtml(p.pageTitle || '—')}</td>
                                     <td style="padding:12px;text-align:right;font-weight:600;">${p.views}</td>
-                                    <td style="padding:12px;text-align:right;color:#a855f7;">${p.uniqueVisitors}</td>
+                                    <td style="padding:12px;text-align:right;color: var(--primary-text);">${p.uniqueVisitors}</td>
                                 </tr>
                             `).join('') : `
                                 <tr>
@@ -190,20 +190,20 @@ window.AnalyticsModule = {
                             placeholder="Search by name, email, phone..."
                             value="${AnalyticsModule.escapeHtml(this.searchQuery)}"
                             oninput="AnalyticsModule.handleSearch(this.value)"
-                            style="padding:8px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:0.88rem;width:240px;"
+                            style="padding:8px 14px;background: var(--bg-subtle);border:1px solid var(--border);border-radius:8px;color: var(--text-main);font-size:0.88rem;width:240px;"
                         />
                     </div>
                 </div>
 
                 <!-- Filter Tabs -->
                 <div style="display:flex;gap:10px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:12px;">
-                    <button class="btn ${this.activeFilter === 'all' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'all' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('all')">
+                    <button class="btn ${this.activeFilter === 'all' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'all' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('all')">
                         All Leads (${leads.length})
                     </button>
-                    <button class="btn ${this.activeFilter === 'abandoned' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'abandoned' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('abandoned')">
+                    <button class="btn ${this.activeFilter === 'abandoned' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'abandoned' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('abandoned')">
                         ⏳ Abandoned (${abandonedStats.totalAbandoned})
                     </button>
-                    <button class="btn ${this.activeFilter === 'recovered' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'recovered' ? 'background:rgba(255,255,255,0.06);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('recovered')">
+                    <button class="btn ${this.activeFilter === 'recovered' ? 'btn-primary' : ''}" style="${this.activeFilter !== 'recovered' ? 'background: var(--bg-subtle);color:var(--text-muted);' : ''}" onclick="AnalyticsModule.setFilter('recovered')">
                         ✅ Recovered (${abandonedStats.totalRecovered})
                     </button>
                 </div>
@@ -224,10 +224,10 @@ window.AnalyticsModule = {
                         <tbody>
                             ${filteredLeads.length > 0 ? filteredLeads.map(lead => {
                                 const stepLabels = {
-                                    entered_checkout: { label: 'Reached Checkout', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
-                                    filled_contact: { label: 'Filled Contact Info', color: '#38bdf8', bg: 'rgba(56,189,248,0.1)' },
-                                    initiated_payment: { label: 'Opened Payment Modal', color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-                                    payment_failed: { label: 'Payment Gateway Failed', color: '#f87171', bg: 'rgba(248,113,113,0.1)' }
+                                    entered_checkout: { label: 'Reached Checkout', color: 'var(--text-muted)', bg: 'var(--bg-hover)' },
+                                    filled_contact: { label: 'Filled Contact Info', color: 'var(--info)', bg: 'var(--info-soft)' },
+                                    initiated_payment: { label: 'Opened Payment Modal', color: 'var(--warning)', bg: 'var(--warning-soft)' },
+                                    payment_failed: { label: 'Payment Gateway Failed', color: 'var(--danger)', bg: 'var(--danger-soft)' }
                                 };
                                 const st = stepLabels[lead.step] || stepLabels.entered_checkout;
                                 const isRecovered = lead.status === 'recovered';
@@ -236,23 +236,23 @@ window.AnalyticsModule = {
                                 const waMsg = encodeURIComponent(`Hi ${lead.buyerName || 'there'}! We noticed you started checkout for "${lead.courseTitle || 'our course'}" on WideTech Academy. Let us know if you had any questions or needed help completing your enrollment!`);
 
                                 return `
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.88rem;">
+                                    <tr style="border-bottom:1px solid var(--border);font-size:0.88rem;">
                                         <td style="padding:12px;color:var(--text-muted);white-space:nowrap;">
                                             ${Helpers.formatDate(lead.lastActiveAt || lead.createdAt)}
                                         </td>
                                         <td style="padding:12px;">
                                             <div style="font-weight:600;color:var(--text-main);">${AnalyticsModule.escapeHtml(lead.buyerName || 'Anonymous Visitor')}</div>
-                                            <div style="font-size:0.82rem;color:#94a3b8;margin-top:2px;">
-                                                ${lead.buyerEmail ? `<a href="mailto:${encodeURIComponent(lead.buyerEmail)}" style="color:#38bdf8;text-decoration:none;">📧 ${AnalyticsModule.escapeHtml(lead.buyerEmail)}</a>` : '<span style="color:#64748b;">No email entered</span>'}
+                                            <div style="font-size:0.82rem;color: var(--text-muted);margin-top:2px;">
+                                                ${lead.buyerEmail ? `<a href="mailto:${encodeURIComponent(lead.buyerEmail)}" style="color: var(--info);text-decoration:none;">📧 ${AnalyticsModule.escapeHtml(lead.buyerEmail)}</a>` : '<span style="color: var(--text-muted);">No email entered</span>'}
                                             </div>
-                                            <div style="font-size:0.82rem;color:#94a3b8;margin-top:2px;">
+                                            <div style="font-size:0.82rem;color: var(--text-muted);margin-top:2px;">
                                                 ${lead.buyerPhone ? `📞 ${AnalyticsModule.escapeHtml(lead.buyerPhone)}` : ''}
                                                 ${lead.buyerState ? ` • ${AnalyticsModule.escapeHtml(lead.buyerState)}` : ''}
                                             </div>
                                         </td>
                                         <td style="padding:12px;">
                                             <div style="font-weight:600;color:var(--text-main);">${AnalyticsModule.escapeHtml(lead.courseTitle || 'Academy Course')}</div>
-                                            <div style="font-size:0.85rem;color:#34d399;font-weight:600;margin-top:2px;">₹${(lead.amount || 0).toLocaleString('en-IN')}</div>
+                                            <div style="font-size:0.85rem;color: var(--success);font-weight:600;margin-top:2px;">₹${(lead.amount || 0).toLocaleString('en-IN')}</div>
                                         </td>
                                         <td style="padding:12px;">
                                             <span style="font-size:0.8rem;padding:4px 10px;border-radius:20px;font-weight:600;background:${st.bg};color:${st.color};display:inline-block;">
@@ -260,7 +260,7 @@ window.AnalyticsModule = {
                                             </span>
                                         </td>
                                         <td style="padding:12px;">
-                                            <span style="font-size:0.8rem;padding:4px 10px;border-radius:20px;font-weight:600;background:${isRecovered ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'};color:${isRecovered ? '#34d399' : '#f87171'};display:inline-block;">
+                                            <span style="font-size:0.8rem;padding:4px 10px;border-radius:20px;font-weight:600;background:${isRecovered ? 'var(--success-soft)' : 'var(--danger-soft)'};color:${isRecovered ? 'var(--success)' : 'var(--danger)'};display:inline-block;">
                                                 ${isRecovered ? '✅ Recovered' : '⏳ Abandoned'}
                                             </span>
                                         </td>
@@ -271,10 +271,10 @@ window.AnalyticsModule = {
                                                         💬 WhatsApp
                                                     </a>
                                                 ` : ''}
-                                                <button class="btn" style="padding:4px 8px;font-size:0.8rem;background:rgba(255,255,255,0.08);color:#fff;border-radius:6px;" onclick="AnalyticsModule.toggleStatus('${lead._id}', '${lead.status}')" title="${isRecovered ? 'Mark Abandoned' : 'Mark Recovered'}">
+                                                <button class="btn" style="padding:4px 8px;font-size:0.8rem;background: var(--bg-subtle);color: var(--text-main);border-radius:6px;" onclick="AnalyticsModule.toggleStatus('${lead._id}', '${lead.status}')" title="${isRecovered ? 'Mark Abandoned' : 'Mark Recovered'}">
                                                     ${isRecovered ? '↩️ Unrecover' : '✅ Mark Paid'}
                                                 </button>
-                                                <button class="btn" style="padding:4px 8px;font-size:0.8rem;background:rgba(239,68,68,0.15);color:#f87171;border-radius:6px;" onclick="AnalyticsModule.deleteLead('${lead._id}')" title="Delete">
+                                                <button class="btn" style="padding:4px 8px;font-size:0.8rem;background: var(--danger-soft);color: var(--danger);border-radius:6px;" onclick="AnalyticsModule.deleteLead('${lead._id}')" title="Delete">
                                                     🗑️
                                                 </button>
                                             </div>

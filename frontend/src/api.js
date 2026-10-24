@@ -29,7 +29,10 @@ const getHeaders = () => {
 const handleResponse = async (response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Something went wrong');
+    const err = new Error(errorData.message || 'Something went wrong');
+    err.status = response.status;
+    err.data = errorData; // e.g. { errors: { field: 'message' } } from profile validation
+    throw err;
   }
   return response.json();
 };
@@ -518,8 +521,9 @@ export const api = {
 
   // Verify certificate (public)
   verifyCertificate: async (certificateId) => {
-    const response = await fetch(`${BASE_URL}/certificates/verify/${certificateId}`);
-    if (!response.ok) throw new Error('Failed to verify certificate');
+    const response = await fetch(`${BASE_URL}/certificates/verify/${encodeURIComponent(certificateId)}`);
+    if (response.status === 404) return { valid: false };
+    if (!response.ok) throw new Error('Could not check this certificate right now. Please try again.');
     return response.json();
   },
 
@@ -548,6 +552,65 @@ export const api = {
   getMyServiceOrders: async () => {
     const res = await fetch(`${BASE_URL}/account/service-orders`, { headers: getHeaders() });
     return handleResponse(res);
+  },
+
+  /** Remove one device from one of my licences (frees an activation slot). */
+  deactivateLicenseDevice: async (licenseId, deviceRef) => {
+    const res = await fetch(`${BASE_URL}/account/licenses/${encodeURIComponent(licenseId)}/devices/${encodeURIComponent(deviceRef)}/deactivate`, {
+      method: 'POST', headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  /** Enquiries I sent with this account's email address. */
+  getMyEnquiries: async () => {
+    const res = await fetch(`${BASE_URL}/account/enquiries`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+
+  // ---- Profile & security ----
+  updateProfile: async (data) => {
+    const res = await fetch(`${BASE_URL}/auth/profile`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) });
+    return handleResponse(res);
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const res = await fetch(`${BASE_URL}/auth/change-password`, {
+      method: 'POST', headers: getHeaders(), body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await handleResponse(res);
+    if (data.token) localStorage.setItem('token', data.token);
+    return data;
+  },
+
+  logoutAll: async () => {
+    const res = await fetch(`${BASE_URL}/auth/logout-all`, { method: 'POST', headers: getHeaders() });
+    const data = await handleResponse(res);
+    localStorage.removeItem('token');
+    return data;
+  },
+
+  /**
+   * Download a purchased/licensed software package. The file is fetched with my login token
+   * (so the protected URL never works for anyone else) and saved through a temporary link.
+   */
+  downloadSoftware: async (softwareId, fallbackName = 'download') => {
+    const res = await fetch(`${BASE_URL}/software/${encodeURIComponent(softwareId)}/download?format=json`, { headers: getHeaders() });
+    if (!res.ok) await handleResponse(res);
+    const type = res.headers.get('content-type') || '';
+    if (type.includes('application/json')) {
+      const data = await res.json();
+      if (data.url) { window.open(data.url, '_blank', 'noopener'); return; }
+      throw new Error(data.message || 'Download is not available yet.');
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('content-disposition') || '';
+    const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    const name = m ? decodeURIComponent(m[1]) : fallbackName;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
   },
 
   /** Public trial download link for software with a free trial. */

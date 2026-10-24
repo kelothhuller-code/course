@@ -11,6 +11,7 @@ import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import { buildBuyingFaqs } from '../config/faqs';
 import tracker from '../utils/tracker';
 import './CourseSalesPage.css';
+import { toast } from '../components/Toast';
 
 export default function CourseSalesPage({ user }) {
   const { id } = useParams();
@@ -42,7 +43,7 @@ export default function CourseSalesPage({ user }) {
             }
           });
         } catch (e2) {
-          alert('Course sales page not found');
+          toast.error('Course sales page not found');
           navigate('/all-courses');
         }
       } finally {
@@ -88,7 +89,7 @@ export default function CourseSalesPage({ user }) {
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
-    alert('🔗 Dedicated Sale Page link copied to clipboard!');
+    toast.success('🔗 Dedicated Sale Page link copied to clipboard!');
   };
 
   // Per-course title/description/share image + Course structured data built from the real course record

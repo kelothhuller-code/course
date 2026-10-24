@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api';
+import { toast } from '../../components/Toast';
 
 const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
@@ -106,7 +107,7 @@ export default function GstReportTab() {
         a.click();
         a.remove();
       })
-      .catch(err => alert('Failed to export CSV: ' + err.message));
+      .catch(err => toast.error('Failed to export CSV: ' + err.message));
   };
 
   const handleSaveSettings = async (e) => {
@@ -143,7 +144,7 @@ export default function GstReportTab() {
         reason: refundReason,
         refundAmount: refundAmountInput ? Number(refundAmountInput) : undefined
       });
-      alert(res.message || 'Refund successfully processed and Credit Note generated!');
+      toast.success(res.message || 'Refund successfully processed and Credit Note generated!');
       setRefundModalTxn(null);
       fetchReport();
     } catch (err) {

@@ -21,3 +21,7 @@ backend/public/uploads/*
 !backend/public/uploads/*/.gitkeep
 backend/private_storage/**
 !backend/private_storage/**/.gitkeep
+
+# Tooling caches
+coverage/
+.vite/

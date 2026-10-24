@@ -6,8 +6,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
 import tracker from '../utils/tracker';
 import { countChapters, SUPPORT_EMAIL } from '../config/site';
-import { previewGst } from '../utils/gst';
+import { previewGst, money } from '../utils/gst';
 import './Checkout.css';
+import { toast } from '../components/Toast';
 
 const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
@@ -426,7 +427,7 @@ export default function Checkout({ user, onRefreshUser }) {
                   if (onRefreshUser) onRefreshUser();
                   navigate('/dashboard');
                 } catch (err) {
-                  alert(err.message);
+                  toast.error(err.message);
                 }
               }}
             >
@@ -819,11 +820,12 @@ export default function Checkout({ user, onRefreshUser }) {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span>Amount</span>
-                    <span style={{ fontWeight: 'bold' }}>₹{paymentData?.amount}</span>
+                    {/* Razorpay order amounts are in paise; show rupees. */}
+                    <span style={{ fontWeight: 'bold' }}>{money((paymentData?.amount || 0) / 100)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span>Item</span>
-                    <span>{paymentData?.productinfo}</span>
+                    <span>{paymentData?.itemTitle || paymentData?.productinfo}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Transaction ID</span>

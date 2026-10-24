@@ -1,6 +1,7 @@
 import express from 'express';
 import { getOrInitGstConfig } from './gstRoutes.js';
 import crypto from 'crypto';
+import License from '../models/License.js';
 import Software from '../models/Software.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
@@ -174,7 +175,7 @@ router.post('/:id/unlock', authenticateToken, async (req, res) => {
 });
 
 /** Streams the uploaded package (private storage first) or redirects to the external link. Returns false if none. */
-const sendPackage = (res, software) => {
+const sendPackage = (res, software, { json = false } = {}) => {
   const privateDir = path.join(__dirname, '..', 'private_storage', 'software');
   const safeBaseName = (name) => path.basename(name);
 
@@ -206,7 +207,10 @@ const sendPackage = (res, software) => {
         return true;
       }
     }
-    res.redirect(software.downloadUrl);
+    // An external package URL: the dashboard fetches downloads with the login token, so it asks
+    // for JSON (?format=json) and opens the URL itself instead of following a cross-site redirect.
+    if (json) res.json({ success: true, url: software.downloadUrl });
+    else res.redirect(software.downloadUrl);
     return true;
   }
 
@@ -233,6 +237,7 @@ router.get('/:id/trial-download', async (req, res) => {
 // GET download software package file from server folder (Protected: Requires Purchase, Admin, or Free)
 router.get('/:id/download', authenticateToken, async (req, res) => {
   try {
+    if (!isValidObjectId(String(req.params.id))) return res.status(400).json({ success: false, message: 'Invalid id' });
     const software = await Software.findById(req.params.id);
     if (!software) {
       return res.status(404).json({ success: false, message: 'Software product not found' });
@@ -246,14 +251,25 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
       p => p.softwareId?.toString() === software._id.toString() && p.status !== 'enquired'
     );
 
-    if (!isAdmin && !isFree && !isPurchased) {
+    // Licence holders may download too.
+    const hasLicense = !isAdmin && !isFree && !isPurchased && await License.exists({
+      software: software._id,
+      revoked: false,
+      // Same rule as the dashboard: email-only licences count if issued after the account existed.
+      $or: [
+        { userId: user._id },
+        { email: String(user.email || '').toLowerCase(), createdAt: { $gte: user.createdAt ? new Date(user.createdAt) : new Date() } },
+      ],
+    });
+
+    if (!isAdmin && !isFree && !isPurchased && !hasLicense) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: You must purchase or unlock this software product before downloading.'
       });
     }
 
-    if (sendPackage(res, software)) return undefined;
+    if (sendPackage(res, software, { json: req.query.format === 'json' })) return undefined;
 
     res.status(404).json({ success: false, message: 'Software download package not configured on server' });
   } catch (err) {

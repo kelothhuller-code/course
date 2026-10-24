@@ -1,108 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import Icon from '../components/Icon';
+import NavHeader from './NavHeader';
+import { SITE_NAME } from '../config/site';
+import { ScaledCertificate } from '../components/certificate/CertificateTools';
+import './CertificateVerify.css';
 
-export default function CertificateVerify() {
-  const { certificateId } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [certificate, setCertificate] = useState(null);
-  const [error, setError] = useState(null);
+const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+
+/** Public page behind the certificate QR code: /verify/:certificateId (old /certificate/verify/:id too). */
+export default function CertificateVerify({ user }) {
+  const { certificateId = '' } = useParams();
+  const [state, setState] = useState({ loading: true, cert: null, error: '' });
+  // Reset to the loading state when the ID in the URL changes (during render, not in the effect).
+  const [shownId, setShownId] = useState(certificateId);
+  if (shownId !== certificateId) {
+    setShownId(certificateId);
+    setState({ loading: true, cert: null, error: '' });
+  }
 
   useEffect(() => {
-    const verify = async () => {
-      try {
-        const data = await api.verifyCertificate(certificateId);
-        if (data.valid) {
-          setCertificate(data.certificate);
-        } else {
-          setError('Certificate not found or invalid');
-        }
-      } catch (err) {
-        setError(err.message || 'Failed to verify certificate');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    verify();
+    let alive = true;
+    document.title = `Verify certificate · ${SITE_NAME}`;
+    api.verifyCertificate(certificateId)
+      .then((d) => alive && setState({ loading: false, cert: d.valid ? d.certificate : null, error: '' }))
+      .catch((e) => alive && setState({ loading: false, cert: null, error: e.message || 'Could not check this certificate right now.' }));
+    return () => { alive = false; };
   }, [certificateId]);
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <div className="logo-text" style={{ animation: 'pulse 1.5s infinite' }}>VERIFYING CERTIFICATE...</div>
-      </div>
-    );
-  }
-
-  if (error || !certificate) {
-    return (
-      <div className="container" style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', maxWidth: '500px' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❌</div>
-          <h2>Invalid Certificate</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>{error || 'This certificate could not be verified.'}</p>
-        </div>
-      </div>
-    );
-  }
-
+  const { loading, cert, error } = state;
   return (
-    <div className="container" style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem 0' }}>
-      <div className="glass-card" style={{ padding: '3rem', maxWidth: '700px', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '4rem' }}>🎓</div>
-          <h1 style={{ color: 'var(--primary)' }}>Verified Certificate</h1>
-          <p style={{ color: 'var(--text-muted)' }}>This certificate is valid and officially issued</p>
-        </div>
-
-        <div className="certificate-card" style={{
-          padding: '2rem',
-          background: 'linear-gradient(135deg, #1a1a2e, #2d1b4e)',
-          borderRadius: 'var(--radius-lg)',
-          color: '#fff',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-            WIDETECH ACADEMY
+    <div className="cv-page">
+      <NavHeader user={user} />
+      <div className="cv-wrap">
+        {loading ? (
+          <div className="cv-card" aria-busy="true">
+            <div className="wt-skeleton" style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto' }} />
+            <div className="wt-skeleton wt-skeleton--title" style={{ margin: '1rem auto 0', width: '50%' }} />
+            <div className="wt-skeleton wt-skeleton--text" style={{ margin: '0.5rem auto 0', width: '70%' }} />
           </div>
-          <div style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '1.5rem' }}>
-            Certificate of Accomplishment
+        ) : error ? (
+          <div className="cv-card cv-card--warn" role="alert">
+            <span className="cv-badge cv-badge--warn"><Icon name="alert-triangle" size={30} /></span>
+            <h1>We could not check this certificate</h1>
+            <p>{error}</p>
+            <button type="button" className="wt-btn wt-btn--secondary" onClick={() => window.location.reload()}><Icon name="refresh" size={18} />Try again</button>
           </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>This is proudly presented to</div>
-            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#c084fc', margin: '0.25rem 0' }}>
-              {certificate.userName}
+        ) : !cert ? (
+          <div className="cv-card cv-card--bad">
+            <span className="cv-badge cv-badge--bad"><Icon name="close" size={32} strokeWidth={2.4} /></span>
+            <h1>Certificate not found</h1>
+            <p>No {SITE_NAME} certificate has the ID <code>{certificateId.slice(0, 40)}</code>. Check that the ID was typed exactly as printed (letters and numbers, with dashes).</p>
+            <p className="cv-muted">If you received this certificate from someone, ask them for the verification link from their {SITE_NAME} dashboard.</p>
+            <Link to="/" className="wt-btn wt-btn--primary">Go to {SITE_NAME}</Link>
+          </div>
+        ) : (
+          <>
+            <div className="cv-card cv-card--ok">
+              <span className="cv-badge cv-badge--ok"><Icon name="check" size={34} strokeWidth={2.6} /></span>
+              <p className="cv-eyebrow">Genuine certificate</p>
+              <h1>{cert.userName}</h1>
+              <p className="cv-lead">completed <strong>{cert.courseTitle}</strong></p>
+              <dl className="cv-facts">
+                <div><dt>Issued by</dt><dd>{cert.issuer || SITE_NAME}</dd></div>
+                <div><dt>Date of completion</dt><dd>{fmt(cert.issuedAt)}</dd></div>
+                {cert.modules ? <div><dt>Modules</dt><dd>{cert.modules}</dd></div> : null}
+                {cert.durationLabel ? <div><dt>Course length</dt><dd>{cert.durationLabel}</dd></div> : null}
+                <div className="cv-fact--wide"><dt>Certificate ID</dt><dd className="cv-mono">{cert.id}</dd></div>
+              </dl>
+              {cert.legacyId && <p className="cv-muted cv-small">This is an earlier certificate ID. The name is partly hidden for privacy; the holder can share the current link from their dashboard.</p>}
+              <p className="cv-muted cv-small">This page confirms that {SITE_NAME} issued this certificate after the learner completed the course on {SITE_NAME}.</p>
             </div>
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>for completing</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0.25rem 0' }}>
-              {certificate.courseTitle}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-            <div>
-              <div>Issued: {new Date(certificate.issuedAt).toLocaleDateString()}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div>ID: {certificate.id}</div>
-              <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>Verified ✓</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            Verify this certificate at {window.location.origin}/certificate/verify/{certificate.id}
-          </p>
-          <button className="btn btn-primary" onClick={() => window.print()}>
-            🖨️ Print Certificate
-          </button>
-        </div>
+            {!cert.legacyId && (
+              <div className="cv-preview" aria-label="Certificate preview">
+                <ScaledCertificate certificate={{ ...cert, certificateId: cert.id }} />
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

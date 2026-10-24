@@ -27,15 +27,18 @@ const createTransporter = () => {
   });
 };
 
+// User-controlled values (names, titles) are HTML-escaped before going into email HTML.
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const FROM_NAME = process.env.SMTP_FROM_NAME || 'WideTech';
+
 export const getEmailBrandHeader = () => {
   const logoUrl = process.env.APP_LOGO_URL || '';
   return `
     <div style="text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
       <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}" target="_blank" style="text-decoration: none; display: inline-block;">
-        ${logoUrl ? `<img src="${logoUrl}" alt="WIDETECHNOS Academy" style="max-height: 48px; max-width: 200px; display: block; margin: 0 auto 10px auto;" />` : ''}
+        ${logoUrl ? `<img src="${logoUrl}" alt="WideTech" style="max-height: 48px; max-width: 200px; display: block; margin: 0 auto 10px auto;" />` : ''}
         <div style="display: inline-block; text-align: center;">
-          <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">WIDETECHNOS</span>
-          <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #8b5cf6; background: #f3e8ff; padding: 3px 8px; border-radius: 6px; margin-left: 6px; vertical-align: middle; letter-spacing: 1px;">ACADEMY</span>
+          <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">WideTech</span>
         </div>
       </a>
     </div>
@@ -46,8 +49,8 @@ export const getEmailBrandFooter = () => {
   return `
     <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
     <div style="font-family: sans-serif; font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.6;">
-      <p style="margin: 0 0 6px 0;"><strong>WIDETECHNOS Academy</strong> • Vision by Instagram @widetechai</p>
-      <p style="margin: 0;">Visit our platform at <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}" style="color: #6366f1; text-decoration: none;">widetech.in</a> | Building 1,000 AI Job Opportunities by 2027</p>
+      <p style="margin: 0 0 6px 0;"><strong>WideTech</strong> · Courses, software and services</p>
+      <p style="margin: 0;"><a href="${process.env.FRONTEND_URL || 'https://widetech.in'}" style="color: #4338ca; text-decoration: none;">widetech.in</a></p>
     </div>
   `;
 };
@@ -55,18 +58,18 @@ export const getEmailBrandFooter = () => {
 export const sendRegistrationEmail = async (email, name) => {
   const transporter = createTransporter();
   const mailOptions = {
-    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    from: `"${FROM_NAME}" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
     to: email,
-    subject: 'Welcome to WIDETECHNOS AI Academy!',
+    subject: 'Welcome to WideTech',
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
         ${getEmailBrandHeader()}
-        <h2 style="color: #8b5cf6; margin-top: 0;">Welcome to WIDETECHNOS, ${name}!</h2>
-        <p style="color: #334155; line-height: 1.6;">Thank you for registering at our AI Academy. We are thrilled to guide you on your journey to mastering Generative AI!</p>
-        <p style="color: #334155; line-height: 1.6;">Our vision is to build <strong>1,000 job opportunities by the end of 2027</strong> under the direction of Instagram founder <strong>@widetechai</strong>. We want to empower everyone from age 10 to older adults to build websites, mobile apps, software, and games with AI.</p>
+        <h2 style="color: #4338ca; margin-top: 0;">Welcome to WideTech, ${esc(name)}!</h2>
+        <p style="color: #334155; line-height: 1.6;">Thanks for creating your account. You can now sign in to your dashboard to see your courses, software licences, service orders and GST invoices in one place.</p>
+        <p style="color: #334155; line-height: 1.6;">If you have a question about a course, a software product or a service, just reply to this email or use the contact form on the website.</p>
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}/#courses" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-weight: 600; display: inline-block;">
-            Explore Courses & Start Learning →
+          <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}/all-courses" style="background: #4338ca; color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-weight: 600; display: inline-block;">
+            Explore WideTech →
           </a>
         </div>
         ${getEmailBrandFooter()}
@@ -85,22 +88,22 @@ export const sendRegistrationEmail = async (email, name) => {
 export const sendPurchaseEmail = async (email, name, itemTitle, txnid, amount) => {
   const transporter = createTransporter();
   const mailOptions = {
-    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    from: `"${FROM_NAME}" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
     to: email,
     subject: `Invoice: Enrollment Complete for ${itemTitle}`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
         ${getEmailBrandHeader()}
         <h2 style="color: #06b6d4; margin-top: 0;">Enrollment Confirmed!</h2>
-        <p style="color: #334155; line-height: 1.6;">Hello ${name},</p>
-        <p style="color: #334155; line-height: 1.6;">We have successfully processed your payment of <strong>₹${amount}</strong>. You now have full access to <strong>${itemTitle}</strong>.</p>
+        <p style="color: #334155; line-height: 1.6;">Hello ${esc(name)},</p>
+        <p style="color: #334155; line-height: 1.6;">We have successfully processed your payment of <strong>₹${amount}</strong>. You now have full access to <strong>${esc(itemTitle)}</strong>.</p>
         
         <div style="background-color: #f8fafc; padding: 18px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
           <h4 style="margin: 0 0 12px 0; color: #1e293b;">Order Receipt Details:</h4>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <tr>
               <td style="color: #64748b; padding: 6px 0;">Item Name:</td>
-              <td style="text-align: right; font-weight: bold; color: #1e293b;">${itemTitle}</td>
+              <td style="text-align: right; font-weight: bold; color: #1e293b;">${esc(itemTitle)}</td>
             </tr>
             <tr>
               <td style="color: #64748b; padding: 6px 0;">Transaction ID:</td>
@@ -118,7 +121,7 @@ export const sendPurchaseEmail = async (email, name, itemTitle, txnid, amount) =
         </div>
 
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}/#dashboard" style="background: linear-gradient(135deg, #06b6d4, #0284c7); color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-weight: 600; display: inline-block;">
+          <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}/dashboard" style="background: linear-gradient(135deg, #06b6d4, #0284c7); color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-weight: 600; display: inline-block;">
             Go to Your Dashboard →
           </a>
         </div>
@@ -139,23 +142,23 @@ export const sendAccountCreatedWithPurchaseEmail = async (email, name, itemTitle
   const transporter = createTransporter();
   const frontendUrl = process.env.FRONTEND_URL || 'https://widetech.in';
   const mailOptions = {
-    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    from: `"${FROM_NAME}" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
     to: email,
     subject: `Your Account Details & Enrollment Confirmation for ${itemTitle}`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
         ${getEmailBrandHeader()}
-        <h2 style="color: #4f46e5; margin-top: 0;">Welcome to WIDETECHNOS Academy! 🎉</h2>
-        <p style="color: #334155; line-height: 1.6;">Hello <strong>${name}</strong>,</p>
+        <h2 style="color: #4f46e5; margin-top: 0;">Welcome to WideTech! 🎉</h2>
+        <p style="color: #334155; line-height: 1.6;">Hello <strong>${esc(name)}</strong>,</p>
         <p style="color: #334155; line-height: 1.6;">
-          Thank you for your purchase of <strong>₹${amount}</strong>! Your enrollment in <strong>${itemTitle}</strong> is active and ready.
+          Thank you for your purchase of <strong>₹${amount}</strong>! Your enrollment in <strong>${esc(itemTitle)}</strong> is active and ready.
         </p>
         
         <!-- Account Credentials Box -->
         <div style="background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%); border: 1px solid #c7d2fe; border-radius: 12px; padding: 20px; margin: 22px 0;">
           <h3 style="color: #3730a3; margin: 0 0 12px 0; font-size: 1.05rem;">🔑 Your New Account Credentials</h3>
           <p style="color: #4338ca; font-size: 0.88rem; margin: 0 0 12px 0; line-height: 1.5;">
-            An account has been automatically created so you can access your purchased courses anytime from any device.
+            An account has been automatically created so you can access your purchases anytime from any device.
           </p>
           <div style="background: #ffffff; border-radius: 8px; padding: 12px 16px; border: 1px solid #e0e7ff; margin-bottom: 8px;">
             <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 4px;">Registered Email / Username:</div>
@@ -176,7 +179,7 @@ export const sendAccountCreatedWithPurchaseEmail = async (email, name, itemTitle
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <tr>
               <td style="color: #64748b; padding: 6px 0;">Item Name:</td>
-              <td style="text-align: right; font-weight: bold; color: #1e293b;">${itemTitle}</td>
+              <td style="text-align: right; font-weight: bold; color: #1e293b;">${esc(itemTitle)}</td>
             </tr>
             <tr>
               <td style="color: #64748b; padding: 6px 0;">Transaction ID:</td>
@@ -191,7 +194,7 @@ export const sendAccountCreatedWithPurchaseEmail = async (email, name, itemTitle
 
         <div style="text-align: center; margin: 28px 0 14px 0;">
           <a href="${frontendUrl}/dashboard" style="background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-            Access Your Course & Dashboard →
+            Go to your dashboard →
           </a>
         </div>
 
@@ -222,7 +225,7 @@ export const sendCustomEmail = async (toOrOptions, subjectArg, textArg, htmlArg)
   }
   const transporter = createTransporter();
   const mailOptions = {
-    from: `"WIDETECHNOS Academy" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
+    from: `"${FROM_NAME}" <${process.env.SMTP_FROM || 'noreply@widetechnos.com'}>`,
     to,
     subject,
     ...(replyTo ? { replyTo } : {}),

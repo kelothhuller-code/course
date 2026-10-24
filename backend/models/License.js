@@ -34,6 +34,8 @@ const LicenseSchema = new mongoose.Schema({
   revokedReason: { type: String, default: '' },
   notes: { type: String, default: '' },
   lastValidatedAt: { type: Date },
+  // Times the buyer removed a computer from the dashboard (limited per 30 days, see accountRouter).
+  selfDeactivations: [{ type: Date }],
 }, { timestamps: true });
 
 export default mongoose.model('License', LicenseSchema);

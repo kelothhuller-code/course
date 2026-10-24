@@ -6,9 +6,9 @@ import { isUserAdmin } from '../middleware/auth.js';
 // Get comments for a lesson
 export const getComments = async (req, res) => {
   try {
-    console.log('sdsdsd')
     const { courseId, lessonId } = req.params;
-    const { page = 1, limit = 20 } = req.query;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
 
     const skip = (page - 1) * limit;
 
@@ -170,6 +170,9 @@ export const updateComment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to edit this comment' });
     }
 
+    if (typeof text !== 'string' || !text.trim() || text.length > 5000) {
+      return res.status(400).json({ success: false, message: 'Comment text is required (max 5000 characters)' });
+    }
     comment.text = text.trim();
     await comment.save();
 
@@ -236,6 +239,13 @@ export const toggleLike = async (req, res) => {
     const comment = await Comment.findById(commentId);
     if (!comment) {
       return res.status(404).json({ success: false, message: 'Comment not found' });
+    }
+
+    // Only people who can see the discussion (enrolled, free course, or admin) may like in it
+    const [user, course] = await Promise.all([User.findById(userId), Course.findById(comment.courseId)]);
+    const enrolled = user?.enrolledCourses?.some((c) => c.courseId?.toString() === String(comment.courseId));
+    if (!isUserAdmin(user) && !enrolled && !(course && (course.price === 0 || course.isFree))) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
     const likeIndex = comment.likes.indexOf(userId);

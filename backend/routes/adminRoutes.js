@@ -705,14 +705,14 @@ router.post('/send-email', async (req, res) => {
             text: message,
             html: `
               <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
-                <h2 style="color:#4f46e5;margin-top:0;">WIDETECHNOS Academy</h2>
+                <h2 style="color:#4f46e5;margin-top:0;">WideTech</h2>
                 <p>Hello ${u.name || 'Student'},</p>
                 <div style="font-size:15px;line-height:1.6;color:#334155;margin:16px 0;">
                   ${message.replace(/\n/g, '<br>')}
                 </div>
                 <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;" />
                 <p style="font-size:12px;color:#94a3b8;margin:0;">
-                  Sent from WIDETECHNOS Academy Admin Portal. If you have questions, reply directly to this email or visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
+                  Sent from WideTech Admin Portal. If you have questions, reply directly to this email or visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
                 </p>
               </div>
             `
@@ -739,13 +739,13 @@ router.post('/send-email', async (req, res) => {
       text: message,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
-          <h2 style="color:#4f46e5;margin-top:0;">WIDETECHNOS Academy</h2>
+          <h2 style="color:#4f46e5;margin-top:0;">WideTech</h2>
           <div style="font-size:15px;line-height:1.6;color:#334155;margin:16px 0;">
             ${message.replace(/\n/g, '<br>')}
           </div>
           <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;" />
           <p style="font-size:12px;color:#94a3b8;margin:0;">
-            Sent from WIDETECHNOS Academy Support. Visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
+            Sent from WideTech Support. Visit <a href="${process.env.FRONTEND_URL || 'https://widetech.in'}">widetech.in</a>.
           </p>
         </div>
       `
@@ -783,12 +783,12 @@ router.post('/test-smtp', async (req, res) => {
 
     const info = await sendCustomEmail({
       to: testEmail,
-      subject: '✅ SMTP Test: WIDETECHNOS Academy Mailer is Working!',
+      subject: '✅ SMTP Test: WideTech Mailer is Working!',
       text: 'Congratulations! Your SMTP configuration is working properly.',
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
           <h2 style="color:#10b981;margin-top:0;">🎉 SMTP Connection Successful!</h2>
-          <p>This is a test email sent from your <strong>WIDETECHNOS Academy</strong> backend.</p>
+          <p>This is a test email sent from your <strong>WideTech</strong> backend.</p>
           <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;font-family:monospace;font-size:13px;margin:16px 0;">
             SMTP Host: ${process.env.SMTP_HOST || 'default'}<br />
             SMTP Port: ${process.env.SMTP_PORT || '587'}<br />
