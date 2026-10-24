@@ -295,11 +295,13 @@ CatalogAdmin.register({
             <input type="hidden" id="sw-download-url" value="${CatalogAdmin.esc(item?.downloadUrl || '')}">
             <input type="hidden" id="sw-file-name" value="${CatalogAdmin.esc(item?.fileName || '')}">
             <input type="hidden" id="sw-file-size" value="${CatalogAdmin.esc(item?.fileSize || '')}">
-        </fieldset>`,
+        </fieldset>
+        ${LicAdmin.softwareExtra(item)}`,
     extraPayload: () => ({
         downloadUrl: document.getElementById('sw-download-url')?.value || '',
         fileName: document.getElementById('sw-file-name')?.value || '',
         fileSize: document.getElementById('sw-file-size')?.value || '',
+        ...LicAdmin.softwareRead(),
     }),
     fields: [
         { name: 'title', label: 'Name', required: true, maxlength: 120 },
@@ -310,9 +312,9 @@ CatalogAdmin.register({
         { name: 'thumbnail', label: 'Cover image', type: 'image' },
         { name: 'images', label: 'Screenshots (one URL per line)', type: 'images', rows: 3 },
         { name: 'pricingType', label: 'Pricing type', type: 'select', default: 'one_time', options: [['one_time', 'One-time price'], ['subscription_monthly', 'Subscription — per month'], ['subscription_yearly', 'Subscription — per year'], ['starting_from', 'Starting from'], ['quote', 'Contact for quote']] },
-        { name: 'price', label: 'Price (₹, incl. GST)', type: 'number', min: 0, step: 1, help: 'Ignored for “Contact for quote”.' },
+        { name: 'price', label: 'Price (₹)', type: 'number', min: 0, step: 1, help: 'Shown as the headline price. Not needed when you sell licence plans (set them below). Ignored for “Contact for quote”.' },
         { name: 'discountedPrice', label: 'Offer price (optional)', type: 'number', min: 0, step: 1, help: 'Only if you really sell it lower than the price above.' },
-        { name: 'ctaType', label: 'Main button', type: 'select', default: 'enquire', options: [['buy', 'Buy now'], ['demo', 'Request demo'], ['enquire', 'Enquire']], help: '“Buy now” opens the enquiry form with this product preselected (online payment for software is not enabled yet).' },
+        { name: 'ctaType', label: 'Main button', type: 'select', default: 'enquire', options: [['buy', 'Buy now'], ['demo', 'Request demo'], ['enquire', 'Enquire']], help: 'Used when online licensing (below) is off: “Buy now” then opens the enquiry form with this product preselected. With licensing on, the page shows your plans with Buy buttons and a free-trial button.' },
         { name: 'demoUrl', label: 'Demo link (optional)', placeholder: 'https://…' },
         { name: 'documentationUrl', label: 'Docs link (optional)', placeholder: 'https://…' },
         { name: 'category', label: 'Category', placeholder: 'Pick or type', help: 'Manage the list under Categories.' },
@@ -335,6 +337,8 @@ CatalogAdmin.register({
     heading: 'Services',
     subheading: 'Business administration, automation, custom software — add, edit, reorder and hide your services. Changes appear on /services and the home page immediately.',
     addLabel: '+ Add service',
+    formExtra: (item) => LicAdmin.serviceExtra(item),
+    extraPayload: () => LicAdmin.serviceRead(),
     fields: [
         { name: 'title', label: 'Name', required: true, maxlength: 120 },
         { name: 'slug', label: 'URL slug', placeholder: 'auto from name', help: 'Page address: /services/<slug>. Leave empty to generate.' },
@@ -343,7 +347,7 @@ CatalogAdmin.register({
         { name: 'deliverables', label: 'Deliverables (one per line)', type: 'list', wide: true, rows: 5 },
         { name: 'processSteps', label: 'Process steps (one per line: Title | short description)', type: 'steps', wide: true, rows: 5, placeholder: 'Discovery call | We understand your workflow\nProposal | Scope, timeline and price\nBuild | …' },
         { name: 'pricingType', label: 'Pricing type', type: 'select', default: 'quote', options: [['fixed', 'Fixed price'], ['starting_from', 'Starting from'], ['quote', 'Quote on request']] },
-        { name: 'startingPrice', label: 'Price (₹)', type: 'number', min: 0, step: 1, help: 'Ignored for “Quote on request”.' },
+        { name: 'startingPrice', label: 'Price (₹)', type: 'number', min: 0, step: 1, help: 'The “Buy now” price for a fixed-price service without packages. Ignored for quote-only services.' },
         { name: 'ctaType', label: 'Main button', type: 'select', default: 'enquire', options: [['book_call', 'Book a call'], ['quote', 'Get a quote'], ['enquire', 'Enquire']] },
         { name: 'icon', label: 'Icon', type: 'select', default: 'briefcase', options: [['briefcase', 'Briefcase (administration)'], ['automation', 'Automation'], ['code', 'Code (custom software)'], ['chart', 'Chart (growth)'], ['support', 'Support'], ['cloud', 'Cloud'], ['document', 'Document'], ['spark', 'Spark']] },
         { name: 'thumbnail', label: 'Image (optional)', type: 'image' },

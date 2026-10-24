@@ -5,6 +5,16 @@ const TransactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   itemType: { type: String, enum: ['course', 'event', 'software', 'service'], required: true },
   itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  // Software plan / service package bought (empty for courses and events)
+  variantId: { type: mongoose.Schema.Types.ObjectId },
+  variantName: { type: String },
+  itemTitle: { type: String },
+  renewLicenseId: { type: mongoose.Schema.Types.ObjectId }, // set when this payment renews a licence
+  listPrice: { type: Number }, // price before GST for exclusive items (amount is always what was charged)
+  variantSnapshot: { type: Object }, // plan/package terms at the time of purchase (billing, days, devices…)
+  productFulfilledAt: { type: Date }, // set once a licence / service order has been created for this payment
+  licenseId: { type: mongoose.Schema.Types.ObjectId },
+  serviceOrderId: { type: mongoose.Schema.Types.ObjectId },
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'success', 'failed', 'refunded'], default: 'pending' },
   couponCode: { type: String },

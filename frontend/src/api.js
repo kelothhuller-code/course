@@ -539,6 +539,20 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Software licences + service orders (logged-in buyer)
+  getMyLicenses: async () => {
+    const res = await fetch(`${BASE_URL}/account/licenses`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+
+  getMyServiceOrders: async () => {
+    const res = await fetch(`${BASE_URL}/account/service-orders`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+
+  /** Public trial download link for software with a free trial. */
+  trialDownloadUrl: (softwareId) => `${BASE_URL}/software/${encodeURIComponent(softwareId)}/trial-download`,
+
   getSoftwareList: async (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null)).toString();
     const res = await fetch(`${BASE_URL}/software${q ? `?${q}` : ''}`);

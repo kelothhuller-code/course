@@ -102,6 +102,10 @@ export default function GstInvoiceModal({ txnid, onClose }) {
 
   if (!txnid) return null;
 
+  // Software/service invoices: HSN/SAC is blank until the owner sets one (never guessed)
+  const isProduct = ['software', 'service'].includes(invoiceData?.itemType);
+  const gstRate = Number(invoiceData?.gstDetails?.rate) || 18;
+
   return (
     <div 
       className="invoice-modal-backdrop" 
@@ -319,14 +323,14 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                   fontWeight: 700
                 }}>
                   <span>ITEM SPECIFICATION</span>
-                  <span>SAC: {invoiceData.gstDetails?.hsnSacCode || '999249'}</span>
+                  <span>{isProduct ? 'HSN/SAC' : 'SAC'}: {invoiceData.gstDetails?.hsnSacCode || (isProduct ? '—' : '999249')}</span>
                 </div>
                 <div style={{ padding: '0.75rem' }}>
                   <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem', marginBottom: '0.2rem' }}>
                     {invoiceData.itemTitle}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.6rem' }}>
-                    Online Educational & Technology Program (SAC 999249)
+                    {invoiceData.itemType === 'software' ? 'Software licence' : invoiceData.itemType === 'service' ? 'Professional service' : 'Online Educational & Technology Program (SAC 999249)'}
                   </div>
                   
                   <div style={{
@@ -346,7 +350,7 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                     </div>
                     <div>
                       <span style={{ color: '#64748b', fontSize: '0.75rem' }}>GST Rate: </span>
-                      <strong>{invoiceData.gstDetails?.rate || 18}%</strong>
+                      <strong>{gstRate}%</strong>
                     </div>
                     <div>
                       <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Amount: </span>
@@ -379,23 +383,23 @@ export default function GstInvoiceModal({ txnid, onClose }) {
                   {invoiceData.gstDetails?.isIntraState ? (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                        <span>CGST (9%):</span>
+                        <span>CGST ({gstRate / 2}%):</span>
                         <span>₹{invoiceData.gstDetails?.cgstAmount?.toFixed(2)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                        <span>SGST (9%):</span>
+                        <span>SGST ({gstRate / 2}%):</span>
                         <span>₹{invoiceData.gstDetails?.sgstAmount?.toFixed(2)}</span>
                       </div>
                     </>
                   ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', color: '#475569' }}>
-                      <span>IGST (18%):</span>
+                      <span>IGST ({gstRate}%):</span>
                       <span>₹{invoiceData.gstDetails?.igstAmount?.toFixed(2)}</span>
                     </div>
                   )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderTop: '1px dashed #cbd5e1', marginTop: '0.3rem', fontWeight: 600, color: invoiceData.isRefunded ? '#dc2626' : '#2563eb' }}>
-                    <span>{invoiceData.isRefunded ? 'Total GST Reversed:' : 'Total GST (18%):'}</span>
+                    <span>{invoiceData.isRefunded ? 'Total GST Reversed:' : `Total GST (${gstRate}%):`}</span>
                     <span>₹{invoiceData.gstDetails?.gstAmount?.toFixed(2)}</span>
                   </div>
 

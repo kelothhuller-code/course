@@ -129,6 +129,8 @@ window.CoursesModule = {
                             <input type="number" id="course-discount" class="form-control" 
                                    value="${course?.discountedPrice || 0}" min="0">
                         </div>
+
+                        ${LicAdmin.courseGstHtml(course)}
                         
                         <div class="form-group">
                             <label class="form-label">Affiliate Commission (INR)</label>
@@ -637,6 +639,7 @@ window.CoursesModule = {
             price: parseFloat(document.getElementById('course-price').value) || 0,
             discountedPrice: parseFloat(document.getElementById('course-discount').value) || 0,
             affiliateCommission: parseFloat(document.getElementById('course-commission').value) || 0,
+            ...LicAdmin.courseGstRead(),
             isFeatured: document.getElementById('course-featured')?.value === 'true',
             landingOrder: document.getElementById('course-landing-order')?.value ?? '',
             outcomes,

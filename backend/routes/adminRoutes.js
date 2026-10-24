@@ -947,6 +947,9 @@ router.post('/software', async (req, res) => {
     const { data, error } = validateSoftwareInput(req.body);
     if (error) return res.status(400).json({ message: error });
     data.slug = await uniqueSlug(Software, data.slug || data.title);
+    // appId = the id desktop apps use with the licence API. Defaults to the slug and then stays fixed.
+    data.appId = data.appId || data.slug;
+    if (await Software.exists({ appId: data.appId })) return res.status(400).json({ message: 'That App ID is already used by another product.' });
     const software = await Software.create(data);
     res.status(201).json({ success: true, message: 'Software product created successfully', software });
   } catch (err) {
@@ -1037,9 +1040,14 @@ router.put('/software/:id', async (req, res) => {
     }
     const price = data.price ?? software.price;
     const pricingType = data.pricingType ?? software.pricingType;
-    if (pricingType !== 'quote' && !(price > 0)) {
+    const licensing = data.licensingEnabled ?? software.licensingEnabled;
+    if (pricingType !== 'quote' && !(price > 0) && !licensing) {
       return res.status(400).json({ message: 'Please enter a price, or choose "Contact for quote".' });
     }
+    if (data.appId && data.appId !== software.appId && await Software.exists({ appId: data.appId, _id: { $ne: software._id } })) {
+      return res.status(400).json({ message: 'That App ID is already used by another product.' });
+    }
+    if (!software.appId && !data.appId) data.appId = data.slug || software.slug;
     Object.assign(software, data);
     await software.save();
     res.json({ success: true, message: 'Software updated successfully', software });
@@ -1105,7 +1113,12 @@ router.put('/services/:id', async (req, res) => {
     }
     const price = data.startingPrice ?? service.startingPrice;
     const pricingType = data.pricingType ?? service.pricingType;
-    if (pricingType !== 'quote' && !(price > 0)) {
+    const mode = data.purchaseMode ?? service.purchaseMode;
+    const pkgs = data.packages ?? service.packages ?? [];
+    if (mode === 'fixed' && !(price > 0) && !pkgs.some((p) => p.isActive)) {
+      return res.status(400).json({ message: '"Fixed price" needs a price or at least one package.' });
+    }
+    if (pricingType !== 'quote' && !(price > 0) && !(mode !== 'quote' && pkgs.some((p) => p.isActive))) {
       return res.status(400).json({ message: 'Please enter a price, or choose "Quote on request".' });
     }
     Object.assign(service, data);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
 import { getMediaUrl, FALLBACK_SOFTWARE_THUMBNAIL } from '../../utils/media';
+import MyLicensesPanel from './MyLicensesPanel';
+import './dashboardLicensing.css';
 
 export default function MySoftwareTab({ profile, setActiveTab }) {
   const [allSoftwares, setAllSoftwares] = useState([]);
@@ -17,7 +19,8 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
     requirements: ''
   });
 
-  const purchasedList = profile?.purchasedSoftware || [];
+  // Licence-plan purchases (stored with a masked key "…ABCDE") are listed by MyLicensesPanel instead
+  const purchasedList = (profile?.purchasedSoftware || []).filter((p) => !String(p.licenseKey || '').startsWith('…'));
 
   useEffect(() => {
     const fetchSoftwares = async () => {
@@ -97,6 +100,8 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
           </button>
         </div>
       </div>
+
+      <MyLicensesPanel />
 
       {/* ── Section 1: Purchased Softwares ── */}
       {purchasedList.length === 0 ? (

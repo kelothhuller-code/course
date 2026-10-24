@@ -8,7 +8,8 @@ const createTransporter = () => {
         console.log('================= MOCK EMAIL SENT =================');
         console.log(`To: ${mailOptions.to}`);
         console.log(`Subject: ${mailOptions.subject}`);
-        console.log(`Body:\n${mailOptions.text || mailOptions.html}`);
+        // Licence keys are redacted so they never end up in server logs
+        console.log(`Body:\n${String(mailOptions.text || mailOptions.html).replace(/WT-[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{5}-([0-9A-Z]{5})/g, 'WT-•••••-•••••-•••••-$1')}`);
         console.log('===================================================');
         return { messageId: 'mock-id-' + Date.now() };
       }

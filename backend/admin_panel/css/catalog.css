@@ -57,3 +57,49 @@
 .inq-answers dt { color: #94a3b8; }
 .inq-answers dd { margin: 0; color: #e2e8f0; }
 @media (max-width: 720px) { .cat-grid { grid-template-columns: 1fr; } }
+
+/* Licensing, plans/packages editors, licences and service orders */
+.lic-row { border: 1px solid #e2e8f0; border-radius: 10px; padding: .75rem .9rem; margin: .6rem 0; background: #f8fafc; }
+.lic-row-head { display: flex; align-items: center; gap: .8rem; margin-bottom: .5rem; }
+.lic-row-head strong { flex: 1; color: #334155; font-size: .85rem; }
+.lic-row .cat-switch { color: #334155; font-size: .82rem; }
+.lic-gst summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: #4f46e5; margin: .2rem 0 .5rem; }
+.lic-sub { margin: 1rem 0 .35rem; font-size: .95rem; color: #0f172a; }
+.cat-card .lic-sub { color: #e2e8f0; }
+.lic-modes { display: grid; gap: .5rem; }
+.lic-mode { display: flex; gap: .6rem; align-items: flex-start; border: 1px solid #e2e8f0; border-radius: 10px; padding: .6rem .75rem; cursor: pointer; }
+.lic-mode:has(input:checked) { border-color: #6366f1; background: #eef2ff; }
+.lic-mode span { display: flex; flex-direction: column; }
+.lic-mode strong { font-size: .88rem; color: #0f172a; }
+.lic-mode small { font-size: .78rem; color: #64748b; }
+.lic-course-gst { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.lic-course-gst .cat-label { color: #cbd5e1; }
+.lic-course-gst select, .lic-course-gst input { width: 100%; padding: .5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(15,23,42,.6); color: #e2e8f0; }
+.lic-table td small, .cat-table td small.cat-muted { display: block; }
+.lic-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(99,102,241,.15); color: #a5b4fc; padding: 2px 8px; border-radius: 6px; font-size: .82rem; letter-spacing: .02em; }
+.cat-modal-card .lic-key, .lic-issued .lic-key { background: #eef2ff; color: #3730a3; }
+.lic-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; background: rgba(148,163,184,.2); color: #cbd5e1; }
+.lic-b-green { background: rgba(34,197,94,.18); color: #16a34a; }
+.lic-b-blue { background: rgba(59,130,246,.18); color: #2563eb; }
+.lic-b-amber { background: rgba(245,158,11,.2); color: #b45309; }
+.lic-b-red { background: rgba(239,68,68,.18); color: #dc2626; }
+.lic-pager { display: flex; gap: .5rem; align-items: center; justify-content: flex-end; margin-top: .75rem; }
+.lic-detail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem 1rem; margin-bottom: 1rem; font-size: .88rem; color: #0f172a; }
+.lic-detail .cat-label { display: block; }
+.lic-actions { display: flex; flex-wrap: wrap; gap: .8rem 1.5rem; align-items: center; padding: .8rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+.lic-actions form { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.lic-actions input { padding: .35rem .5rem; border: 1px solid #cbd5e1; border-radius: 6px; }
+.lic-light { width: 100%; border-collapse: collapse; font-size: .84rem; color: #0f172a; }
+.lic-light th { text-align: left; color: #64748b; font-size: .75rem; padding: .45rem; border-bottom: 1px solid #e2e8f0; }
+.lic-light td { padding: .45rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.lic-light td small { display: block; color: #64748b; }
+.lic-gst-cell { display: flex; flex-direction: column; gap: 1px; }
+.lic-gst-cell small { color: #94a3b8; font-size: .74rem; }
+.lic-light .lic-gst-cell small { color: #64748b; }
+.lic-notes { width: 100%; min-width: 160px; background: rgba(15,23,42,.6); color: #e2e8f0; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; padding: .35rem .5rem; font-family: inherit; font-size: .8rem; }
+.lic-issue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; margin: .8rem 0 1rem; }
+.lic-issue-grid label { display: flex; flex-direction: column; gap: 4px; color: #cbd5e1; font-size: .82rem; font-weight: 600; }
+.lic-issue-grid label.cat-switch { flex-direction: row; align-items: center; }
+.lic-issue-grid input:not([type=checkbox]), .lic-issue-grid select { background: rgba(15,23,42,.6); color: #e2e8f0; border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: .5rem .7rem; }
+.lic-issued { margin-top: 1rem; padding: .9rem 1rem; border-radius: 10px; background: #ecfdf5; color: #065f46; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 720px) { .lic-detail, .lic-issue-grid, .lic-course-gst { grid-template-columns: 1fr; } }

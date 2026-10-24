@@ -14,6 +14,8 @@ import { sendPurchaseEmail, sendAccountCreatedWithPurchaseEmail } from '../utils
 import { generateToken, setAuthCookie } from './authRoutes.js';
 
 import { getOrInitGstConfig } from './gstRoutes.js';
+import { computeGst, taxSettingsFor, isValidGstin, nextInvoiceNo, isSequentialSeries } from '../utils/gst.js';
+import { resolveProductOrder, fulfilProduct, existingFulfilment, productResult, OrderError } from '../utils/productOrders.js';
 
 const router = express.Router();
 
@@ -68,9 +70,23 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
   if (user) {
     txn.userId = user._id;
   }
+  // Sequential invoice series (INVOICE_SERIES=sequential): numbers are given out only for
+  // successful payments, so the series has no gaps. Legacy mode numbers at order creation.
+  if (!txn.invoiceNo && isSequentialSeries()) {
+    txn.invoiceNo = await nextInvoiceNo();
+  }
   await txn.save();
 
   if (!user) return { success: true };
+
+  // Software licences and service orders have their own fulfilment + emails
+  if (txn.itemType === 'software' || txn.itemType === 'service') {
+    const product = await fulfilProduct(txn, user, { tempPassword: newlyCreated ? tempPassword : null });
+    if (txn.couponCode) {
+      try { await Coupon.findOneAndUpdate({ code: txn.couponCode }, { $addToSet: { usedByUsers: user._id } }); } catch (cErr) { console.error('Failed to update coupon user usage:', cErr); }
+    }
+    return { success: true, itemTitle: product.itemTitle, user, newlyCreated, tempPassword, product };
+  }
 
   let itemTitle = 'WIDETECHNOS Academy Item';
 
@@ -580,6 +596,8 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
     } else if (txn.itemType === 'event') {
       const e = await Event.findById(txn.itemId);
       if (e) itemTitle = e.title;
+    } else if (txn.itemTitle) {
+      itemTitle = txn.itemTitle; // software plan / service package, as named at purchase time
     }
 
     const gstConfig = await getOrInitGstConfig();
@@ -593,7 +611,9 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
       txnid: txn.txnid,
       date: txn.createdAt,
       itemTitle,
+      itemType: txn.itemType,
       amount: txn.amount,
+      listPrice: txn.listPrice,
       status: txn.status,
       billingDetails: txn.billingDetails || {
         buyerName: req.user.name,
@@ -626,6 +646,11 @@ router.get('/invoice/:txnid', protect, async (req, res) => {
 // @access  Public / Optional Auth
 router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
   const { itemId, itemType, couponCode, buyerName, buyerEmail, buyerAddress, buyerState, buyerGstin, phone } = req.body;
+
+  // Software plans and service packages: separate, stricter path (courses/events unchanged below)
+  if (itemType === 'software' || itemType === 'service') {
+    return createProductOrder(req, res);
+  }
 
   try {
     let item;
@@ -707,25 +732,19 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       return res.status(400).json({ message: 'Item is free. No payment required.' });
     }
 
-    // Indian GST Breakdown
+    // Indian GST Breakdown (shared helper; identical numbers to before for GST-inclusive items).
+    // A course may override the store-wide rate / mark its price as GST-exclusive in admin.
     const gstConfig = await getOrInitGstConfig();
-    const rate = gstConfig.gstRate || 18;
+    const tax = taxSettingsFor([item], gstConfig);
+    const rate = tax.rate;
     const posState = buyerState || gstConfig.sellerState || 'Kerala';
-    const isIntraState = posState.trim().toLowerCase() === gstConfig.sellerState.trim().toLowerCase();
-
-    const baseAmount = Math.round((price / (1 + rate / 100)) * 100) / 100;
-    const gstAmount = Math.round((price - baseAmount) * 100) / 100;
-
-    let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
-    if (isIntraState) {
-      cgstAmount = Math.round((gstAmount / 2) * 100) / 100;
-      sgstAmount = Math.round((gstAmount - cgstAmount) * 100) / 100;
-    } else {
-      igstAmount = gstAmount;
-    }
+    const listPrice = price;
+    const gst = computeGst({ price, rate, inclusive: tax.inclusive, buyerState: posState, sellerState: gstConfig.sellerState });
+    const { isIntraState, baseAmount, gstAmount, cgstAmount, sgstAmount, igstAmount } = gst;
+    price = gst.total; // amount actually charged (equals the list price when GST-inclusive)
 
     const isB2B = Boolean(buyerGstin && buyerGstin.trim().length > 5);
-    const invoiceNo = `INV-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+    const invoiceNo = isSequentialSeries() ? undefined : await nextInvoiceNo();
     const txnid = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
     const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
@@ -765,6 +784,7 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       itemType,
       itemId: item._id,
       amount: price,
+      ...(tax.inclusive ? {} : { listPrice }),
       status: 'pending',
       gateway: 'razorpay',
       razorpayOrderId,
@@ -780,14 +800,14 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       },
       gstDetails: {
         rate,
-        isInclusive: true,
+        isInclusive: tax.inclusive,
         baseAmount,
         gstAmount,
         cgstAmount,
         sgstAmount,
         igstAmount,
         isIntraState,
-        hsnSacCode: gstConfig.hsnSacCode || '999249',
+        hsnSacCode: tax.hsnSacCode || '999249',
         posState
       }
     });
@@ -844,8 +864,30 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
       }
     }
 
-    // Idempotency: if already completed, return immediately with session token
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
+    const isMock = (process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder') === 'rzp_test_placeholder' || txn.razorpayOrderId.startsWith('order_mock_');
+
+    // Proof of payment for THIS transaction: Razorpay's signature over this transaction's own
+    // order id. (Checking the order id stops a signature from a different, cheaper order being
+    // replayed against this transaction.)
+    const signatureValid = () => {
+      if (!razorpay_order_id || razorpay_order_id !== txn.razorpayOrderId) return false;
+      const expected = crypto
+        .createHmac('sha256', key_secret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+      return typeof razorpay_signature === 'string' && expected === razorpay_signature;
+    };
+
+    // Idempotency: if already completed, return immediately with session token.
+    // A login token / licence key is only handed out again with valid proof of payment.
     if (txn.status === 'success') {
+      if (process.env.NODE_ENV === 'production' && isMock) {
+        return res.status(400).json({ success: false, message: 'Security error: Mock payments cannot be verified in production environment.' });
+      }
+      if (!isMock && !signatureValid()) {
+        return res.status(400).json({ success: false, message: 'Payment verification failed: Signature mismatch.' });
+      }
       const user = txn.userId ? await User.findById(txn.userId) : null;
       let token = null;
       if (user) {
@@ -856,13 +898,12 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
         success: true,
         message: 'Payment already completed',
         txnid: txn.txnid,
+        invoiceNo: txn.invoiceNo,
         token,
+        ...((txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {}),
         user: user ? { _id: user._id, name: user.name, email: user.email, role: user.role } : null
       });
     }
-
-    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
-    const isMock = (process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder') === 'rzp_test_placeholder' || txn.razorpayOrderId.startsWith('order_mock_');
 
     if (process.env.NODE_ENV === 'production' && isMock) {
       return res.status(400).json({ 
@@ -872,13 +913,9 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
     }
 
     if (!isMock) {
-      // Cryptographic signature check: HMAC-SHA256(order_id + "|" + payment_id, secret)
-      const expectedSignature = crypto
-        .createHmac('sha256', key_secret)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest('hex');
-
-      if (expectedSignature !== razorpay_signature) {
+      // Cryptographic signature check: HMAC-SHA256(order_id + "|" + payment_id, secret),
+      // and the signed order id must be this transaction's own Razorpay order.
+      if (!signatureValid()) {
         txn.status = 'failed';
         txn.razorpayResponse = req.body;
         await txn.save();
@@ -906,13 +943,18 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
 
     res.json({
       success: true,
-      message: fulfillment.newlyCreated 
+      message: txn.itemType === 'software'
+        ? 'Payment verified! Your licence key is ready.'
+        : txn.itemType === 'service'
+        ? "Payment verified! Your order is confirmed and we'll contact you to schedule it."
+        : fulfillment.newlyCreated 
         ? 'Payment verified! An account has been created for your email and your course is unlocked.'
         : 'Payment verified and enrollment confirmed!',
       txnid: txn.txnid,
       invoiceNo: txn.invoiceNo,
       token,
       newlyCreated: Boolean(fulfillment.newlyCreated),
+      ...(fulfillment.product ? productResult(fulfillment.product) : (fulfillment.alreadyFulfilled && (txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {})),
       user: user ? {
         _id: user._id,
         name: user.name,
@@ -979,5 +1021,122 @@ router.post('/razorpay/webhook', async (req, res) => {
     res.status(500).json({ status: 'error' });
   }
 });
+
+/**
+ * Razorpay order for a software plan or a service package.
+ * - Price, GST rate and inclusive/exclusive come only from the database.
+ * - Coupons are not accepted for these items.
+ * - Same mock / production protections as course orders.
+ */
+async function createProductOrder(req, res) {
+  const { itemId, itemType, variantId, renewLicenseId, buyerName, buyerEmail, buyerAddress, buyerState, buyerGstin, phone } = req.body;
+  try {
+    const gstConfig = await getOrInitGstConfig();
+    const order = await resolveProductOrder({ itemType, itemId, variantId, renewLicenseId, user: req.user || null, gstConfig });
+
+    const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const resolvedUserId = req.user ? req.user._id : null;
+    const resolvedEmail = req.user ? req.user.email : str(buyerEmail, 200).toLowerCase();
+    const resolvedName = str(buyerName, 120) || (req.user ? req.user.name : '');
+    const resolvedPhone = str(phone, 20) || (req.user && req.user.phone) || '9999999999';
+    if (!resolvedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedEmail)) {
+      return res.status(400).json({ message: 'A valid email address is required for checkout.' });
+    }
+    if (!resolvedName) return res.status(400).json({ message: 'Your name is required for checkout.' });
+
+    const gstin = str(buyerGstin, 20).toUpperCase();
+    if (gstin && !isValidGstin(gstin)) {
+      return res.status(400).json({ message: 'That GSTIN does not look valid. Please check it, or leave it empty.' });
+    }
+    const posState = str(buyerState, 60) || gstConfig.sellerState || 'Kerala';
+    const gst = computeGst({ price: order.listPrice, rate: order.tax.rate, inclusive: order.tax.inclusive, buyerState: posState, sellerState: gstConfig.sellerState });
+    const amount = gst.total;
+    if (!(amount > 0)) return res.status(400).json({ message: 'Invalid price.' });
+
+    let userId = resolvedUserId;
+    if (!userId) {
+      const existing = await User.findOne({ email: resolvedEmail }).select('_id');
+      if (existing) userId = existing._id;
+    }
+
+    const invoiceNo = isSequentialSeries() ? undefined : await nextInvoiceNo();
+    const txnid = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
+    const isMock = key_id === 'rzp_test_placeholder' || key_id.startsWith('mock');
+    if (process.env.NODE_ENV === 'production' && isMock) {
+      return res.status(500).json({ message: 'Production configuration error: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured with live credentials in production environment.' });
+    }
+
+    let razorpayOrderId = `order_mock_${txnid}`;
+    if (!isMock) {
+      const razorpay = new Razorpay({ key_id, key_secret });
+      const rzpOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        receipt: txnid,
+        notes: { txnid, itemId: order.item._id.toString(), itemType, variantId: String(order.variant?._id || 'main'), userId: userId ? userId.toString() : '', buyerEmail: resolvedEmail },
+      });
+      razorpayOrderId = rzpOrder.id;
+    }
+
+    await Transaction.create({
+      txnid,
+      invoiceNo,
+      userId,
+      itemType,
+      itemId: order.item._id,
+      variantId: order.variant?._id,
+      variantName: order.snapshot.name,
+      variantSnapshot: order.snapshot,
+      itemTitle: order.itemTitle,
+      renewLicenseId: order.renewLicense?._id,
+      listPrice: order.listPrice,
+      amount,
+      status: 'pending',
+      gateway: 'razorpay',
+      razorpayOrderId,
+      billingDetails: {
+        buyerName: resolvedName,
+        buyerEmail: resolvedEmail,
+        buyerPhone: resolvedPhone,
+        buyerAddress: str(buyerAddress, 300),
+        buyerState: posState,
+        buyerGstin: gstin,
+        isB2B: Boolean(gstin),
+      },
+      gstDetails: {
+        rate: gst.rate,
+        isInclusive: gst.isInclusive,
+        baseAmount: gst.baseAmount,
+        gstAmount: gst.gstAmount,
+        cgstAmount: gst.cgstAmount,
+        sgstAmount: gst.sgstAmount,
+        igstAmount: gst.igstAmount,
+        isIntraState: gst.isIntraState,
+        hsnSacCode: order.hsn, // TODO(owner): blank until you set the HSN/SAC in admin (confirm with your CA)
+        posState,
+      },
+    });
+
+    res.json({
+      success: true,
+      isMock,
+      keyId: key_id,
+      orderId: razorpayOrderId,
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      txnid,
+      itemTitle: order.itemTitle,
+      itemDescription: order.description,
+      gst: { rate: gst.rate, isInclusive: gst.isInclusive, baseAmount: gst.baseAmount, gstAmount: gst.gstAmount, cgstAmount: gst.cgstAmount, sgstAmount: gst.sgstAmount, igstAmount: gst.igstAmount, isIntraState: gst.isIntraState, total: amount },
+      prefill: { name: resolvedName, email: resolvedEmail, contact: resolvedPhone },
+    });
+  } catch (error) {
+    if (error instanceof OrderError) return res.status(error.status).json({ message: error.message });
+    console.error('Product order creation error:', error.message);
+    res.status(500).json({ message: 'Failed to create order' });
+  }
+}
 
 export default router;

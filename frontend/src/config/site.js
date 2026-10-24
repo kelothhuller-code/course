@@ -107,6 +107,19 @@ export const formatINR = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 /** Human label for a software/service price, based on its pricing type. */
 export const priceLabel = (item, kind = 'software') => {
   if (!item) return null;
+  // Services sold online (fixed / packages) and software with licence plans: "From ₹X" / "Get a quote"
+  if (kind === 'service' && item.purchaseMode) {
+    if (item.purchaseMode === 'quote' || !(Number(item.fromPrice) > 0)) {
+      return { main: 'Get a quote', sub: 'tell us what you need', original: null };
+    }
+    const single = item.purchaseMode === 'fixed' && (item.packages || []).length <= 1;
+    return single
+      ? { main: formatINR(item.fromPrice), sub: 'fixed price', original: item.mainOffer?.originalPrice ? formatINR(item.mainOffer.originalPrice) : null }
+      : { main: `From ${formatINR(item.fromPrice)}`, sub: 'choose a package', original: null };
+  }
+  if (kind === 'software' && item.licensingEnabled && Number(item.fromPrice) > 0) {
+    return { main: `From ${formatINR(item.fromPrice)}`, sub: item.trialEnabled ? `${item.trialDays || 7}-day free trial` : 'see plans', original: null };
+  }
   const type = item.pricingType || (kind === 'service' ? 'quote' : 'one_time');
   const base = kind === 'service' ? Number(item.startingPrice ?? item.price) : Number(item.price);
   const disc = Number(item.discountedPrice) > 0 && Number(item.discountedPrice) < base ? Number(item.discountedPrice) : null;

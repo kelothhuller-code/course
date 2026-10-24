@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import MyServiceOrdersPanel from './MyServiceOrdersPanel';
+import './dashboardLicensing.css';
 
 export default function MyServicesTab({ profile }) {
   const [services, setServices] = useState([]);
@@ -86,6 +88,8 @@ export default function MyServicesTab({ profile }) {
           + Request New Automation / App
         </button>
       </div>
+
+      <MyServiceOrdersPanel loader={api.getMyServiceOrders} />
 
       {/* ── User Active Services ── */}
       {purchasedServices.length === 0 ? (

@@ -1,4 +1,5 @@
 import express from 'express';
+import { getOrInitGstConfig } from './gstRoutes.js';
 import Service from '../models/Service.js';
 import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
@@ -20,7 +21,8 @@ router.get('/', async (req, res) => {
 
     let query = Service.find(filter).sort(CATALOG_SORT);
     if (limit) query = query.limit(limit);
-    const services = (await query).map(publicService);
+    const gstConfig = await getOrInitGstConfig();
+    const services = (await query).map((d) => publicService(d, gstConfig));
     res.json({ success: true, count: services.length, services });
   } catch (err) {
     console.error('Error fetching services:', err);
@@ -37,7 +39,8 @@ router.get('/:slugOrId', async (req, res) => {
     if (!service) {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
-    res.json({ success: true, service: publicService(service) });
+    const gstConfig = await getOrInitGstConfig();
+    res.json({ success: true, service: publicService(service, gstConfig), sellerState: gstConfig.sellerState || '' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving service details' });
   }

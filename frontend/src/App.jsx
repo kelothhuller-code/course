@@ -12,6 +12,7 @@ const AuthPage = lazy(() => import('./pages/AuthPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CourseViewer = lazy(() => import('./pages/CourseViewer'));
 const Checkout = lazy(() => import('./pages/Checkout'));
+const ProductCheckout = lazy(() => import('./pages/ProductCheckout'));
 const CertificateVerify = lazy(() => import('./pages/CertificateVerify'));
 const AllCoursesPage = lazy(() => import('./pages/AllCoursesPage'));
 const CourseSalesPage = lazy(() => import('./pages/CourseSalesPage'));
@@ -133,6 +134,8 @@ function AppContent() {
           <Route path="/auth" element={<AuthPage user={user} onLogout={handleLogout} onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/dashboard" element={<Dashboard user={user} onRefreshUser={refreshUser} />} />
           <Route path="/certificate/verify/:certificateId" element={<CertificateVerify />} />
+          <Route path="/checkout/software/:slug" element={<ProductCheckout key="software" kind="software" user={user} onRefreshUser={refreshUser} />} />
+          <Route path="/checkout/service/:slug" element={<ProductCheckout key="service" kind="service" user={user} onRefreshUser={refreshUser} />} />
           <Route 
             path="/checkout/:id" 
             element={<Checkout user={user} onRefreshUser={refreshUser} />} 

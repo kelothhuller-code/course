@@ -8,7 +8,8 @@ import EnquiryForm from '../../components/EnquiryForm';
 import { SkeletonPage } from '../../components/Skeleton';
 import { usePageMeta } from '../../components/Seo';
 import { getMediaUrl } from '../../utils/media';
-import { priceLabel, SOFTWARE_CTA_LABEL, SERVICE_CTA_LABEL, SITE_NAME, SITE_URL } from '../../config/site';
+import { priceLabel, SOFTWARE_CTA_LABEL, SITE_NAME, SITE_URL } from '../../config/site';
+import { money, billingLabel } from '../../utils/gst';
 import NotFoundPage from '../NotFoundPage';
 import './catalog.css';
 
@@ -16,9 +17,10 @@ const isHttp = (u) => /^https?:\/\//i.test(String(u || ''));
 
 /**
  * Public detail page for one software product or service (/software/:slug, /services/:slug).
- * The main button always leads to the on-page enquiry form with this item preselected.
- * Software "Buy" works the same way for now: direct payment for software is not wired
- * (the Razorpay order flow only supports courses/events), see the PR notes.
+ * Software with licensing on: free-trial button + plan cards that go to /checkout/software/:slug.
+ * Services: purchaseMode "fixed" (Buy now), "quote" (enquiry form only) or "both"
+ * (packages + "Need something custom? Get a quote"). Everything else uses the enquiry form,
+ * which files a Contact Inquiry with this item preselected.
  * Mounted with key={slug} by the route wrappers so state resets between items.
  */
 export default function CatalogDetailPage({ user, kind = 'software' }) {
@@ -40,7 +42,11 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
   const price = item ? priceLabel(item, kind) : null;
   const images = item ? [item.thumbnail, ...(item.images || [])].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i) : [];
   const text = item ? (isService ? item.summary : item.tagline) : '';
-  const amount = item ? Number(item.discountedPrice) > 0 ? Number(item.discountedPrice) : Number(isService ? item.startingPrice : item.price) : 0;
+  const sellsLicences = Boolean(item && !isService && item.licensingEnabled && item.plans?.length);
+  const mode = isService ? (item?.purchaseMode || 'quote') : null;
+  const canBuyService = Boolean(isService && item?.canBuy);
+  const offers = isService ? (item?.packages?.length ? item.packages : (item?.mainOffer ? [{ _id: 'main', name: item.title, ...item.mainOffer, deliverables: [], deliveryTime: '' }] : [])) : [];
+  const amount = item && Number(item.fromPrice) > 0 ? Number(item.fromPrice) : item ? Number(item.discountedPrice) > 0 ? Number(item.discountedPrice) : Number(isService ? item.startingPrice : item.price) : 0;
 
   usePageMeta({
     title: item?.title || (state.loading ? (isService ? 'Service' : 'Software') : 'Not found'),
@@ -72,7 +78,16 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
     );
   }
 
-  const ctaLabel = isService ? (SERVICE_CTA_LABEL[item.ctaType] || 'Enquire') : (SOFTWARE_CTA_LABEL[item.ctaType] || 'Enquire');
+  const ctaLabel = isService
+    ? (mode === 'fixed' ? 'Questions before you buy?' : mode === 'both' ? 'Get a quote' : (item.ctaType === 'book_call' ? 'Book a call' : 'Get a quote'))
+    : sellsLicences ? 'Questions? Ask us' : (SOFTWARE_CTA_LABEL[item.ctaType] || 'Enquire');
+  const slugOrId = item.slug || item._id;
+  const buyHref = (variant) => (isService
+    ? `/checkout/service/${encodeURIComponent(slugOrId)}${variant && variant !== 'main' ? `?package=${encodeURIComponent(variant)}` : ''}`
+    : `/checkout/software/${encodeURIComponent(slugOrId)}?plan=${encodeURIComponent(variant)}`);
+  const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  const trialDays = item.trialDays || 7;
+  const gstNote = (o) => (o.gstInclusive === false ? '+ GST' : 'incl. GST');
   const related = { type: isService ? 'service' : 'software', id: item._id, title: item.title };
   const bizLink = `/contact?type=${isService ? 'services' : 'software'}&item=${encodeURIComponent(item._id)}#business-enquiry`;
   const goToForm = () => {
@@ -107,16 +122,52 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
                 <small>{price.sub}</small>
               </p>
               <div className="wt-actions">
-                <button type="button" className="wt-btn wt-btn--primary wt-btn--lg" onClick={goToForm}>
-                  {ctaLabel} <Icon name="arrow-right" size={18} />
-                </button>
+                {sellsLicences ? (
+                  <>
+                    {item.trialEnabled && (item.hasTrialDownload ? (
+                      <a className="wt-btn wt-btn--primary wt-btn--lg" href={api.trialDownloadUrl(item._id)} rel="nofollow">
+                        Start free {trialDays}-day trial <Icon name="arrow-right" size={18} />
+                      </a>
+                    ) : (
+                      <button type="button" className="wt-btn wt-btn--primary wt-btn--lg" onClick={goToForm}>
+                        Start free {trialDays}-day trial <Icon name="arrow-right" size={18} />
+                      </button>
+                    ))}
+                    <button type="button" className={`wt-btn wt-btn--${item.trialEnabled ? 'secondary' : 'primary'} wt-btn--lg`} onClick={() => goTo('plans')}>
+                      See plans &amp; prices
+                    </button>
+                  </>
+                ) : canBuyService && offers.length === 1 && mode === 'fixed' ? (
+                  <Link className="wt-btn wt-btn--primary wt-btn--lg" to={buyHref(String(offers[0]._id))}>
+                    Buy now <Icon name="arrow-right" size={18} />
+                  </Link>
+                ) : canBuyService ? (
+                  <>
+                    <button type="button" className="wt-btn wt-btn--primary wt-btn--lg" onClick={() => goTo('packages')}>
+                      See packages <Icon name="arrow-right" size={18} />
+                    </button>
+                    {mode === 'both' && <button type="button" className="wt-btn wt-btn--secondary wt-btn--lg" onClick={goToForm}>Get a quote</button>}
+                  </>
+                ) : (
+                  <button type="button" className="wt-btn wt-btn--primary wt-btn--lg" onClick={goToForm}>
+                    {ctaLabel} <Icon name="arrow-right" size={18} />
+                  </button>
+                )}
                 {!isService && isHttp(item.demoUrl) && (
                   <a href={item.demoUrl} target="_blank" rel="noopener noreferrer" className="wt-btn wt-btn--secondary wt-btn--lg">
                     Try the demo <Icon name="external" size={16} />
                   </a>
                 )}
               </div>
-              {!isService && item.ctaType === 'buy' && (
+              {sellsLicences && item.trialEnabled && (
+                <p className="cd-note"><Icon name="info" size={16} /> {item.hasTrialDownload
+                  ? `Download, install and open the app: your ${trialDays}-day trial starts automatically. No card needed, one trial per computer.`
+                  : `Ask us for the download using the form below. The ${trialDays}-day trial starts when you first open the app.`}</p>
+              )}
+              {canBuyService && mode === 'fixed' && (
+                <p className="cd-note"><Icon name="info" size={16} /> Pay securely online. We'll contact you to schedule the work.</p>
+              )}
+              {!isService && !sellsLicences && item.ctaType === 'buy' && (
                 <p className="cd-note"><Icon name="info" size={16} /> Send your details below and we will reply by email to complete your purchase.</p>
               )}
             </div>
@@ -146,6 +197,54 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
           </div>
         </div>
       </section>
+
+      {sellsLicences && (
+        <section className="wt-section cd-offers-section" id="plans" aria-labelledby="plans-title">
+          <div className="wt-container">
+            <h2 className="wt-h2" id="plans-title">Plans &amp; prices</h2>
+            <p className="wt-muted cd-offers-lead">
+              {item.trialEnabled ? `Try everything free for ${trialDays} days first. ` : ''}Your licence key appears right after payment and is emailed to you.
+            </p>
+            <ul className="cd-offers">
+              {item.plans.map((p) => (
+                <li key={p._id} className="cd-offer">
+                  <h3>{p.name}</h3>
+                  <p className="cd-offer-price"><span className="wt-price">{money(p.price)}</span> <small>{gstNote(p)}</small></p>
+                  <p className="cd-offer-meta">{billingLabel(p)} · {p.maxDevices || 1} device{(p.maxDevices || 1) === 1 ? '' : 's'}</p>
+                  {p.features?.length > 0 && <ul className="wt-checklist cd-offer-list">{p.features.map((f) => <li key={f}>{f}</li>)}</ul>}
+                  <Link className="wt-btn wt-btn--primary cd-offer-btn" to={buyHref(String(p._id))} aria-label={`Buy ${p.name} plan`}>Buy {p.name}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {canBuyService && (mode === 'both' || offers.length > 1) && (
+        <section className="wt-section cd-offers-section" id="packages" aria-labelledby="packages-title">
+          <div className="wt-container">
+            <h2 className="wt-h2" id="packages-title">Packages</h2>
+            <p className="wt-muted cd-offers-lead">Pick a package and pay online. We'll contact you to schedule the work.</p>
+            <ul className="cd-offers">
+              {offers.map((p) => (
+                <li key={p._id} className="cd-offer">
+                  <h3>{p.name}</h3>
+                  <p className="cd-offer-price"><span className="wt-price">{money(p.price)}</span>{p.originalPrice ? <s>{money(p.originalPrice)}</s> : null} <small>{gstNote(p)}</small></p>
+                  {p.deliveryTime && <p className="cd-offer-meta">Delivery: {p.deliveryTime}</p>}
+                  {p.deliverables?.length > 0 && <ul className="wt-checklist cd-offer-list">{p.deliverables.map((d) => <li key={d}>{d}</li>)}</ul>}
+                  <Link className="wt-btn wt-btn--primary cd-offer-btn" to={buyHref(String(p._id))} aria-label={`Buy the ${p.name} package`}>Buy {p.name}</Link>
+                </li>
+              ))}
+            </ul>
+            {mode === 'both' && (
+              <div className="cd-custom">
+                <div><h3 className="wt-h3">Need something custom?</h3><p className="wt-muted">Tell us what you need and we'll send a quote.</p></div>
+                <button type="button" className="wt-btn wt-btn--secondary" onClick={goToForm}>Get a quote</button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="wt-section wt-section--white">
         <div className="wt-container cd-body">
@@ -188,7 +287,7 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
           <aside className="cd-side" id="enquire" aria-labelledby="enquire-title">
             <div className="cd-form-card">
               <h2 className="wt-h3" id="enquire-title">{ctaLabel}</h2>
-              <p className="wt-muted cd-form-lead">{item.title} is already selected. We reply by email.</p>
+              <p className="wt-muted cd-form-lead">{item.title} is already selected. We reply by email{mode === 'both' || mode === 'quote' ? ' with a quote' : ''}.</p>
               <EnquiryForm
                 user={user}
                 related={related}

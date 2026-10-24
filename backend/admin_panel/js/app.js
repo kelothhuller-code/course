@@ -99,6 +99,16 @@ const App = {
                     content = await ServicesModule.render();
                     break;
 
+                case 'licenses':
+                    this.setBreadcrumb('Licences');
+                    content = await LicensesModule.render();
+                    break;
+
+                case 'service-orders':
+                    this.setBreadcrumb('Service orders');
+                    content = await ServiceOrdersModule.render();
+                    break;
+
                 case 'categories':
                     this.setBreadcrumb('Categories');
                     content = await CategoriesModule.render();

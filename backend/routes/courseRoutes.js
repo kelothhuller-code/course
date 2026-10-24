@@ -1,4 +1,5 @@
 import express from 'express';
+import { gstInput } from '../utils/catalog.js';
 import jwt from 'jsonwebtoken';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
@@ -452,11 +453,18 @@ router.post('/', protect, admin, async (req, res) => {
       });
     }
 
+    // Optional per-course GST (empty = store-wide settings)
+    const gstErrors = [];
+    const gstData = {};
+    gstInput(req.body, gstErrors, gstData);
+    if (gstErrors.length) return res.status(400).json({ message: gstErrors.join(' ') });
+
     if (isFeatured) {
       await Course.updateMany({}, { isFeatured: false });
     }
 
     const course = await Course.create({
+      ...gstData,
       title,
       description,
       type: type || 'Course',
@@ -510,6 +518,12 @@ router.put('/:id', protect, admin, async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
+
+    const gstErrors = [];
+    const gstData = {};
+    gstInput(req.body, gstErrors, gstData);
+    if (gstErrors.length) return res.status(400).json({ message: gstErrors.join(' ') });
+    Object.assign(course, gstData);
 
     if (isFeatured !== undefined) {
       if (isFeatured) {

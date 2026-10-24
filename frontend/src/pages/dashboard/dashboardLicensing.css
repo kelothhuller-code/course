@@ -1,0 +1,19 @@
+.dl-panel { display: grid; gap: 0.9rem; }
+.dl-title { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0; }
+.dl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.dl-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05); display: grid; gap: 0.6rem; }
+.dl-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
+.dl-head strong { display: block; color: #0f172a; font-size: 1rem; }
+.dl-sub { display: block; color: #64748b; font-size: 0.82rem; }
+.dl-badge { font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 0.2rem 0.65rem; }
+.dl-badge--active { background: #dcfce7; color: #166534; }
+.dl-badge--expired, .dl-badge--pending { background: #fef3c7; color: #92400e; }
+.dl-badge--revoked { background: #fee2e2; color: #991b1b; }
+.dl-key { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; padding: 0.6rem 0.8rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; }
+.dl-key code { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; letter-spacing: 0.03em; color: #0f172a; word-break: break-all; user-select: all; flex: 1; }
+.dl-key .btn { background: #fff; border: 1px solid #e2e8f0; }
+.dl-meta { margin: 0; font-size: 0.85rem; color: #475569; }
+.dl-devices { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; color: #64748b; }
+.dl-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.dl-help, .dl-error { font-size: 0.8rem; color: #64748b; margin: 0; }
+.dl-error { color: #b91c1c; }
