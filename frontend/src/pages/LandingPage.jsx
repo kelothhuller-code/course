@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { loadHomeData, resetHomeData } from '../utils/homeData';
+import { primeEnquiryForm } from '../hooks/useCatalog';
 
 import SiteHeader from '../components/SiteHeader';
 import Seo from '../components/Seo';
@@ -15,7 +17,6 @@ import ProofSection from './Landing/ProofSection';
 import FAQ from './Landing/FAQ';
 import FinalCTA from './Landing/FinalCTA';
 import Footer from './Landing/Footer';
-import VideoModal from './Landing/VideoModal';
 import CourseCarousel from './Landing/CourseCarousel';
 import { buildBuyingFaqs } from '../config/faqs';
 import LeadMagnet from './Landing/LeadMagnet';
@@ -24,6 +25,9 @@ import EnquirySection from './Landing/EnquirySection';
 import StickyBuyBar from './Landing/StickyBuyBar';
 import './Landing/premium.css';
 import { toast } from '../components/Toast';
+
+// Only needed after a visitor clicks a free tutorial, so it is loaded on demand
+const VideoModal = lazy(() => import('./Landing/VideoModal'));
 
 export default function LandingPage({ user }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
@@ -35,50 +39,45 @@ export default function LandingPage({ user }) {
   const [featuredCourse, setFeaturedCourse] = useState(null);
   const [software, setSoftware] = useState([]);
   const [services, setServices] = useState([]);
+  const [softwareTotal, setSoftwareTotal] = useState(0);
+  const [servicesTotal, setServicesTotal] = useState(0);
   const navigate = useNavigate();
 
-  // Fetch all data. Uses allSettled so one failing endpoint (e.g. events) no longer
-  // wipes out the whole page, and the page renders immediately instead of
-  // blocking behind a full-screen spinner until every request finishes.
-  const fetchAllData = async () => {
-    const value = (r, fallback) => (r.status === 'fulfilled' && r.value ? r.value : fallback);
-    try {
-      const results = await Promise.allSettled([
-        api.getCourseShowcase(3),
-        api.getEvents(),
-        api.getTrials(),
-        api.getFeaturedCourse(),
-        api.getServicesList(),
-        api.getSoftwareList(),
-      ]);
-      const coursesData = value(results[0], {});
-      const eventsData = value(results[1], []);
-      const trialsData = value(results[2], []);
-      const featuredData = value(results[3], { featuredCourse: null });
-      const svcData = value(results[4], { services: [] });
-      const swData = value(results[5], { softwares: [] });
-
-      const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
-      setCourses(courseList);
-      setCourseTotal(Number(coursesData.total) || courseList.length);
-
-      // Determine highlighted course: explicit backend featured course, or one marked isFeatured
-      setFeaturedCourse(featuredData?.featuredCourse || courseList.find(c => c.isFeatured) || null);
-      setServices(Array.isArray(svcData?.services) ? svcData.services : []);
-      setSoftware(Array.isArray(swData?.softwares) ? swData.softwares : []);
-
-      setEvents(Array.isArray(eventsData) ? eventsData : []);
-      setTrials(Array.isArray(trialsData) ? trialsData : []);
-    } catch (err) {
-      console.error('Error fetching landing page data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // All homepage data comes from ONE request (GET /api/home, with a fallback to the old
+  // per-section endpoints inside loadHomeData). It is started in main.jsx before React renders,
+  // so by the time this page mounts it is usually already in flight. The enquiry form at the
+  // bottom reuses the same response instead of making its own request.
+  const [homePromise] = useState(() => {
+    const p = loadHomeData();
+    primeEnquiryForm(p.then((d) => d?.enquiryForm).catch(() => null));
+    return p;
+  });
 
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    let alive = true;
+    homePromise
+      .then((d) => {
+        if (!alive || !d) return;
+        const courseList = Array.isArray(d.courses) ? d.courses : [];
+        setCourses(courseList);
+        setCourseTotal(Number(d.courseTotal) || courseList.length);
+        // Highlighted course: explicit backend featured course, or one marked isFeatured
+        setFeaturedCourse(d.featuredCourse || courseList.find((c) => c.isFeatured) || null);
+        setServices(Array.isArray(d.services) ? d.services : []);
+        setSoftware(Array.isArray(d.software) ? d.software : []);
+        setServicesTotal(Number(d.servicesTotal) || (d.services || []).length);
+        setSoftwareTotal(Number(d.softwareTotal) || (d.software || []).length);
+        setEvents(Array.isArray(d.events) ? d.events : []);
+        setTrials(Array.isArray(d.trials) ? d.trials : []);
+      })
+      .catch((err) => console.error('Error fetching landing page data:', err))
+      .finally(() => {
+        if (alive) setLoading(false);
+        // Next visit to the homepage (client-side navigation) fetches fresh data
+        resetHomeData();
+      });
+    return () => { alive = false; };
+  }, [homePromise]);
 
   const handleEnroll = async (item, type = 'course') => {
     if (type === 'course') {
@@ -147,7 +146,7 @@ export default function LandingPage({ user }) {
         {/* Story: problem → solution → what you get → proof → offer → FAQ → CTA */}
         <Hero user={user} featuredCourse={featuredCourse} software={software} services={services} loading={loading} />
         <ProblemSolution />
-        <Offerings courseTotal={courseTotal} softwareCount={software.length} serviceCount={services.length} />
+        <Offerings courseTotal={courseTotal} softwareCount={softwareTotal || software.length} serviceCount={servicesTotal || services.length} />
 
         {/* What you get: courses (top-courses grid/mobile scroll unchanged), featured course + curriculum */}
         <CourseCarousel courses={courses} total={courseTotal} user={user} loading={loading} />
@@ -178,10 +177,12 @@ export default function LandingPage({ user }) {
       <StickyBuyBar course={featuredCourse} user={user} />
 
       {activeVideo && (
-        <VideoModal
-          videoUrl={activeVideo}
-          onClose={() => setActiveVideo(null)}
-        />
+        <Suspense fallback={null}>
+          <VideoModal
+            videoUrl={activeVideo}
+            onClose={() => setActiveVideo(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

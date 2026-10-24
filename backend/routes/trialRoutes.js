@@ -1,13 +1,14 @@
 import express from 'express';
 import TrialTutorial from '../models/TrialTutorial.js';
 import { protect, admin } from '../middleware/auth.js';
+import { publicCache } from '../middleware/cache.js';
 
 const router = express.Router();
 
 // @desc    Get all trial tutorials
 // @route   GET /api/trials
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/', publicCache(), async (req, res) => {
   try {
     const trials = await TrialTutorial.find({}).sort({ createdAt: -1 });
     res.json(trials);

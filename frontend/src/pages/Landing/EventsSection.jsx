@@ -20,8 +20,11 @@ export default function EventsSection({ events, user, handleEnroll }) {
                 <div className="event-img">
                   <img 
                     src={getMediaUrl(event.thumbnail) || FALLBACK_EVENT_THUMBNAIL} 
-                    alt={event.title} 
+                    alt={event.title}
+                    width="640"
+                    height="360"
                     loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = FALLBACK_EVENT_THUMBNAIL;

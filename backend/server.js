@@ -26,8 +26,11 @@ import licenseRoutes, { accountRouter as licenseAccountRoutes } from './routes/l
 import adminLicensingRoutes from './routes/adminLicensingRoutes.js';
 import { publicCategoryRouter, adminCatalogRouter } from './routes/catalogRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import homeRoutes, { invalidateHomeOnWrite } from './routes/homeRoutes.js';
 
 import helmet from 'helmet';
+import compression from 'compression';
+import { apiNoStoreByDefault } from './middleware/cache.js';
 import rateLimit from 'express-rate-limit';
 import { sanitizeNoSql } from './middleware/noSqlSanitizer.js';
 import { protect } from './middleware/auth.js';
@@ -78,6 +81,17 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Disposition'] // lets the dashboard name downloaded files
 };
+
+// Compress JSON / text responses (gzip). Nginx can also compress, but this keeps API
+// responses small even when the server config doesn't (see docs/PERFORMANCE.md).
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    // Leave file downloads / ranged requests (course materials, software packages) untouched
+    if (req.headers.range || res.getHeader('Content-Disposition')) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // Mount CORS before all routes and rate limiters
 app.use(cors(corsOptions));
@@ -185,12 +199,14 @@ app.all(['/uploads/software*', '/api/uploads/software*'], (req, res) => {
   });
 });
 
-// 3. Static serving restricted strictly to public thumbnails (images)
+// 3. Static serving restricted strictly to public thumbnails (images).
+// Uploaded file names are unique (timestamp + random suffix) and never overwritten, so they can
+// be cached for 7 days by browsers and Cloudflare.
 const serveThumbnails = express.static(path.join(__dirname, 'public', 'uploads', 'thumbnails'), {
   setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
   }
 });
 app.use('/uploads/thumbnails', serveThumbnails);
@@ -232,7 +248,13 @@ if (adminSecretPath !== 'admin') {
   });
 }
 
+// API caching: private/no-store unless a public route opts in (middleware/cache.js), and drop the
+// cached homepage payload after any successful change to catalog data.
+app.use('/api', apiNoStoreByDefault);
+app.use('/api', invalidateHomeOnWrite);
+
 // Mount API routes
+app.use('/api/home', homeRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
