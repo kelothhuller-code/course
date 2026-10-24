@@ -1,38 +1,37 @@
 import mongoose from 'mongoose';
 
+export const SOFTWARE_PRICING_TYPES = ['one_time', 'subscription_monthly', 'subscription_yearly', 'starting_from', 'quote'];
+export const SOFTWARE_CTA_TYPES = ['buy', 'demo', 'enquire'];
+
 const SoftwareSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  category: { 
-    type: String, 
-    enum: ['AI Bot & Automation', 'Custom Software', 'Business Tool', 'Developer Kit', 'SaaS Template'],
-    default: 'AI Bot & Automation' 
-  },
-  thumbnail: { 
-    type: String, 
-    default: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80' 
-  },
-  performance: { 
-    type: String, 
-    default: 'Sub-100ms LLM Response • 99.9% Uptime' 
-  },
-  usefulness: { 
-    type: String, 
-    default: 'Automates 80% of customer support & qualifies leads 24/7' 
-  },
+  title: { type: String, required: true },          // product name
+  slug: { type: String, index: true, sparse: true }, // URL: /software/:slug
+  tagline: { type: String, default: '' },
+  description: { type: String, default: '' },       // Markdown (rendered safely on the site)
+  // Admin-managed category name (see Category model, kind "software"). No fixed enum.
+  category: { type: String, default: '' },
+  thumbnail: { type: String, default: '' },
+  images: [{ type: String }],                       // screenshots / gallery
+  // Legacy free-text fields kept for backwards compatibility (no invented defaults)
+  performance: { type: String, default: '' },
+  usefulness: { type: String, default: '' },
   features: [{ type: String }],
-  price: { type: Number, required: true },
-  discountedPrice: { type: Number },
+  pricingType: { type: String, enum: SOFTWARE_PRICING_TYPES, default: 'one_time' },
+  price: { type: Number, default: 0, min: 0 },
+  discountedPrice: { type: Number, min: 0 },
+  ctaType: { type: String, enum: SOFTWARE_CTA_TYPES, default: 'enquire' },
   couponEligible: { type: Boolean, default: true },
-  highlightBadge: { type: String, default: '' }, // e.g. "HOT", "BESTSELLER", "FEATURED", "ENTERPRISE"
+  highlightBadge: { type: String, default: '' },
   isFeatured: { type: Boolean, default: false },
+  order: { type: Number, default: 0, min: 0, max: 999 }, // lower = shown first
   downloadUrl: { type: String, default: '' },
   filePath: { type: String, default: '' },
   fileName: { type: String, default: '' },
   fileSize: { type: String, default: '' },
-  version: { type: String, default: '1.0.0' },
+  version: { type: String, default: '' },
   demoUrl: { type: String, default: '' },
   documentationUrl: { type: String, default: '' },
+  // Visibility: only "active" is shown publicly
   status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
   createdAt: { type: Date, default: Date.now }
 });

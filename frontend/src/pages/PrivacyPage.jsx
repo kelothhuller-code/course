@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import NavHeader from './NavHeader';
+import SiteHeader from '../components/SiteHeader';
 import Footer from './Landing/Footer';
 import './LegalPage.css';
 
@@ -11,7 +11,7 @@ export default function PrivacyPage({ user }) {
 
   return (
     <div className="legal-page-wrapper">
-      <NavHeader user={user} />
+      <SiteHeader user={user} />
 
       <header className="legal-header">
         <div className="container">

@@ -177,7 +177,7 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f1f5f9', border: '1px dashed #cbd5e1', padding: '0.6rem 1rem', borderRadius: '8px', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div style={{ fontSize: '0.82rem' }}>
                     <span style={{ color: '#64748b' }}>License Key: </span>
-                    <code style={{ fontFamily: 'monospace', fontWeight: 700, color: '#6366f1', fontSize: '0.9rem' }}>{licenseKey}</code>
+                    <code style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-primary)', fontSize: '0.9rem' }}>{licenseKey}</code>
                   </div>
                   <button 
                     onClick={() => copyToClipboard(licenseKey)}
@@ -236,7 +236,7 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
               <div>
                 <div style={{ height: '140px', position: 'relative', overflow: 'hidden' }}>
                   {sw.highlightBadge && (
-                    <span style={{ position: 'absolute', top: '10px', right: '10px', background: '#6366f1', color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '3px 10px', borderRadius: '20px', zIndex: 1 }}>
+                    <span style={{ position: 'absolute', top: '10px', right: '10px', background: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '3px 10px', borderRadius: '20px', zIndex: 1 }}>
                       {sw.highlightBadge}
                     </span>
                   )}
@@ -252,7 +252,7 @@ export default function MySoftwareTab({ profile, setActiveTab }) {
                 </div>
 
                 <div style={{ padding: '1.25rem' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', background: 'rgba(99,102,241,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', background: 'rgba(67, 56, 202,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
                     {sw.category}
                   </span>
                   <h4 style={{ margin: '0.4rem 0', fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>

@@ -1,166 +1,107 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
+import Icon from '../../components/Icon';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../../utils/media';
-import { getCoursePrice, isEnrolledIn, countChapters, openEnquiry } from '../../config/site';
-
-const truncate = (text, max) => {
-  const t = String(text || '').trim();
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max);
-  return `${cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : max).trim()}…`;
-};
+import { getCoursePrice, isEnrolledIn, priceLabel } from '../../config/site';
 
 /**
- * Above-the-fold hero.
- * Goal: in < 5 seconds a visitor should know (1) what they get, (2) what it costs and
- * (3) where to click to buy. All course copy comes from the featured course's own data
- * (sales-page headline/subheadline, title, description, outcomes) so the hero always
- * matches whatever course the owner features — nothing topic-specific is hardcoded.
+ * Above-the-fold hero: WideTech = courses + software + services.
+ * The visual on the right is built from live data (featured course, first software
+ * product, first service), so it always shows real things you sell. Nothing is invented.
  */
-export default function Hero({ user, featuredCourse, loading = false }) {
+export default function Hero({ user, featuredCourse, software = [], services = [], loading = false }) {
   const price = getCoursePrice(featuredCourse);
   const enrolled = isEnrolledIn(user, featuredCourse);
-  const chapters = countChapters(featuredCourse);
-  const saleUrl = featuredCourse ? (enrolled ? `/course/${featuredCourse._id}` : `/sale/${featuredCourse._id}`) : '/all-courses';
-
-  const primaryLabel = !featuredCourse
-    ? 'Explore Courses →'
-    : enrolled
-      ? 'Continue Learning →'
-      : price.isFree
-        ? 'Start Learning — Free'
-        : `Get Instant Access — ${price.label}`;
-
-  const cfg = featuredCourse?.salesPageConfig || {};
-  const headline = String(cfg.headline || featuredCourse?.title || '').trim();
-  // "Main promise: secondary line" titles get the second half highlighted
-  const colon = headline.indexOf(':');
-  const [headMain, headHighlight] = colon > 0 && colon < headline.length - 1
-    ? [headline.slice(0, colon + 1), headline.slice(colon + 1).trim()]
-    : [headline, ''];
-  const description = truncate(cfg.subheadline || featuredCourse?.description, 240);
-  const outcomes = (featuredCourse?.outcomes || []).filter(Boolean).slice(0, 3);
-  const badge = featuredCourse
-    ? [
-        featuredCourse.category ? `${featuredCourse.category} course` : 'Featured course',
-        featuredCourse.languages?.length ? featuredCourse.languages.join(' / ') : null,
-      ].filter(Boolean).join(' • ').toUpperCase()
-    : 'WIDETECH ACADEMY';
+  const courseUrl = featuredCourse ? (enrolled ? `/course/${featuredCourse._id}` : `/sale/${featuredCourse._id}`) : '/all-courses';
+  const sw = software[0];
+  const svc = services[0];
 
   return (
-    <section className="hero-section" aria-labelledby="hero-title">
-      <div className="container">
-        <div className="hero-grid">
-          <div className="hero-content">
-            {loading ? (
-              <div className="hero-text-skeleton" aria-hidden="true">
-                <span /><span /><span />
-              </div>
-            ) : featuredCourse ? (
-              <>
-                <div className="hero-badge">🚀 {badge}</div>
-                <h1 className="hero-title" id="hero-title">
-                  {headMain}
-                  {headHighlight && <>{' '}<span className="hero-highlight">{headHighlight}</span></>}
-                </h1>
-                {description && <p className="hero-description">{description}</p>}
-              </>
-            ) : (
-              <>
-                <div className="hero-badge">🚀 {badge}</div>
-                <h1 className="hero-title" id="hero-title">
-                  Practical Online Courses.{' '}
-                  <span className="hero-highlight">Learn at Your Own Pace.</span>
-                </h1>
-                <p className="hero-description">
-                  Self-paced courses with instant access and lifetime validity — plus ready-to-run software and
-                  custom automation for businesses.
-                </p>
-              </>
-            )}
+    <section className="lp-hero" aria-labelledby="hero-title">
+      <div className="lp-hero-bg" aria-hidden="true" />
+      <div className="wt-container lp-hero-grid">
+        <div className="lp-hero-copy">
+          <p className="wt-eyebrow"><Icon name="sparkles" size={16} /> Courses · Software · Services</p>
+          <h1 id="hero-title" className="wt-h1 lp-hero-title">
+            Learn new skills. <span className="lp-hero-accent">Run your business smarter.</span>
+          </h1>
+          <p className="wt-lead lp-hero-lead">
+            WideTech brings together practical online courses, ready-to-use business software and
+            done-for-you services like automation, custom software and business administration.
+          </p>
+          <div className="wt-actions lp-hero-ctas">
+            <Link to="/all-courses" className="wt-btn wt-btn--primary wt-btn--lg">
+              Browse courses <Icon name="arrow-right" size={18} />
+            </Link>
+            <Link to="/contact#business-enquiry" className="wt-btn wt-btn--secondary wt-btn--lg">
+              Business enquiry
+            </Link>
+          </div>
+          <ul className="lp-hero-points" aria-label="Why WideTech">
+            <li><Icon name="check-circle" size={18} /> Instant access to courses</li>
+            <li><Icon name="shield" size={18} /> Secure Razorpay checkout</li>
+            <li><Icon name="mail" size={18} /> Real replies from our team</li>
+          </ul>
+        </div>
 
-            <div className="hero-ctas">
-              <Link to={saleUrl} className="btn btn-primary btn-lg hero-primary-cta">
-                {primaryLabel}
-              </Link>
-              {(featuredCourse || loading) && (
-                <a href="#featured-program" className="btn btn-secondary btn-lg">
-                  See What's Inside ↓
-                </a>
-              )}
+        <div className="lp-hero-visual">
+          {loading ? (
+            <div className="lp-hero-card" aria-hidden="true">
+              <div className="wt-skeleton wt-skeleton--media" />
+              <div className="lp-hero-card-body">
+                <div className="wt-skeleton wt-skeleton--title" />
+                <div className="wt-skeleton wt-skeleton--text" style={{ width: '50%' }} />
+              </div>
             </div>
-
-            <ul className="hero-trust" aria-label="Course highlights">
-              {outcomes.map((o) => <li key={o}>✓ {o}</li>)}
-              <li>✓ Instant access · Lifetime access</li>
-              <li>✓ Secure Razorpay checkout · GST invoice</li>
-            </ul>
-
-            <p className="hero-business-link">
-              Need software or automation for your business?{' '}
-              <button type="button" className="link-button" onClick={() => {
-                const el = document.getElementById('software');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-                else openEnquiry('Software');
-              }}>
-                See WideTech software →
-              </button>
-            </p>
-          </div>
-
-          <div className="hero-visual">
-            {loading ? (
-              <div className="hero-offer-card hero-offer-skeleton" aria-hidden="true" />
-            ) : featuredCourse ? (
-              <div className="hero-offer-card">
-                <div className="hero-offer-thumb">
-                  <img
-                    src={getMediaUrl(featuredCourse.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
-                    alt=""
-                    width="640"
-                    height="360"
-                    fetchPriority="high"
-                    decoding="async"
-                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_COURSE_THUMBNAIL; }}
-                  />
-                  <span className="hero-offer-tag">⭐ Featured course</span>
-                </div>
-                <div className="hero-offer-body">
-                  <h2 className="hero-offer-title">{featuredCourse.title}</h2>
-                  <div className="hero-offer-price">
-                    <span className="hero-offer-price-now">{price.label}</span>
-                    {price.original && <span className="hero-offer-price-was">₹{price.original}</span>}
-                    {!price.isFree && <span className="hero-offer-price-note">incl. 18% GST</span>}
-                  </div>
-                  <ul className="hero-offer-facts">
-                    {chapters > 0 && <li>📚 {chapters} module{chapters === 1 ? '' : 's'}</li>}
-                    {featuredCourse.languages?.length > 0 && <li>🌐 {featuredCourse.languages.slice(0, 3).join(' · ')}</li>}
-                    <li>⚡ Instant access</li>
-                    <li>♾️ Lifetime access</li>
-                  </ul>
-                  <Link to={saleUrl} className="btn btn-primary hero-offer-cta">
-                    {enrolled ? 'Go to course →' : price.isFree ? 'Enroll free →' : 'Buy now →'}
-                  </Link>
-                  {!enrolled && !price.isFree && (
-                    <p className="hero-offer-small">No account needed before checkout · Instant access</p>
-                  )}
-                </div>
+          ) : featuredCourse ? (
+            <Link to={courseUrl} className="lp-hero-card" aria-label={`Featured course: ${featuredCourse.title}`}>
+              <div className="lp-hero-card-media">
+                <img
+                  src={getMediaUrl(featuredCourse.thumbnail) || FALLBACK_COURSE_THUMBNAIL}
+                  alt=""
+                  width="640"
+                  height="360"
+                  fetchPriority="high"
+                  decoding="async"
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_COURSE_THUMBNAIL; }}
+                />
+                <span className="wt-badge lp-hero-card-tag"><Icon name="book" size={14} /> Featured course</span>
               </div>
-            ) : (
-              <div className="hero-visual-card" aria-hidden="true">
-                <div className="visual-flow">
-                  <div className="flow-step"><span className="flow-icon">💡</span><span className="flow-label">Idea</span></div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step"><span className="flow-icon">🤖</span><span className="flow-label">AI</span></div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step"><span className="flow-icon">💻</span><span className="flow-label">Code</span></div>
-                  <div className="flow-arrow">→</div>
-                  <div className="flow-step"><span className="flow-icon">🌐</span><span className="flow-label">Website</span></div>
-                </div>
-                <div className="visual-badge">From idea → live website</div>
+              <div className="lp-hero-card-body">
+                <p className="lp-hero-card-title">{featuredCourse.title}</p>
+                <p className="lp-hero-card-meta">
+                  <span className="wt-price">{price.label}</span>
+                  {price.original && <s>₹{price.original}</s>}
+                  {!price.isFree && <small>incl. GST</small>}
+                </p>
               </div>
-            )}
-          </div>
+            </Link>
+          ) : (
+            <div className="lp-hero-card lp-hero-card--art" aria-hidden="true">
+              <svg viewBox="0 0 320 200" width="100%" height="100%">
+                <rect x="16" y="20" width="180" height="110" rx="14" fill="#eef0ff" />
+                <rect x="34" y="40" width="110" height="12" rx="6" fill="#4338ca" opacity=".85" />
+                <rect x="34" y="62" width="140" height="8" rx="4" fill="#c7cbff" />
+                <rect x="34" y="78" width="120" height="8" rx="4" fill="#c7cbff" />
+                <rect x="130" y="96" width="170" height="90" rx="14" fill="#fff" stroke="#e3e7ef" />
+                <circle cx="160" cy="126" r="12" fill="#e6f5f3" /><path d="m154 126 4 4 8-8" stroke="#0f766e" strokeWidth="2.5" fill="none" />
+                <rect x="182" y="120" width="96" height="10" rx="5" fill="#cfd6e3" />
+                <rect x="150" y="152" width="128" height="10" rx="5" fill="#e3e7ef" />
+              </svg>
+            </div>
+          )}
+
+          {sw && (
+            <Link to={`/software/${sw.slug || sw._id}`} className="lp-hero-chip lp-hero-chip--a">
+              <span className="wt-icon-tile wt-icon-tile--accent"><Icon name="grid" size={18} /></span>
+              <span><small>Software</small><strong>{sw.title}</strong><em>{priceLabel(sw, 'software')?.main}</em></span>
+            </Link>
+          )}
+          {svc && (
+            <Link to={`/services/${svc.slug || svc._id}`} className="lp-hero-chip lp-hero-chip--b">
+              <span className="wt-icon-tile wt-icon-tile--warm"><Icon name={svc.icon || 'briefcase'} size={18} /></span>
+              <span><small>Service</small><strong>{svc.title}</strong><em>{priceLabel(svc, 'service')?.main}</em></span>
+            </Link>
+          )}
         </div>
       </div>
     </section>

@@ -1,30 +1,29 @@
-import React from 'react';
+import Icon from '../../components/Icon';
 
-/**
- * How buying works — universal for every course, and answers the "what happens after I pay?"
- * question that stops first-time buyers. Every step reflects the real checkout flow.
- */
+/** Three steps that describe the real flow for both courses and business products. */
 export default function HowItWorks() {
   const steps = [
-    { number: '01', title: 'Pay securely', desc: 'Checkout with Razorpay — UPI, cards or net banking. No account needed beforehand; the price already includes GST.' },
-    { number: '02', title: 'Get instant access', desc: 'You go straight to the course. Your login details and GST invoice are emailed to you.' },
-    { number: '03', title: 'Learn at your pace', desc: 'Lifetime access from your dashboard, on your phone or computer.' },
+    { icon: 'search', title: 'Choose', desc: 'Browse courses, software and services. Every page shows the price, or that it is quoted.' },
+    { icon: 'lock', title: 'Buy or enquire', desc: 'Courses: pay securely with Razorpay (UPI, cards, net banking). Software and services: send a short enquiry.' },
+    { icon: 'rocket', title: 'Get going', desc: 'Course access is instant from your dashboard. For software and services we reply by email with next steps.' },
   ];
-
   return (
-    <section className="how-section">
-      <div className="container">
-        <div className="section-label">HOW IT WORKS</div>
-        <h2 className="section-title">Start in 3 Simple Steps</h2>
-        <div className="how-steps">
-          {steps.map((step) => (
-            <div key={step.number} className="how-step">
-              <div className="how-number">{step.number}</div>
-              <h3>{step.title}</h3>
-              <p>{step.desc}</p>
-            </div>
-          ))}
+    <section className="wt-section wt-section--white" id="how-it-works" aria-labelledby="how-title">
+      <div className="wt-container">
+        <div className="wt-section-head reveal">
+          <p className="wt-eyebrow">How it works</p>
+          <h2 id="how-title" className="wt-h2">Three simple steps</h2>
         </div>
+        <ol className="lp-steps">
+          {steps.map((s, i) => (
+            <li key={s.title} className="lp-step reveal" style={{ '--reveal-delay': `${i * 90}ms` }}>
+              <span className="lp-step-num" aria-hidden="true">{i + 1}</span>
+              <span className="wt-icon-tile"><Icon name={s.icon} size={22} /></span>
+              <h3 className="wt-h3">{s.title}</h3>
+              <p className="wt-muted">{s.desc}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

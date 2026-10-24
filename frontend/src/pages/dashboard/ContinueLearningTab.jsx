@@ -175,7 +175,7 @@ export default function ContinueLearningTab({
                       {course.title}
                     </h3>
                     <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#64748b', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
-                      <span style={{ color: item.completed ? '#10b981' : '#6366f1', fontWeight: 700 }}>
+                      <span style={{ color: item.completed ? '#10b981' : 'var(--color-primary)', fontWeight: 700 }}>
                         {item.completed ? '100% Completed' : `${item.progress}% Complete`}
                       </span>
                       <span>{item.completedLessons || 0} / {item.totalLessons || '?'} Lessons</span>
@@ -188,7 +188,7 @@ export default function ContinueLearningTab({
                     
                     <div style={{ maxWidth: '420px', marginBottom: '0.85rem' }}>
                       <div className="progress-bar-container" style={{ height: '6px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div className="progress-bar-fill" style={{ width: `${item.progress}%`, height: '100%', background: item.completed ? '#10b981' : 'linear-gradient(90deg, #6366f1, #0284c7)' }}></div>
+                        <div className="progress-bar-fill" style={{ width: `${item.progress}%`, height: '100%', background: item.completed ? '#10b981' : 'linear-gradient(90deg, var(--color-primary), #0284c7)' }}></div>
                       </div>
                     </div>
                     

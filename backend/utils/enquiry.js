@@ -63,13 +63,20 @@ export const notifyNewEnquiry = async (enquiry) => {
       ['Email', enquiry.email],
       ['Phone', enquiry.phone || '—'],
       ['Source', enquiry.source || '—'],
+      ...(enquiry.categoryLabel ? [['Category', enquiry.categoryLabel]] : []),
+      ...(enquiry.priority ? [['Priority', `${enquiry.priority} (score ${enquiry.score ?? 0})`]] : []),
+      ...(enquiry.company ? [['Company', enquiry.company]] : []),
+      ...(enquiry.country ? [['Country', enquiry.country]] : []),
+      ...(enquiry.relatedTitle ? [['Product', enquiry.relatedTitle]] : []),
+      // Detailed answers from the smart business enquiry form
+      ...((enquiry.answers || []).map((a) => [a.label, a.value])),
     ];
     const text = `${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\nMessage:\n${enquiry.message}\n\nView all enquiries: ${siteUrl}/${adminPath}/ (Inquiries tab)`;
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
         <h2 style="margin:0 0 12px 0;color:#0f172a;">📬 New ${escapeHtml(enquiry.interest)} enquiry</h2>
         <table style="border-collapse:collapse;width:100%;font-size:14px;">
-          ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#64748b;width:90px;">${k}</td><td style="padding:6px 8px;color:#0f172a;">${escapeHtml(v)}</td></tr>`).join('')}
+          ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#64748b;width:140px;vertical-align:top;">${escapeHtml(k)}</td><td style="padding:6px 8px;color:#0f172a;">${escapeHtml(v)}</td></tr>`).join('')}
         </table>
         <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border-left:4px solid #4f46e5;border-radius:6px;font-size:14px;color:#334155;white-space:pre-wrap;">${escapeHtml(enquiry.message)}</div>
         <p style="font-size:12px;color:#64748b;margin-top:16px;">Reply directly to this email to answer ${escapeHtml(enquiry.name)}, or open the admin portal → Inquiries.</p>

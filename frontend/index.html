@@ -3,38 +3,66 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WideTech | Practical Online Courses, Software &amp; Automation</title>
-  <meta name="theme-color" content="#4F46E5" />
+  <title>WideTech | Courses, Software &amp; Business Services</title>
+  <meta name="description" content="Practical online courses, ready-to-use business software and done-for-you services: automation, custom software and business administration. Secure checkout, real replies by email." />
+  <meta name="author" content="WideTech" />
+  <meta name="theme-color" content="#4338ca" />
+  <link rel="canonical" href="https://widetech.in/" />
 
-  <!-- Fonts: loaded here (with preconnect) instead of a render-blocking CSS @import -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
-  
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="Practical, self-paced online courses from WideTech with instant access, lifetime validity and secure Razorpay checkout (prices include GST). Plus ready-to-run software and custom automation for businesses." />
-  <meta name="keywords" content="AI courses Kerala, Malayalam AI tutorial, prompt engineering, ChatGPT, WideTech, Broffy, artificial intelligence workshop" />
-  <meta name="author" content="WideTech Academy" />
+  <!-- Icons & app manifest -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
 
-  <!-- OpenGraph / Instagram / WhatsApp / Facebook Preview Tags -->
+  <!-- Self-hosted fonts (Outfit for headings, Plus Jakarta Sans for text), preloaded to avoid layout shift -->
+  <link rel="preload" href="/fonts/plus-jakarta-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/outfit-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+
+  <!-- Open Graph / WhatsApp / Facebook / LinkedIn previews -->
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="WideTech" />
   <meta property="og:url" content="https://widetech.in/" />
-  <meta property="og:title" content="WideTech Academy — Master AI & Tech with Hands-On Projects" />
-  <meta property="og:description" content="Get our curated AI Resource Guide, free prompts library, and hands-on workshops. Start learning today!" />
-  <meta property="og:image" content="https://widetech.in/og-preview.jpg" />
-  <meta property="og:site_name" content="WideTech Academy" />
+  <meta property="og:title" content="WideTech | Courses, Software &amp; Business Services" />
+  <meta property="og:description" content="Learn new skills and run your business smarter: practical online courses, business software and done-for-you services." />
+  <meta property="og:image" content="https://widetech.in/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="WideTech: courses, software and services" />
+  <meta property="og:locale" content="en_IN" />
 
-  <!-- Twitter / X Preview Tags -->
+  <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:url" content="https://widetech.in/" />
-  <meta name="twitter:title" content="WideTech Academy — Master AI & Tech with Hands-On Projects" />
-  <meta name="twitter:description" content="Get our curated AI Resource Guide, free prompts library, and hands-on workshops. Start learning today!" />
-  <meta name="twitter:image" content="https://widetech.in/og-preview.jpg" />
+  <meta name="twitter:title" content="WideTech | Courses, Software &amp; Business Services" />
+  <meta name="twitter:description" content="Learn new skills and run your business smarter: practical online courses, business software and done-for-you services." />
+  <meta name="twitter:image" content="https://widetech.in/og-image.png" />
+
+  <!-- Organization structured data (real details from the Contact page) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "WideTech",
+    "legalName": "WIDE VENTURES",
+    "url": "https://widetech.in",
+    "logo": "https://widetech.in/icons/icon-512.png",
+    "email": "support@widetech.in",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "8/7/a, Thettamala, Mananthavady Road",
+      "addressLocality": "Wayanad",
+      "addressRegion": "Kerala",
+      "postalCode": "670731",
+      "addressCountry": "IN"
+    },
+    "sameAs": ["https://www.instagram.com/broffydiaries/"]
+  }
+  </script>
 </head>
 
 <body>
+  <noscript>WideTech needs JavaScript to run. Email support@widetech.in if you need help.</noscript>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

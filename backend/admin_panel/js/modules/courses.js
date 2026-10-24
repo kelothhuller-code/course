@@ -61,8 +61,10 @@ window.CoursesModule = {
                         
                         <div class="form-group">
                             <label class="form-label">Category *</label>
-                            <input type="text" id="course-category" class="form-control" 
-                                   value="${course?.category || ''}" required>
+                            <input type="text" id="course-category" class="form-control" list="course-category-options"
+                                   value="${Helpers.escapeHtml(course?.category || '')}" required autocomplete="off">
+                            <datalist id="course-category-options"></datalist>
+                            <small class="text-muted">Pick one of your categories (manage them in <a href="#" onclick="App.navigateTo('categories');return false;">Categories</a>) or type a new name.</small>
                         </div>
                         
                         <div class="form-group">
@@ -595,6 +597,14 @@ window.CoursesModule = {
         if (freeSelect) this.togglePricing(freeSelect.value);
 
         form.onsubmit = (e) => this.handleSubmit(e, courseId);
+
+        // Fill the category suggestions from the admin-managed course categories
+        API.get('/api/admin/catalog/categories?kind=course').then((res) => {
+            const list = document.getElementById('course-category-options');
+            if (!list) return;
+            const names = [...(res.categories || []).map((c) => c.name), ...((res.unmanaged || {}).course || [])];
+            list.innerHTML = names.map((n) => `<option value="${Helpers.escapeHtml(n)}"></option>`).join('');
+        }).catch(() => {});
     },
 
     async handleSubmit(event, courseId) {

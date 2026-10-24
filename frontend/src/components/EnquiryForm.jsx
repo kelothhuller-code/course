@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import tracker from '../utils/tracker';
+import { useEnquiryForm } from '../hooks/useCatalog';
 import './EnquiryForm.css';
 
-const ENQUIRY_INTERESTS = ['Course', 'Software', 'Other'];
+const ENQUIRY_INTERESTS = ['Course', 'Software', 'Service', 'Other'];
+
+// Option values: "Course" | "Software" | "Service" | "Other" | "software:<id>" | "service:<id>"
+const parseChoice = (value) => {
+  const m = /^(software|service):(.+)$/.exec(value || '');
+  if (m) return { interest: m[1] === 'software' ? 'Software' : 'Service', relatedType: m[1], relatedId: m[2] };
+  return { interest: ENQUIRY_INTERESTS.includes(value) ? value : 'Other', relatedType: '', relatedId: '' };
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_RE = /^[+\d][\d\s()-]{6,19}$/;
@@ -14,7 +22,10 @@ const PHONE_RE = /^[+\d][\d\s()-]{6,19}$/;
  * ContactMessage collection (visible in the admin portal → Inquiries) and emails
  * the owner if ENQUIRY_NOTIFY_EMAIL + SMTP are configured on the backend.
  */
-export default function EnquiryForm({ user, defaultInterest = 'Course', source = 'landing_page', compact = false, courseTitle = '' }) {
+export default function EnquiryForm({ user, defaultInterest = 'Course', related = null, source = 'landing_page', compact = false, courseTitle = '' }) {
+  // Interest options are built from the live software/services lists (admin-managed)
+  const { catalog } = useEnquiryForm();
+  const initialChoice = related?.type && related?.id ? `${related.type}:${related.id}` : defaultInterest;
   // Name the actual course when we know it (e.g. the featured course), otherwise stay generic
   const courseOptionLabel = courseTitle
     ? `Course: ${courseTitle.length > 48 ? `${courseTitle.slice(0, 45).trim()}…` : courseTitle}`
@@ -23,7 +34,7 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
     name: user?.name || '',
     email: user?.email || '',
     phone: '',
-    interest: ENQUIRY_INTERESTS.includes(defaultInterest) ? defaultInterest : 'Course',
+    interest: initialChoice || 'Course',
     message: '',
     website: '', // honeypot — real users never see or fill this
   });
@@ -34,9 +45,10 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
   // Allow other sections (e.g. "Enquire about software" buttons) to preselect the interest
   useEffect(() => {
     const onPrefill = (e) => {
-      const interest = e.detail?.interest;
-      if (ENQUIRY_INTERESTS.includes(interest)) {
-        setForm((f) => ({ ...f, interest }));
+      const { interest, relatedType, relatedId } = e.detail || {};
+      const choice = relatedType && relatedId ? `${relatedType}:${relatedId}` : interest;
+      if (ENQUIRY_INTERESTS.includes(choice) || /^(software|service):/.test(choice || '')) {
+        setForm((f) => ({ ...f, interest: choice }));
         setStatus((s) => (s === 'sent' ? 'idle' : s));
       }
     };
@@ -66,19 +78,22 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
     if (status === 'sending' || !validate()) return;
     setStatus('sending');
     setServerMsg('');
+    const choice = parseChoice(form.interest);
     try {
       const res = await api.submitContactForm({
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
-        interest: form.interest,
+        interest: choice.interest,
+        relatedType: choice.relatedType,
+        relatedId: choice.relatedId,
         message: form.message.trim(),
         website: form.website,
         source,
       });
       setServerMsg(res?.message || '');
       setStatus('sent');
-      tracker.trackEvent('enquiry_submit', { source: `${source || 'enquiry_form'}:${form.interest}` });
+      tracker.trackEvent('enquiry_submit', { source: `${source || 'enquiry_form'}:${choice.interest}` });
     } catch (err) {
       setServerMsg(err.message || 'Something went wrong. Please try again.');
       setStatus('error');
@@ -129,7 +144,21 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
           <label htmlFor="enq-interest">I'm interested in *</label>
           <select id="enq-interest" value={form.interest} onChange={update('interest')}>
             <option value="Course">{courseOptionLabel}</option>
-            <option value="Software">Software / automation</option>
+            {catalog.software.length > 0 ? (
+              <optgroup label="Software">
+                {catalog.software.map((p) => <option key={p.id} value={`software:${p.id}`}>{p.title}</option>)}
+                <option value="Software">Other software / not sure</option>
+              </optgroup>
+            ) : <option value="Software">Software</option>}
+            {catalog.service.length > 0 ? (
+              <optgroup label="Services">
+                {catalog.service.map((p) => <option key={p.id} value={`service:${p.id}`}>{p.title}</option>)}
+                <option value="Service">Other service / not sure</option>
+              </optgroup>
+            ) : <option value="Service">A service (automation, custom software, admin)</option>}
+            {related?.type && related?.id && !catalog[related.type]?.some((p) => p.id === related.id) && (
+              <option value={`${related.type}:${related.id}`}>{related.title || 'This product'}</option>
+            )}
             <option value="Other">Something else</option>
           </select>
         </div>
@@ -139,7 +168,7 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
         <label htmlFor="enq-message">Message *</label>
         <textarea id="enq-message" rows={compact ? 3 : 4} maxLength={3000} value={form.message} onChange={update('message')}
           aria-invalid={!!errors.message} aria-describedby={errors.message ? 'enq-message-err' : undefined}
-          placeholder={form.interest === 'Software' ? 'What would you like to automate or build?' : 'How can we help?'} />
+          placeholder={form.interest === 'Course' || form.interest === 'Other' ? 'How can we help?' : 'What would you like to automate, build or improve?'} />
         {errors.message && <span className="enquiry-error" id="enq-message-err">{errors.message}</span>}
       </div>
 
@@ -151,7 +180,7 @@ export default function EnquiryForm({ user, defaultInterest = 'Course', source =
 
       {status === 'error' && <div className="enquiry-server-error" role="alert">{serverMsg}</div>}
 
-      <button type="submit" className="btn btn-primary btn-lg enquiry-submit" disabled={status === 'sending'}>
+      <button type="submit" className="wt-btn wt-btn--primary wt-btn--lg enquiry-submit" disabled={status === 'sending'}>
         {status === 'sending' ? 'Sending…' : 'Send Enquiry'}
       </button>
       <p className="enquiry-privacy">We reply by email, usually within 24 business hours. We never share your details.</p>

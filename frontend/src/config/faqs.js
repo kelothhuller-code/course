@@ -33,8 +33,9 @@ export const BUYING_FAQS = [
     link: { to: '/refund', label: 'Read the full refund policy' },
   },
   {
-    q: 'Do you also build software or bots for businesses?',
-    a: 'Yes. WideTech offers ready-to-run software and custom bot/automation engineering. Tell us what you need using the enquiry form and we will reply by email.',
+    q: 'Do you also offer software and services for businesses?',
+    a: 'Yes. Alongside courses, WideTech offers ready-to-use business software and services such as automation, custom software and business administration. Send a business enquiry and we will reply by email.',
+    link: { to: '/contact#business-enquiry', label: 'Start a business enquiry' },
   },
 ];
 

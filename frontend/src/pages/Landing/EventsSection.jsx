@@ -1,4 +1,4 @@
-import React from 'react';
+import { INSTAGRAM_HANDLE } from '../../config/site';
 import { getMediaUrl, FALLBACK_EVENT_THUMBNAIL } from '../../utils/media';
 
 export default function EventsSection({ events, user, handleEnroll }) {
@@ -32,7 +32,7 @@ export default function EventsSection({ events, user, handleEnroll }) {
                 <h3 className="event-title">{event.title}</h3>
                 <p className="event-desc">{event.description}</p>
                 <div className="event-meta">
-                  <span className="event-instructor">👨‍🏫 @widetechai</span>
+                  {INSTAGRAM_HANDLE ? <span className="event-instructor">@{INSTAGRAM_HANDLE}</span> : <span />}
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEnroll(event, 'event')}>
                     {isEnrolled ? '✅ Enrolled' : event.isPaid ? '🎫 Buy Ticket' : '🎉 Register Free'}
                   </button>

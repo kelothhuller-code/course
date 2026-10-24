@@ -55,7 +55,7 @@ export default function GstInvoiceModal({ txnid, onClose }) {
         <head>
           <title>Tax Invoice - ${invoiceData?.invoiceNo || txnid}</title>
           <style>
-            body { font-family: 'Inter', sans-serif; color: #1e293b; padding: 20px; background: #fff; }
+            body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1e293b; padding: 20px; background: #fff; }
             .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 8px; }
             .header-table { width: 100%; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
             .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #dbeafe; color: #1e40af; }

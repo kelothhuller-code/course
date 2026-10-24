@@ -90,13 +90,23 @@ const App = {
 
                 // ==================== SOFTWARE & AI SERVICES ====================
                 case 'software':
-                    this.setBreadcrumb('Software Products & AI Tools');
+                    this.setBreadcrumb('Software');
                     content = await SoftwareModule.render();
                     break;
 
                 case 'services':
-                    this.setBreadcrumb('AI Bot & Custom Software Services');
+                    this.setBreadcrumb('Services');
                     content = await ServicesModule.render();
+                    break;
+
+                case 'categories':
+                    this.setBreadcrumb('Categories');
+                    content = await CategoriesModule.render();
+                    break;
+
+                case 'enquiry-form':
+                    this.setBreadcrumb('Enquiry Form');
+                    content = await EnquiryFormModule.render();
                     break;
 
                 // ==================== CONTENT MANAGEMENT HUB ====================

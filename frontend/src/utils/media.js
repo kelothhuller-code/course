@@ -40,6 +40,7 @@ export function getMediaUrl(path) {
   return cleanPath;
 }
 
-export const FALLBACK_COURSE_THUMBNAIL = 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80';
-export const FALLBACK_SOFTWARE_THUMBNAIL = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80';
-export const FALLBACK_EVENT_THUMBNAIL = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';
+// Local, generic placeholders (no third-party image requests)
+export const FALLBACK_COURSE_THUMBNAIL = '/placeholders/course.svg';
+export const FALLBACK_SOFTWARE_THUMBNAIL = '/placeholders/software.svg';
+export const FALLBACK_EVENT_THUMBNAIL = '/placeholders/event.svg';

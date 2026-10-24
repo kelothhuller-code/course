@@ -58,7 +58,7 @@ export default function MyServicesTab({ profile }) {
       case 'active':
         return { label: 'LIVE & DEPLOYED', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' };
       case 'in_progress':
-        return { label: 'IN DEVELOPMENT', bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' };
+        return { label: 'IN DEVELOPMENT', bg: 'rgba(67, 56, 202, 0.1)', color: 'var(--color-primary)' };
       case 'in_scoping':
         return { label: 'SCOPING & ARCHITECTURE', bg: 'rgba(2, 132, 199, 0.1)', color: '#0284c7' };
       default:
@@ -196,7 +196,7 @@ export default function MyServicesTab({ profile }) {
             }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', background: 'rgba(99,102,241,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', background: 'rgba(67, 56, 202,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
                     {svc.category}
                   </span>
                   {svc.highlightBadge && (
