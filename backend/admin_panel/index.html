@@ -5,9 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WIDETECHNOS - Super Admin Panel</title>
+    <!-- Inline favicon: the admin portal is served by the API host, which has no /favicon.ico (avoids a 404 on every load). -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%234f46e5%27/%3E%3Cpath d=%27M7 10l4 12 5-9 5 9 4-12%27 fill=%27none%27 stroke=%27white%27 stroke-width=%273%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Light theme by default; a saved "dark" choice is applied before first paint.
+        try { if (localStorage.getItem('adminTheme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+    </script>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="./css/catalog.css">
 </head>
@@ -131,8 +137,8 @@
                     </svg>
                     Newsletter & Leads
                 </a>
-                <a href="http://localhost:5173/" class="external-nav-link" target="_blank" rel="noopener noreferrer"
-                    style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; color:#94a3b8; text-decoration:none; margin-top:1rem; border-top:1px solid rgba(255,255,255,0.1); font-size:0.88rem;">
+                <a href="/" id="student-portal-link" class="external-nav-link" target="_blank" rel="noopener noreferrer"
+                    style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; color: var(--text-muted); text-decoration:none; margin-top:1rem; border-top:1px solid var(--border); font-size:0.88rem;">
                     <span>Open Student Portal →</span>
                 </a>
             </nav>
@@ -143,6 +149,7 @@
             <header class="topbar">
                 <div class="breadcrumb" id="breadcrumb">Dashboard</div>
                 <div class="user-profile">
+                    <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false" title="Switch between light and dark admin theme">🌙 Dark</button>
                     <span class="user-name">Admin User</span>
                     <div class="avatar">A</div>
                 </div>
@@ -179,6 +186,27 @@
     <script src="./js/modules/services.js"></script>
     <script src="./js/modules/analytics.js"></script>
     <script src="./js/app.js"></script>
+    <script>
+        (function () {
+            var btn = document.getElementById('theme-toggle');
+            var root = document.documentElement;
+            function sync() {
+                var dark = root.getAttribute('data-theme') === 'dark';
+                btn.textContent = dark ? '☀️ Light' : '🌙 Dark';
+                btn.setAttribute('aria-pressed', String(dark));
+            }
+            btn.addEventListener('click', function () {
+                var dark = root.getAttribute('data-theme') !== 'dark';
+                if (dark) root.setAttribute('data-theme', 'dark'); else root.removeAttribute('data-theme');
+                try { localStorage.setItem('adminTheme', dark ? 'dark' : 'light'); } catch (e) {}
+                sync();
+            });
+            sync();
+            // Local development: the student site runs on the Vite dev server.
+            var link = document.getElementById('student-portal-link');
+            if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^500\d$/.test(location.port)) link.href = 'http://localhost:5173/';
+        })();
+    </script>
 
 </body>
 

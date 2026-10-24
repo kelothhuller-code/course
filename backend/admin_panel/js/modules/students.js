@@ -134,7 +134,7 @@ async renderDetails(userId) {
             <div class="grid-cards" style="margin-bottom:24px;">
                 ${Renderers.statCard('Total Money Paid', `₹${totalPaid}`, 'var(--success)')}
                 ${Renderers.statCard('Courses Enrolled', user.enrolledCourses?.length || 0)}
-                ${Renderers.statCard('Total Commission Earned', `₹${totalEarned}`, '#f59e0b')}
+                ${Renderers.statCard('Total Commission Earned', `₹${totalEarned}`, 'var(--warning)')}
                 ${Renderers.statCard('Outstanding Wallet Balance', `₹${walletBalance}`, walletBalance > 0 ? 'var(--danger)' : 'var(--text-muted)')}
             </div>
 
@@ -407,7 +407,7 @@ async renderDetails(userId) {
         const feedbackEl = document.getElementById('email-modal-feedback');
         if (!feedbackEl) return;
         feedbackEl.style.display = 'block';
-        feedbackEl.style.background = type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        feedbackEl.style.background = type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)';
         feedbackEl.style.color = type === 'success' ? 'var(--success)' : 'var(--danger)';
         feedbackEl.style.border = type === 'success' ? '1px solid var(--success)' : '1px solid var(--danger)';
         feedbackEl.textContent = text;
@@ -417,7 +417,7 @@ async renderDetails(userId) {
         const feedbackEl = document.getElementById('smtp-test-feedback');
         if (!feedbackEl) return;
         feedbackEl.style.display = 'block';
-        feedbackEl.style.background = type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        feedbackEl.style.background = type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)';
         feedbackEl.style.color = type === 'success' ? 'var(--success)' : 'var(--danger)';
         feedbackEl.style.border = type === 'success' ? '1px solid var(--success)' : '1px solid var(--danger)';
         feedbackEl.textContent = text;

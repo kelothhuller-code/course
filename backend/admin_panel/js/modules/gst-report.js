@@ -66,47 +66,47 @@ const GstReportModule = {
                     <div class="grid-cards" style="margin-bottom:24px;">
                         <div class="stat-card" style="border-left:4px solid #6366f1;">
                             <span class="stat-title">Gross Sales (Invoices)</span>
-                            <div class="stat-value" style="color:#a5b4fc;">₹${(summary.totalGrossSales || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: var(--primary-text);">₹${(summary.totalGrossSales || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">${summary.totalInvoices || 0} Successful Invoice(s)</span>
                         </div>
                         <div class="stat-card" style="border-left:4px solid #ef4444;">
                             <span class="stat-title">Refunds / Credit Notes (Sec 9B)</span>
-                            <div class="stat-value" style="color:#f87171;">-₹${(summary.totalRefundedAmount || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: var(--danger);">-₹${(summary.totalRefundedAmount || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">${summary.totalRefundsCount || 0} Reversal(s) Issued</span>
                         </div>
                         <div class="stat-card" style="border-left:4px solid #10b981;">
                             <span class="stat-title">Net Taxable Turnover</span>
-                            <div class="stat-value" style="color:#34d399;">₹${(summary.netTaxableTurnover !== undefined ? summary.netTaxableTurnover : summary.totalTaxableValue || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: var(--success);">₹${(summary.netTaxableTurnover !== undefined ? summary.netTaxableTurnover : summary.totalTaxableValue || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">(After Refund Adjustments)</span>
                         </div>
                         <div class="stat-card" style="border-left:4px solid #0284c7;">
                             <span class="stat-title">Net CGST Payable</span>
-                            <div class="stat-value" style="color:#38bdf8;">₹${(summary.netCgstPayable !== undefined ? summary.netCgstPayable : summary.totalCgst || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: var(--info);">₹${(summary.netCgstPayable !== undefined ? summary.netCgstPayable : summary.totalCgst || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">Kerala Central Tax (9%)</span>
                         </div>
                         <div class="stat-card" style="border-left:4px solid #f59e0b;">
                             <span class="stat-title">Net SGST Payable</span>
-                            <div class="stat-value" style="color:#fbbf24;">₹${(summary.netSgstPayable !== undefined ? summary.netSgstPayable : summary.totalSgst || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: var(--warning);">₹${(summary.netSgstPayable !== undefined ? summary.netSgstPayable : summary.totalSgst || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">Kerala State Tax (9%)</span>
                         </div>
                         <div class="stat-card" style="border-left:4px solid #ec4899;">
                             <span class="stat-title">Net IGST Payable</span>
-                            <div class="stat-value" style="color:#f472b6;">₹${(summary.netIgstPayable !== undefined ? summary.netIgstPayable : summary.totalIgst || 0).toLocaleString('en-IN')}</div>
+                            <div class="stat-value" style="color: #be185d;">₹${(summary.netIgstPayable !== undefined ? summary.netIgstPayable : summary.totalIgst || 0).toLocaleString('en-IN')}</div>
                             <span style="font-size:0.75rem; color:var(--text-muted);">Inter-State Integrated Tax (18%)</span>
                         </div>
                     </div>
 
                     <!-- Credit Notes & Refunds Section (GSTR-1 Sec 9B) -->
                     ${creditNotes.length > 0 ? `
-                    <div class="stat-card" style="margin-bottom:24px; border:1px solid rgba(239, 68, 68, 0.3);">
+                    <div class="stat-card" style="margin-bottom:24px; border:1px solid var(--danger);">
                         <div class="flex justify-between items-center" style="margin-bottom:16px;">
-                            <h3 style="font-size:1.15rem; margin:0; color:#f87171;">⚠️ Credit Notes & Tax Reversals (GSTR-1 Section 9B)</h3>
+                            <h3 style="font-size:1.15rem; margin:0; color: var(--danger);">⚠️ Credit Notes & Tax Reversals (GSTR-1 Section 9B)</h3>
                             <span class="badge" style="background:#ef4444;">${creditNotes.length} Credit Note(s)</span>
                         </div>
                         <div style="overflow-x:auto;">
                             <table style="width:100%; border-collapse:collapse; font-size:0.85rem; text-align:left; color:var(--text-main);">
                                 <thead>
-                                    <tr style="background:rgba(239, 68, 68, 0.15); border-bottom:2px solid rgba(239, 68, 68, 0.3); color:#fca5a5;">
+                                    <tr style="background: var(--danger-soft); border-bottom:2px solid var(--danger); color: var(--danger);">
                                         <th style="padding:10px;">Refund Date</th>
                                         <th style="padding:10px;">Credit Note No</th>
                                         <th style="padding:10px;">Original Invoice</th>
@@ -122,13 +122,13 @@ const GstReportModule = {
                                     ${creditNotes.map(cn => `
                                         <tr style="border-bottom:1px solid var(--border);">
                                             <td style="padding:10px; white-space:nowrap;">${new Date(cn.refundDate).toLocaleDateString('en-IN')}</td>
-                                            <td style="padding:10px; font-family:monospace; font-weight:700; color:#ef4444;">${cn.creditNoteNo}</td>
+                                            <td style="padding:10px; font-family:monospace; font-weight:700; color: var(--danger);">${cn.creditNoteNo}</td>
                                             <td style="padding:10px; font-family:monospace; color:var(--text-muted);">${cn.originalInvoiceNo}</td>
                                             <td style="padding:10px; font-weight:600;">${cn.buyerName}</td>
                                             <td style="padding:10px;">${cn.buyerState}</td>
-                                            <td style="padding:10px; font-weight:700; color:#ef4444;">-₹${cn.refundAmount}</td>
-                                            <td style="padding:10px; color:#fca5a5;">-₹${cn.refundBaseAmount}</td>
-                                            <td style="padding:10px; color:#fca5a5;">-₹${cn.refundGstAmount}</td>
+                                            <td style="padding:10px; font-weight:700; color: var(--danger);">-₹${cn.refundAmount}</td>
+                                            <td style="padding:10px; color: var(--danger);">-₹${cn.refundBaseAmount}</td>
+                                            <td style="padding:10px; color: var(--danger);">-₹${cn.refundGstAmount}</td>
                                             <td style="padding:10px; font-size:0.8rem; color:var(--text-muted);">${cn.reason || 'Cancellation'}</td>
                                         </tr>
                                     `).join('')}
@@ -152,7 +152,7 @@ const GstReportModule = {
                             <div style="overflow-x:auto;">
                                 <table style="width:100%; border-collapse:collapse; font-size:0.88rem; text-align:left; color:var(--text-main);">
                                     <thead>
-                                        <tr style="background:rgba(15, 23, 42, 0.8); border-bottom:2px solid var(--border); color:var(--text-muted);">
+                                        <tr style="background: var(--overlay); border-bottom:2px solid var(--border); color:var(--text-muted);">
                                             <th style="padding:12px;">Date</th>
                                             <th style="padding:12px;">Invoice No</th>
                                             <th style="padding:12px;">Buyer</th>
@@ -170,30 +170,30 @@ const GstReportModule = {
                                             const isRefunded = t.status === 'refunded';
                                             const isIntraState = (t.buyerState || 'Kerala').trim().toLowerCase() === (config.sellerState || 'Kerala').trim().toLowerCase();
                                             return `
-                                                <tr style="border-bottom:1px solid var(--border); ${isRefunded ? 'opacity:0.75; background:rgba(239,68,68,0.05);' : ''}">
+                                                <tr style="border-bottom:1px solid var(--border); ${isRefunded ? 'opacity:0.75; background: var(--danger-soft);' : ''}">
                                                     <td style="padding:12px; white-space:nowrap;">${d}</td>
                                                     <td style="padding:12px; font-family:monospace; font-weight:600; color:var(--primary);">
                                                         ${t.invoiceNo}
-                                                        ${isRefunded ? `<div style="font-size:0.75rem; color:#ef4444; font-family:monospace;">CN: ${t.creditNoteNo}</div>` : ''}
+                                                        ${isRefunded ? `<div style="font-size:0.75rem; color: var(--danger); font-family:monospace;">CN: ${t.creditNoteNo}</div>` : ''}
                                                     </td>
                                                     <td style="padding:12px;">
                                                         <div style="font-weight:600;">${t.buyerName}</div>
-                                                        ${t.buyerGstin && t.buyerGstin !== 'N/A (B2C)' ? `<span style="font-size:0.75rem; color:#818cf8; font-family:monospace;">GSTIN: ${t.buyerGstin}</span>` : '<span style="font-size:0.72rem; color:var(--text-muted);">B2C Consumer</span>'}
+                                                        ${t.buyerGstin && t.buyerGstin !== 'N/A (B2C)' ? `<span style="font-size:0.75rem; color: var(--primary-text); font-family:monospace;">GSTIN: ${t.buyerGstin}</span>` : '<span style="font-size:0.72rem; color:var(--text-muted);">B2C Consumer</span>'}
                                                     </td>
                                                     <td style="padding:12px;">
                                                         <span>${t.buyerState || 'Kerala'}</span>
-                                                        <span style="font-size:0.72rem; display:block; color:${isIntraState ? '#38bdf8' : '#c084fc'}; font-weight:700;">
+                                                        <span style="font-size:0.72rem; display:block; color:${isIntraState ? 'var(--info)' : 'var(--primary-text)'}; font-weight:700;">
                                                             ${isIntraState ? 'INTRA-STATE (CGST+SGST)' : 'INTER-STATE (IGST)'}
                                                         </span>
                                                     </td>
-                                                    <td style="padding:12px; font-weight:700; ${isRefunded ? 'color:#ef4444;' : ''}">₹${t.gross}</td>
+                                                    <td style="padding:12px; font-weight:700; ${isRefunded ? 'color: var(--danger);' : ''}">₹${t.gross}</td>
                                                     <td style="padding:12px;">₹${t.base}</td>
                                                     <td style="padding:12px; font-size:0.8rem;">
                                                         ${isIntraState ? `
-                                                            <div style="color:#34d399;">CGST: ₹${t.cgst}</div>
-                                                            <div style="color:#fbbf24;">SGST: ₹${t.sgst}</div>
+                                                            <div style="color: var(--success);">CGST: ₹${t.cgst}</div>
+                                                            <div style="color: var(--warning);">SGST: ₹${t.sgst}</div>
                                                         ` : `
-                                                            <div style="color:#f472b6;">IGST: ₹${t.igst}</div>
+                                                            <div style="color: #be185d;">IGST: ₹${t.igst}</div>
                                                         `}
                                                     </td>
                                                     <td style="padding:12px;">
