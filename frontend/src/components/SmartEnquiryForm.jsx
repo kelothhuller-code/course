@@ -22,7 +22,12 @@ const isEmpty = (q, v) => {
  * Props: initialCategory (key), related ({ type, id, title }) to preselect a product,
  * source (stored with the enquiry and sent to the tracker).
  */
-export default function SmartEnquiryForm({ user, initialCategory = '', related = null, source = 'enquiry_form' }) {
+/**
+ * `embedded`: render without its own card chrome (border, background, shadow, padding) for use
+ * inside a page card that already holds the heading and intro, so there is only ONE card.
+ */
+export default function SmartEnquiryForm({ user, initialCategory = '', related = null, source = 'enquiry_form', embedded = false }) {
+  const cardClass = `se-card${embedded ? ' se-card--embedded' : ''}`;
   const { categories, catalog, loading, error: loadError } = useEnquiryForm();
   const [step, setStep] = useState(0);
   const [categoryKey, setCategoryKey] = useState('');
@@ -251,7 +256,7 @@ export default function SmartEnquiryForm({ user, initialCategory = '', related =
 
   if (status === 'sent') {
     return (
-      <div className="se-card se-success" role="status">
+      <div className={`${cardClass} se-success`} role="status">
         <span className="wt-icon-tile wt-icon-tile--accent"><Icon name="check-circle" size={26} /></span>
         <h3>Thank you, {contact.name.split(' ')[0] || 'there'}!</h3>
         <p>{serverMsg || 'Your enquiry has been received.'} We'll reply to <strong>{contact.email}</strong>.</p>
@@ -263,7 +268,7 @@ export default function SmartEnquiryForm({ user, initialCategory = '', related =
   }
 
   return (
-    <div className="se-card">
+    <div className={cardClass}>
       <ol className="se-progress" aria-label="Enquiry steps">
         {STEPS.map((label, i) => (
           <li key={label} className={i === step ? 'is-current' : i < step ? 'is-done' : ''} aria-current={i === step ? 'step' : undefined}>

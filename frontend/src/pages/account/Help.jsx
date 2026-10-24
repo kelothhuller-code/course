@@ -20,7 +20,7 @@ export default function Help({ user }) {
         <section className="acc-card" aria-labelledby="help-form-h">
           <h2 id="help-form-h" className="acc-card__title">Send us a message</h2>
           <p className="acc-muted acc-small">Pick a topic so it reaches the right person. Replies appear in <Link to="/dashboard/enquiries">My enquiries</Link>.</p>
-          <SmartEnquiryForm user={user} source="dashboard_help" />
+          <div className="acc-card__body"><SmartEnquiryForm user={user} source="dashboard_help" embedded /></div>
         </section>
         <div className="acc-stack">
           <section className="acc-card" aria-labelledby="help-contact-h">

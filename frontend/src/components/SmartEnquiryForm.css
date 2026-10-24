@@ -1,4 +1,5 @@
 .se-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); padding: clamp(1.25rem, 1rem + 1.5vw, 2.25rem); text-align: left; }
+.se-card--embedded { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
 .se-progress { list-style: none; display: flex; gap: var(--space-2); margin: 0 0 var(--space-6); padding: 0; counter-reset: step; }
 .se-progress li { flex: 1; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-subtle); font-weight: 600; position: relative; }
 .se-progress li:not(:last-child)::after { content: ''; flex: 1; height: 2px; background: var(--color-border); border-radius: 2px; margin-left: var(--space-2); }
@@ -41,6 +42,7 @@
 @media (max-width: 640px) {
   .se-grid { grid-template-columns: 1fr; }
   .se-progress-label { display: none; }
-  .se-progress li.is-current .se-progress-label { display: inline; }
+  .se-progress li.is-current { flex: 2; }
+  .se-progress li.is-current .se-progress-label { display: inline; white-space: nowrap; }
 }
 .enquiry-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

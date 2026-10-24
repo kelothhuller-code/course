@@ -11,4 +11,4 @@
 .contact-policies { margin-top: var(--space-8); font-size: var(--text-sm); color: var(--color-text-subtle); }
 .contact-policies a { color: var(--color-primary); font-weight: 600; }
 @media (max-width: 900px) { .contact-layout { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .contact-dl { grid-template-columns: 1fr; gap: var(--space-1); } .contact-dl dd { margin-bottom: var(--space-3); } }
+@media (max-width: 560px) { .contact-form-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); } .contact-form-lead { margin-bottom: var(--space-5); } .contact-dl { grid-template-columns: 1fr; gap: var(--space-1); } .contact-dl dd { margin-bottom: var(--space-3); } }
