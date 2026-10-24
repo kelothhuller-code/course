@@ -4,6 +4,10 @@ import { api } from '../api';
 import NavHeader from './NavHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
+import { toast } from '../components/Toast';
+import Icon from '../components/Icon';
+import LessonOutline from '../components/player/LessonOutline';
+import '../components/player/player.css';
 
 export default function CourseViewer({ user, onRefreshUser }) {
   const { id } = useParams();
@@ -35,17 +39,13 @@ export default function CourseViewer({ user, onRefreshUser }) {
       try {
         setLoading(true);
         const courseData = await api.getCourseLearn(id);
-        console.log('Full Course Data:', courseData);
-        console.log('Content array:', courseData?.content);
         setCourse(courseData);
         
         let defaultLang = courseData.languages?.[0] || '';
-        console.log('Default Language:', defaultLang);
         
         let progressData = null;
         try {
           progressData = await api.getCourseProgress(id);
-          console.log('Progress Data:', progressData);
           
           if (progressData) {
             progressData.completedLessons = Array.isArray(progressData.completedLessons) 
@@ -74,20 +74,16 @@ export default function CourseViewer({ user, onRefreshUser }) {
         setActiveLanguage(defaultLang);
         
         const langContent = courseData.content?.find(c => c.language === defaultLang);
-        console.log('Language Content:', langContent);
-        console.log('Chapters (which are actually lessons):', langContent?.chapters);
         
         if (langContent?.chapters?.length > 0) {
           let targetLesson = null;
           
           if (progressData?.lastWatchedLesson) {
             const lessonId = progressData.lastWatchedLesson.id;
-            console.log('Last watched lesson ID:', lessonId);
             
             for (const chapter of langContent.chapters) {
               if (chapter._id === lessonId) {
                 targetLesson = chapter;
-                console.log('Found last watched lesson:', chapter);
                 break;
               }
             }
@@ -95,14 +91,10 @@ export default function CourseViewer({ user, onRefreshUser }) {
           
           if (!targetLesson) {
             targetLesson = langContent.chapters[0];
-            console.log('Using first lesson:', targetLesson);
           }
           
-          console.log('Setting active lesson:', targetLesson);
           setActiveChapter(targetLesson);
           setActiveLesson(targetLesson);
-        } else {
-          console.log('No chapters found for language:', defaultLang);
         }
         
       } catch (err) {
@@ -110,7 +102,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
         if (!user) {
           navigate(`/sale/${id}`);
         } else {
-          alert('You do not have access to this course. Redirecting to dashboard...');
+          toast.error('You do not have access to this course. Redirecting to dashboard...');
           navigate('/dashboard');
         }
       } finally {
@@ -236,29 +228,25 @@ export default function CourseViewer({ user, onRefreshUser }) {
       if (onRefreshUser) onRefreshUser();
 
       if (!isCurrentlyCompleted && (progress?.progress === 100 || res?.progress === 100)) {
-        alert('🎉 Congratulations! You have completed all lessons in this course! Your certificate has been issued.');
+        toast.success('🎉 Congratulations! You have completed all lessons in this course! Your certificate has been issued.');
       }
     } catch (err) {
       console.error('Error toggling lesson completion:', err);
-      alert('Failed to update lesson completion: ' + (err.message || 'Error'));
+      toast.error('Failed to update lesson completion: ' + (err.message || 'Error'));
     }
   };
 
   // Handle language change
   const handleLanguageChange = (lang) => {
-    console.log('Changing language to:', lang);
     setActiveLanguage(lang);
     const langContent = course?.content?.find(c => c.language === lang);
-    console.log('Language content for', lang, ':', langContent);
     
     if (langContent?.chapters?.length > 0) {
       const firstLesson = langContent.chapters[0];
-      console.log('First lesson:', firstLesson);
       setActiveChapter(firstLesson);
       setActiveLesson(firstLesson);
       setSelectedResourceIndex(0);
     } else {
-      console.log('No chapters found for language:', lang);
       setActiveChapter(null);
       setActiveLesson(null);
     }
@@ -266,12 +254,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
   // Handle lesson selection
   const handleLessonSelect = (lesson) => {
-    console.log('Lesson selected:', lesson);
-    
-    if (!lesson) {
-      console.log('No lesson provided');
-      return;
-    }
+    if (!lesson) return;
     
     setActiveChapter(lesson);
     setActiveLesson(lesson);
@@ -332,22 +315,21 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
-      alert('Please sign in or create an account to post comments.');
+      toast.info('Please sign in or create an account to post comments.');
       return;
     }
     if (!newComment.trim()) return;
     
     try {
-      const response = await api.createComment(id, activeLesson._id, {
+      await api.createComment(id, activeLesson._id, {
         text: newComment,
         isQuestion: false
       });
-      console.log('Comment created:', response);
       setNewComment('');
       await loadComments(1);
       await loadUserComments();
     } catch (err) {
-      alert('Failed to post comment: ' + err.message);
+      toast.error('Failed to post comment: ' + err.message);
     }
   };
 
@@ -355,30 +337,29 @@ export default function CourseViewer({ user, onRefreshUser }) {
   const handleReplySubmit = async (e) => {
     e.preventDefault();
     if (!user) {
-      alert('Please sign in to reply to comments.');
+      toast.info('Please sign in to reply to comments.');
       return;
     }
     if (!replyText.trim() || !replyingTo) return;
     
     try {
-      const response = await api.createComment(id, activeLesson._id, {
+      await api.createComment(id, activeLesson._id, {
         text: replyText,
         parentCommentId: replyingTo
       });
-      console.log('Reply created:', response);
       setReplyText('');
       setReplyingTo(null);
       await loadComments(1);
       await loadUserComments();
     } catch (err) {
-      alert('Failed to post reply: ' + err.message);
+      toast.error('Failed to post reply: ' + err.message);
     }
   };
 
   // Handle comment like
   const handleLikeComment = async (commentId) => {
     if (!user) {
-      alert('Please sign in to like comments.');
+      toast.info('Please sign in to like comments.');
       return;
     }
     try {
@@ -386,26 +367,26 @@ export default function CourseViewer({ user, onRefreshUser }) {
       await loadComments(commentPage);
       await loadUserComments();
     } catch (err) {
-      alert('Failed to like comment: ' + err.message);
+      toast.error('Failed to like comment: ' + err.message);
     }
   };
 
   // Handle comment delete
   const handleDeleteComment = async (commentId) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
     try {
       await api.deleteComment(commentId);
       await loadComments(1);
       await loadUserComments();
     } catch (err) {
-      alert('Failed to delete comment: ' + err.message);
+      toast.error('Failed to delete comment: ' + err.message);
     }
   };
 
   const handleLogout = async () => {
     try {
       await api.logout();
-    } catch (e) {
+    } catch {
       localStorage.removeItem('token');
     }
     if (onRefreshUser) onRefreshUser();
@@ -509,7 +490,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
 
   const handleDownloadSecureMaterial = (rawUrl, title) => {
     if (!user && !localStorage.getItem('token') && !course?.isFree) {
-      alert('Please log in to download course materials.');
+      toast.info('Please log in to download course materials.');
       return;
     }
     const secureUrl = getSecureMaterialUrl(rawUrl, false);
@@ -599,33 +580,20 @@ export default function CourseViewer({ user, onRefreshUser }) {
       <NavHeader user={user} onLogout={handleLogout} />
       <div className="landing-page" style={{ paddingTop: '0.5rem' }}>
         <div className="container" style={{ flexGrow: 1, paddingBottom: '2.5rem' }}>
-          {/* Breadcrumb Navigation - Clean and non-redundant */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '1rem',
-            fontSize: '0.85rem',
-            color: 'var(--text-muted)',
-            flexWrap: 'wrap'
-          }}>
-            <Link to="/" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Home</Link>
-            <span>›</span>
-            <Link to="/all-courses" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Courses</Link>
-            <span>›</span>
-            <span style={{ 
-              color: 'var(--text-primary)', 
-              fontWeight: '600',
-              maxWidth: '320px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              {course?.title || 'Course'}
-            </span>
+          {/* Player top bar: back to My courses, course title, overall progress */}
+          <div className="lp-topbar">
+            <Link to="/dashboard/courses" className="lp-back"><Icon name="arrow-left" size={16} /> My courses</Link>
+            <div className="lp-topbar__title">
+              <strong title={course?.title}>{course?.title || 'Course'}</strong>
+              <span>{lessonsList.length ? `Lesson ${Math.max(currentLessonIdx, 0) + 1} of ${lessonsList.length}` : 'No lessons yet'}</span>
+            </div>
+            <div className="lp-topbar__progress">
+              <div className="lp-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} aria-label="Course progress"><span style={{ width: `${progressPercent}%` }} /></div>
+              <span>{progressPercent}%</span>
+            </div>
           </div>
 
-          <div className="course-viewer-layout">
+          <div className="course-viewer-layout lp-layout">
             <section className="player-section">
               {activeLesson ? (
                 <>
@@ -952,7 +920,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       className="btn btn-secondary lesson-nav-btn prev-btn"
                       title="Previous lesson"
                     >
-                      ← Prev
+                      <Icon name="arrow-left" size={16} /> Prev
                     </button>
 
                     <button
@@ -960,7 +928,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       onClick={handleToggleComplete}
                       className={`btn lesson-nav-btn complete-btn ${isLessonCompleted(activeLesson._id) ? 'is-completed' : 'not-completed'}`}
                     >
-                      {isLessonCompleted(activeLesson._id) ? '✓ Completed' : 'Mark as Complete'}
+                      {isLessonCompleted(activeLesson._id) ? <><Icon name="check-circle" size={16} /> Completed</> : <><Icon name="check" size={16} /> Mark as complete</>}
                     </button>
 
                     <button
@@ -968,7 +936,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       onClick={() => {
                         if (!nextLesson) return;
                         if (isNextLocked) {
-                          alert('🔒 Next Lesson Locked: Please mark the current lesson as complete to unlock.');
+                          toast.info('🔒 Next Lesson Locked: Please mark the current lesson as complete to unlock.');
                           return;
                         }
                         handleLessonSelect(nextLesson);
@@ -977,7 +945,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       className={`btn lesson-nav-btn next-btn ${isNextLocked ? 'btn-secondary is-locked' : 'btn-primary'}`}
                       title={isNextLocked ? 'Complete current lesson to unlock next' : 'Next lesson'}
                     >
-                      Next → {isNextLocked ? '🔒' : ''}
+                      Next {isNextLocked ? <Icon name="lock" size={15} label="locked" /> : <Icon name="arrow-right" size={16} />}
                     </button>
                   </div>
 
@@ -1145,7 +1113,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                                   className={`lesson-card-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
                                   onClick={() => {
                                     if (isLocked) {
-                                      alert('🔒 Lesson Locked: Please finish and mark the previous lesson as complete to unlock this chapter.');
+                                      toast.info('🔒 Lesson Locked: Please finish and mark the previous lesson as complete to unlock this chapter.');
                                       return;
                                     }
                                     handleLessonSelect(lesson);
@@ -1704,6 +1672,17 @@ export default function CourseViewer({ user, onRefreshUser }) {
                 </div>
               )}
             </section>
+            {lessonsList.length > 0 && (
+              <LessonOutline
+                lessons={lessonsList}
+                activeId={activeLesson?._id}
+                isCompleted={isLessonCompleted}
+                isAdmin={isAdmin}
+                progress={progressPercent}
+                onSelect={handleLessonSelect}
+                onLocked={() => toast.info('Finish and mark the previous lesson as complete to unlock this one.')}
+              />
+            )}
           </div>
         </div>
       </div>

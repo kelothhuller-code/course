@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
+import { printDocument } from '../../utils/printDocument';
 
 export default function GstInvoiceModal({ txnid, onClose }) {
   const [invoiceData, setInvoiceData] = useState(null);
@@ -37,59 +38,27 @@ export default function GstInvoiceModal({ txnid, onClose }) {
   const handlePrint = () => {
     const printArea = document.getElementById('gst-invoice-printable-area');
     if (!printArea) return;
-
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Tax Invoice - ${invoiceData?.invoiceNo || txnid}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1e293b; padding: 20px; background: #fff; }
-            .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 8px; }
-            .header-table { width: 100%; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
-            .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #dbeafe; color: #1e40af; }
-            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .section-title { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px; }
-            table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            table.items th { background: #f8fafc; text-align: left; padding: 10px; border: 1px solid #cbd5e1; font-size: 12px; }
-            table.items td { padding: 10px; border: 1px solid #cbd5e1; font-size: 13px; }
-            .total-row { font-weight: bold; background: #f1f5f9; }
-            .footer-note { font-size: 11px; color: #64748b; margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-            @media print {
-              body { padding: 0; }
-              .invoice-box { border: none; padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-box">
-            ${printArea.innerHTML}
-          </div>
-        </body>
-      </html>
-    `);
-    frameDoc.close();
-
-    setTimeout(() => {
-      printFrame.contentWindow.focus();
-      printFrame.contentWindow.print();
-      setTimeout(() => {
-        if (document.body.contains(printFrame)) {
-          document.body.removeChild(printFrame);
-        }
-      }, 1000);
-    }, 500);
+    // Self-contained print document with the site fonts embedded (they were lost before).
+    printDocument({
+      title: `Tax Invoice - ${invoiceData?.invoiceNo || txnid}`,
+      pageCss: '@page { size: A4 portrait; margin: 12mm; }',
+      css: `
+        body { color: #1e293b; font-size: 13px; }
+        h1, h2, h3, h4, .invoice-title { font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif; }
+        .invoice-box { max-width: 800px; margin: auto; }
+        .header-table { width: 100%; border-bottom: 2px solid #4338ca; padding-bottom: 15px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #e0e7ff; color: #3730a3; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .section-title { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px; }
+        table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table.items th { background: #f8fafc; text-align: left; padding: 10px; border: 1px solid #cbd5e1; font-size: 12px; }
+        table.items td { padding: 10px; border: 1px solid #cbd5e1; font-size: 13px; }
+        .total-row { font-weight: bold; background: #f1f5f9; }
+        .footer-note { font-size: 11px; color: #64748b; margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+        tr, .details-grid { break-inside: avoid; }
+      `,
+      html: `<div class="invoice-box">${printArea.innerHTML}</div>`,
+    });
   };
 
   const handleClose = (e) => {
