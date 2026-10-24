@@ -18,6 +18,15 @@ const TransactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'success', 'failed', 'refunded'], default: 'pending' },
   couponCode: { type: String },
+  // Coupon usage is counted only when the payment is verified. couponCountOnSuccess marks orders
+  // created under that rule (older pending orders were already counted at creation);
+  // couponCounted is flipped atomically so a repeated verification / webhook never counts twice.
+  couponCountOnSuccess: { type: Boolean },
+  couponCounted: { type: Boolean },
+  // True when this payment's fulfilment created the buyer's account. Only then (or when the buyer
+  // is signed in as that account) may the payment response hand out a login session.
+  accountCreatedByCheckout: { type: Boolean },
+  accountCreatedAt: { type: Date },
   invoiceNo: { type: String }, // Official tax invoice number
   creditNoteNo: { type: String }, // Official GST Credit Note number (GSTR-1 Sec 9B)
   refundDetails: {
@@ -65,5 +74,6 @@ const TransactionSchema = new mongoose.Schema({
 // txnid already has a unique index from the field definition above (unique: true). A second,
 // plain { txnid: 1 } index used to be declared here, which made Mongoose warn about a duplicate.
 TransactionSchema.index({ razorpayOrderId: 1 }, { sparse: true });
+TransactionSchema.index({ couponCode: 1, status: 1 }, { sparse: true });
 
 export default mongoose.model('Transaction', TransactionSchema);

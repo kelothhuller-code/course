@@ -19,6 +19,7 @@ import User from '../../models/User.js';
 import Coupon from '../../models/Coupon.js';
 import Software from '../../models/Software.js';
 import Service from '../../models/Service.js';
+import License from '../../models/License.js';
 
 const API = (process.env.E2E_API || 'http://localhost:5001/api').replace(/\/$/, '');
 const BASE = process.env.E2E_BASE_API?.replace(/\/$/, '');
@@ -29,7 +30,8 @@ let failures = 0;
 const ok = (cond, label, extra = '') => { console.log(`${cond ? '  ✔' : '  ✖'} ${label}${extra ? `  ${extra}` : ''}`); if (!cond) failures += 1; };
 const post = async (base, url, body, token) => {
   const r = await fetch(base + url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
-  return { status: r.status, body: await r.json().catch(() => ({})) };
+  const cookie = r.headers.get('set-cookie') || '';
+  return { status: r.status, body: await r.json().catch(() => ({})), setCookie: /(?:^|,\s*)token=[^;]/.test(cookie) ? cookie : '' };
 };
 const get = async (base, url, token) => {
   const r = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -138,6 +140,126 @@ const main = async () => {
   const qForged = await post(API, '/payment/quote', { itemType: 'software', itemId: 'sample-billing-desk', variantId: '000000000000000000000000' });
   ok(qForged.status === 400, 'unknown plan id rejected by quote', qForged.body.message);
 
+  console.log('\nLogin token after payment: only for a NEW account or the signed-in owner');
+  {
+    const c = courses[0];
+    const mockVerify = (o, token) => post(API, '/payment/razorpay/verify', { txnid: o.txnid, razorpay_order_id: o.orderId, razorpay_payment_id: `pay_mock_${tag}`, razorpay_signature: 'mock_signature' }, token);
+    const buy = (email, token, extra = {}) => post(API, '/payment/razorpay/create-order', { itemType: 'course', itemId: String(c._id), buyerName: 'Someone Else', buyerEmail: email, phone: '9000000000', buyerState: 'Kerala', ...extra }, token);
+    const ownerName = `Owner Private Name ${tag}`;
+    const ownerEmail = `owner-${tag}@example.com`;
+    const reg = await post(API, '/auth/register', { name: ownerName, email: ownerEmail, password: 'owner-pass-123456' });
+    ok(reg.status === 201 && reg.body.token, 'existing account set up for the test', reg.body.message || '');
+    const owner = await User.findOne({ email: ownerEmail }).lean();
+
+    // (1) guest pays with the existing account's email → purchase recorded, NO token / cookie / account data
+    const o1 = await buy(ownerEmail);
+    ok(o1.status === 200, 'guest create-order with an existing email is allowed (purchase goes to that account)');
+    ok(!JSON.stringify(o1.body).includes(ownerName), '  create-order response has no data from the existing account');
+    const v1 = await mockVerify(o1.body);
+    ok(v1.status === 200 && v1.body.success === true, '  verify → payment success');
+    ok(!v1.body.token && !v1.setCookie, '  NO login token and NO session cookie for the existing account', v1.setCookie || '');
+    ok(v1.body.signInRequired === true && v1.body.user === null && v1.body.accountEmail === ownerEmail, '  response says sign in is required (no user object)');
+    ok(!JSON.stringify(v1.body).includes(ownerName) && !JSON.stringify(v1.body).includes(String(owner._id)), '  response leaks no name / id of the existing account');
+    const ownerAfter = await User.findById(owner._id).lean();
+    ok(JSON.stringify(ownerAfter.enrolledCourses || []).includes(String(c._id)), '  course still granted to the existing account');
+    const v1again = await mockVerify(o1.body);
+    ok(v1again.status === 200 && !v1again.body.token && !v1again.setCookie && v1again.body.signInRequired === true, '  verify again (idempotent path) → still no token');
+
+    // existing-email guest buying SOFTWARE: no licence key in the response, but the licence is created on the account
+    const sw = await Software.findOne({ status: 'active', 'plans.0': { $exists: true } }).lean();
+    if (sw) {
+      const plan = sw.plans.find((p) => !p.isTrial && Number(p.price) > 0) || sw.plans[0];
+      const so = await post(API, '/payment/razorpay/create-order', { itemType: 'software', itemId: sw.slug, variantId: String(plan._id), buyerName: 'Someone Else', buyerEmail: ownerEmail, phone: '9000000000' });
+      const sv = so.status === 200 ? await mockVerify(so.body) : so;
+      const lic = await License.findOne({ userId: owner._id }).lean();
+      ok(sv.status === 200 && !sv.body.token && !sv.body.licenseKey && !sv.body.license && sv.body.signInRequired === true && lic,
+        '  software: no token and no licence key returned; licence is on the account', sv.body.message || '');
+    }
+
+    // (2) brand-new email → account created, token issued
+    const newEmail = `newbuyer-${tag}@example.com`;
+    const o2 = await buy(newEmail);
+    const v2 = await mockVerify(o2.body);
+    ok(v2.status === 200 && v2.body.token && v2.body.newlyCreated === true && v2.body.signInRequired === false && v2.body.user?.email === newEmail, 'new email → account created + login token');
+    const prof = await get(API, '/auth/profile', v2.body.token);
+    ok(prof.status === 200 && prof.body.email === newEmail, '  token signs in to the NEW account');
+    const v2again = await mockVerify(o2.body);
+    ok(v2again.status === 200 && v2again.body.token, '  repeat verify shortly after → token again (same new account)');
+    await Transaction.updateOne({ txnid: o2.body.txnid }, { $set: { accountCreatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) } });
+    const v2late = await mockVerify(o2.body);
+    ok(v2late.status === 200 && !v2late.body.token, '  repeat verify hours later → no token (re-issue window closed)');
+
+    // (3) signed-in owner → token
+    const c2 = courses.find((x) => String(x._id) !== String(c._id)) || null;
+    if (c2) {
+      const o3 = await post(API, '/payment/razorpay/create-order', { itemType: 'course', itemId: String(c2._id), buyerName: ownerName, phone: '9000000000' }, reg.body.token);
+      const v3 = await mockVerify(o3.body, reg.body.token);
+      ok(v3.status === 200 && v3.body.token && v3.body.signInRequired === false, 'signed-in owner → login token');
+      // the same order verified WITHOUT being signed in gets no token (not a new account)
+      const v3anon = await mockVerify(o3.body);
+      ok(v3anon.status === 200 && !v3anon.body.token && v3anon.body.signInRequired === true, '  same order verified while signed out → no token');
+    }
+
+    // (4) another signed-in user can't verify the owner's order
+    const other = await post(API, '/auth/register', { name: 'Other', email: `other-${tag}@example.com`, password: 'other-pass-123456' });
+    const vOther = await mockVerify(o1.body, other.body.token);
+    ok(vOther.status === 403 && !vOther.body.token, 'a different signed-in user cannot verify that order (403, no token)');
+
+    // (5) PayU mock path: same rule
+    const ownerC = courses.find((x) => !JSON.stringify(ownerAfter.enrolledCourses || []).includes(String(x._id)) && (!c2 || String(x._id) !== String(c2._id)));
+    if (ownerC) {
+      const p1 = await post(API, '/payment/pay', { itemType: 'course', itemId: String(ownerC._id), buyerName: 'Someone Else', buyerEmail: ownerEmail, phone: '9000000000' });
+      const cb = p1.status === 200 ? await post(API, '/payment/mock-callback', { txnid: p1.body.txnid, status: 'success' }) : p1;
+      ok(cb.status === 200 && cb.body.success && !cb.body.token && !cb.setCookie && cb.body.signInRequired === true, 'PayU (mock callback) with an existing email → no token', cb.body.message || '');
+    }
+    const p2 = await post(API, '/payment/pay', { itemType: 'course', itemId: String(c._id), buyerName: 'New PayU', buyerEmail: `payu-new-${tag}@example.com`, phone: '9000000000' });
+    const cb2 = await post(API, '/payment/mock-callback', { txnid: p2.body.txnid, status: 'success' });
+    ok(cb2.status === 200 && cb2.body.token && cb2.body.newlyCreated === true, 'PayU (mock callback) with a new email → token');
+  }
+
+  console.log('\nCoupons: usage counted only on verified payment, exactly once');
+  {
+    const c = courses[0];
+    const cc = `CU${tag}`.toUpperCase().slice(0, 20);
+    await Coupon.create({ code: cc, discountType: 'percentage', discountValue: 10, usageLimit: 2, maxUsesPerUser: 1 });
+    const used = async () => (await Coupon.findOne({ code: cc }).lean()).usedCount;
+    const order = (email, course = c) => post(API, '/payment/razorpay/create-order', { itemType: 'course', itemId: String(course._id), buyerName: 'Coupon Buyer', buyerEmail: email, phone: '9000000000', couponCode: cc });
+    const full = Math.round(((c.discountedPrice !== undefined && c.discountedPrice !== null && c.discountedPrice >= 0 && c.discountedPrice < c.price) ? c.discountedPrice : c.price) * 100);
+    const eA = `cpa-${tag}@example.com`;
+    const a1 = await order(eA);
+    ok(a1.status === 200 && Number(a1.body.amount) < full, 'create-order applies the coupon', `₹${a1.body.amount / 100}`);
+    ok(await used() === 0, '  abandoned / unpaid order does NOT consume the coupon (usedCount 0)');
+    const va = await post(API, '/payment/razorpay/verify', { txnid: a1.body.txnid, razorpay_order_id: a1.body.orderId, razorpay_payment_id: `pay_mock_${tag}`, razorpay_signature: 'mock_signature' });
+    ok(va.status === 200 && await used() === 1, '  verified payment counts it (usedCount 1)');
+    await post(API, '/payment/razorpay/verify', { txnid: a1.body.txnid, razorpay_order_id: a1.body.orderId, razorpay_payment_id: `pay_mock_${tag}`, razorpay_signature: 'mock_signature' });
+    await Promise.all([1, 2, 3].map(() => post(API, '/payment/razorpay/verify', { txnid: a1.body.txnid, razorpay_order_id: a1.body.orderId, razorpay_payment_id: `pay_mock_${tag}`, razorpay_signature: 'mock_signature' })));
+    ok(await used() === 1, '  repeated / concurrent verification does not double count (still 1)');
+    const otherCourse = courses.find((x) => String(x._id) !== String(c._id)) || c;
+    const aAgain = await order(eA, otherCourse); // a course this buyer doesn't own yet
+    ok(aAgain.status === 400 && /coupon/i.test(aAgain.body.message || ''), '  per-user limit enforced at create-order (same email, 2nd use → 400)', aAgain.body.message);
+
+    // total limit 2: 1 used + a recent unpaid order by another buyer reserves the last use
+    const eB = `cpb-${tag}@example.com`, eC = `cpc-${tag}@example.com`;
+    const b1 = await order(eB);
+    ok(b1.status === 200 && Number(b1.body.amount) < full, '  buyer B gets the last use (reserved while unpaid)');
+    const cBlocked = await order(eC);
+    ok(cBlocked.status === 200 && Number(cBlocked.body.amount) === full, '  buyer C: limit reached incl. B\'s reservation → coupon not applied');
+    const b2 = await order(eB);
+    ok(b2.status === 200 && Number(b2.body.amount) < full, '  buyer B retrying is not blocked by their own reservation');
+    const qC = await post(API, '/payment/quote', { itemType: 'course', itemId: String(c._id), couponCode: cc });
+    ok(qC.body.coupon?.applied === false, '  quote agrees (coupon not applied while reserved)');
+    await Transaction.updateMany({ couponCode: cc, status: 'pending', 'billingDetails.buyerEmail': eB }, { $set: { createdAt: new Date(Date.now() - 31 * 60 * 1000) } });
+    const cLater = await order(eC);
+    ok(cLater.status === 200 && Number(cLater.body.amount) < full, '  B abandons → reservation expires (30 min) → C can use it');
+    ok(await used() === 1, '  still only 1 counted use (nothing counted for unpaid orders)');
+
+    // orders created before this change were already counted at creation: never counted twice
+    const legacy = await Transaction.create({ txnid: `TXNLEG${Date.now()}`, itemType: 'course', itemId: c._id, amount: 100, status: 'pending', razorpayOrderId: `order_mock_LEG${tag}`, couponCode: cc, billingDetails: { buyerName: 'Legacy', buyerEmail: `legacy-${tag}@example.com`, buyerPhone: '9000000000' } });
+    await post(API, '/payment/razorpay/verify', { txnid: legacy.txnid, razorpay_order_id: legacy.razorpayOrderId, razorpay_payment_id: `pay_mock_${tag}`, razorpay_signature: 'mock_signature' });
+    ok(await used() === 1, '  legacy pending order (already counted at creation) is not counted again');
+    await Coupon.deleteOne({ code: cc });
+  }
+
   if (SIG) {
     console.log('\nRazorpay signature checks (test key, orders inserted directly)');
     const secret = process.env.E2E_SIG_SECRET;
@@ -165,6 +287,36 @@ const main = async () => {
     ok(noProof.status === 400 && !noProof.body.token, 'already-paid order: no login token without the signature');
     const withProof = await post(SIG, '/payment/razorpay/verify', { txnid: good.txnid, razorpay_order_id: good.razorpayOrderId, razorpay_payment_id: pay, razorpay_signature: sign(good.razorpayOrderId, pay) });
     ok(withProof.status === 200 && withProof.body.message === 'Payment already completed', 'already-paid order with the signature → idempotent success');
+
+    // Existing account + real signature: still no token for a guest
+    const existing = await User.findOne({ email: `owner-${tag}@example.com` }).lean();
+    if (existing) {
+      const ex = await Transaction.create({
+        txnid: `TXNSIGX${Date.now()}`, itemType: 'course', itemId: c._id, amount: c.price, userId: existing._id, status: 'pending',
+        razorpayOrderId: `order_E2E${crypto.randomBytes(6).toString('hex')}`, billingDetails: { buyerName: 'Someone Else', buyerEmail: existing.email, buyerPhone: '9000000000' },
+      });
+      const exRes = await post(SIG, '/payment/razorpay/verify', { txnid: ex.txnid, razorpay_order_id: ex.razorpayOrderId, razorpay_payment_id: pay, razorpay_signature: sign(ex.razorpayOrderId, pay) });
+      ok(exRes.status === 200 && exRes.body.success && !exRes.body.token && !exRes.setCookie && exRes.body.signInRequired === true, 'valid signature, guest, existing email → success but no token');
+    }
+
+    // Webhook + browser verify for a coupon order: counted exactly once
+    const wc = `WH${tag}`.toUpperCase().slice(0, 20);
+    await Coupon.create({ code: wc, discountType: 'flat', discountValue: 1, usageLimit: 10 });
+    const wt = await Transaction.create({
+      txnid: `TXNSIGW${Date.now()}`, itemType: 'course', itemId: c._id, amount: c.price - 1, status: 'pending', couponCode: wc, couponCountOnSuccess: true,
+      razorpayOrderId: `order_E2E${crypto.randomBytes(6).toString('hex')}`, billingDetails: { buyerName: 'Hook', buyerEmail: `hook-${tag}@example.com`, buyerPhone: '9000000000' },
+    });
+    const payload = JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: { id: pay, order_id: wt.razorpayOrderId } } } });
+    const hookSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const hook = async () => (await fetch(`${SIG}/payment/razorpay/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-razorpay-signature': hookSig }, body: payload })).status;
+    const h1 = await hook();
+    const h2 = await hook();
+    const vw = await post(SIG, '/payment/razorpay/verify', { txnid: wt.txnid, razorpay_order_id: wt.razorpayOrderId, razorpay_payment_id: pay, razorpay_signature: sign(wt.razorpayOrderId, pay) });
+    await hook();
+    ok(h1 === 200 && h2 === 200 && vw.status === 200, 'webhook (x2) + verify + webhook again all succeed');
+    ok((await Coupon.findOne({ code: wc }).lean()).usedCount === 1, '  coupon counted exactly once');
+    ok(vw.body.token && !vw.body.newlyCreated, '  new account created by the webhook still gets its session on verify', vw.body.message);
+    await Coupon.deleteOne({ code: wc });
   }
 
   await mongoose.disconnect();

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '../../api';
 import Icon from '../../components/Icon';
 import tracker from '../../utils/tracker';
@@ -53,7 +53,6 @@ export default function CheckoutView({
   kind, item, variants = null, initialVariantId = '', renewId = '', couponEnabled = false,
   sellerState = 'Kerala', user, onRefreshUser, onPaid, title,
 }) {
-  const navigate = useNavigate();
   const itemType = kind;
   const [variantId, setVariantId] = useState(initialVariantId || variants?.[0]?.id || '');
   const selected = variants ? (variants.find((v) => v.id === variantId) || variants[0]) : null;
@@ -166,6 +165,9 @@ export default function CheckoutView({
     pendingVerify.current = null;
     setSuccess({
       email, txnid: res.txnid, invoiceNo: res.invoiceNo, hasSession: Boolean(res.token || user),
+      // Paid as a guest with an email that already has an account: no session is issued, so the
+      // success page asks the buyer to sign in to that account to reach the purchase.
+      signInRequired: Boolean(res.signInRequired && !res.token && !user),
       newlyCreated: Boolean(res.newlyCreated), licenseKey: res.licenseKey || '', license: res.license || null,
       serviceOrder: res.serviceOrder || null, amount: total,
     });
@@ -300,7 +302,7 @@ export default function CheckoutView({
     try {
       await api.validateCoupon(code, item.id);
       const q = await api.getCheckoutQuote({ itemType, itemId: item.id, couponCode: code, buyerState: form.state });
-      if (!q.coupon?.applied) throw new Error('This coupon cannot be used for this item.');
+      if (!q.coupon?.applied) throw new Error(q.coupon?.message || 'This coupon cannot be used for this item.');
       setQuote(q);
       setCouponCode(code);
       setCouponOpen(false);
@@ -346,7 +348,7 @@ export default function CheckoutView({
   }), [errors, touched, form]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (success) {
-    return <PaymentSuccess kind={kind} item={item} selected={selected} success={success} user={user} />;
+    return <PaymentSuccess kind={kind} item={item} selected={selected} success={success} user={user} onRefreshUser={onRefreshUser} />;
   }
 
   const payLabel = processing ? 'Opening secure payment…' : (total != null && !quoteError ? `Pay ${money(total)} securely` : 'Pay securely');

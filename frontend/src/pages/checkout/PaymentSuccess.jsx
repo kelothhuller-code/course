@@ -4,6 +4,7 @@ import Icon from '../../components/Icon';
 import { SUPPORT_EMAIL } from '../../config/site';
 import { money } from '../../utils/gst';
 import CheckoutHeader from './CheckoutHeader';
+import SignInToAccess from './SignInToAccess';
 
 const GstInvoiceModal = lazy(() => import('../dashboard/GstInvoiceModal'));
 
@@ -19,7 +20,7 @@ function Confetti() {
   );
 }
 
-export default function PaymentSuccess({ kind, item, selected, success, user }) {
+export default function PaymentSuccess({ kind, item, selected, success, user, onRefreshUser }) {
   const [copied, setCopied] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const headingRef = useRef(null);
@@ -32,6 +33,8 @@ export default function PaymentSuccess({ kind, item, selected, success, user }) 
   const exp = lic?.expiresAt ? new Date(lic.expiresAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : null;
   const devices = lic?.maxDevices || 1;
   const signedIn = Boolean(user || success.hasSession);
+  // Guest paid with an email that already has an account: sign in first (no session was issued).
+  const needsSignIn = Boolean(success.signInRequired && !user);
 
   const primary = kind === 'course' ? { to: `/course/${item.id}`, label: 'Start learning', icon: 'play' }
     : kind === 'event' ? { to: '/dashboard/events', label: 'View my event', icon: 'calendar' }
@@ -44,8 +47,10 @@ export default function PaymentSuccess({ kind, item, selected, success, user }) 
   } else if (kind === 'event') {
     steps.push({ icon: 'calendar', text: <>You're registered. The joining link is in <strong>My events</strong>.</> });
   } else if (kind === 'software') {
-    steps.push({ icon: 'monitor', text: <>Open {item.title} and enter the licence key above when the app asks for it.</> });
-    steps.push({ icon: 'shield', text: <>Works on {devices} device{devices === 1 ? '' : 's'}. {exp ? `Valid until ${exp}.` : 'Lifetime licence.'}</> });
+    steps.push({ icon: 'monitor', text: success.licenseKey
+      ? <>Open {item.title} and enter the licence key above when the app asks for it.</>
+      : <>Your licence key is in <strong>My software</strong>. Enter it in {item.title} when the app asks for it.</> });
+    if (lic) steps.push({ icon: 'shield', text: <>Works on {devices} device{devices === 1 ? '' : 's'}. {exp ? `Valid until ${exp}.` : 'Lifetime licence.'}</> });
   } else {
     steps.push({ icon: 'phone', text: <>We'll contact you at <strong>{success.email}</strong> to collect what we need and schedule the work.</> });
     if (success.serviceOrder?.deliveryTime) steps.push({ icon: 'clock', text: <>Typical delivery: {success.serviceOrder.deliveryTime} after we have your inputs.</> });
@@ -92,7 +97,9 @@ export default function PaymentSuccess({ kind, item, selected, success, user }) 
               {steps.map((s, i) => <li key={i}><span className="co-success__stepicon"><Icon name={s.icon} size={18} /></span><span>{s.text}</span></li>)}
             </ul>
 
-            <div className="co-success__actions">
+            {needsSignIn && <SignInToAccess email={success.email} onSignedIn={onRefreshUser} />}
+
+            {!needsSignIn && <div className="co-success__actions">
               <Link to={primary.to} className="wt-btn wt-btn--primary wt-btn--lg wt-btn--block"><Icon name={primary.icon} size={18} />{primary.label}</Link>
               <div className="co-success__secondary">
                 {signedIn && success.txnid
@@ -100,7 +107,7 @@ export default function PaymentSuccess({ kind, item, selected, success, user }) 
                   : <Link to="/dashboard/orders" className="wt-btn wt-btn--secondary"><Icon name="download" size={18} />GST invoice</Link>}
                 <Link to="/dashboard" className="wt-btn wt-btn--secondary"><Icon name="grid" size={18} />Go to dashboard</Link>
               </div>
-            </div>
+            </div>}
             <p className="co-success__help">Need help? <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
           </div>
         </div>

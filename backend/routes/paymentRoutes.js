@@ -30,6 +30,86 @@ export const mockPaymentsAllowed = () =>
   process.env.NODE_ENV !== 'production' && String(process.env.ALLOW_MOCK_PAYMENTS || '').toLowerCase() === 'true';
 const MOCK_DISABLED_MESSAGE = 'Online payment is not configured yet. Please try again later or contact support.';
 
+// ---- Login sessions after payment -------------------------------------------------------------
+// A payment response may sign the buyer in ONLY when
+//   (a) this checkout created the account (new email), or
+//   (b) the request is already authenticated as that same account.
+// A guest who pays with an email that already has an account still gets the purchase recorded on
+// that account, but no token: they must sign in. (Otherwise anyone could pay with someone else's
+// email and receive a session for their account.)
+const SESSION_REISSUE_WINDOW_MS = 60 * 60 * 1000; // repeat verify / webhook-first race for a NEW account
+const SIGN_IN_REQUIRED_MESSAGE = 'Payment received. This email already has an account — sign in to access your purchase.';
+
+function sessionAllowed(txn, user, req) {
+  if (!user) return false;
+  const uid = user._id.toString();
+  if (req.user && req.user._id && req.user._id.toString() === uid) return true;
+  if (txn.accountCreatedByCheckout && txn.userId && txn.userId.toString() === uid) {
+    const createdAt = txn.accountCreatedAt ? new Date(txn.accountCreatedAt).getTime() : 0;
+    return Date.now() - createdAt <= SESSION_REISSUE_WINDOW_MS;
+  }
+  return false;
+}
+
+/** Issues the session cookie + token when allowed; returns the fields for the JSON response. */
+function sessionFields(res, txn, user, req) {
+  if (sessionAllowed(txn, user, req)) {
+    const token = generateToken(user._id, user.tokenVersion || 0);
+    setAuthCookie(res, token);
+    return { token, signInRequired: false, user: { _id: user._id, name: user.name, email: user.email, role: user.role } };
+  }
+  // Nothing about the existing account is returned (no name, role, id or purchase details). The
+  // email echoed back is the one the buyer typed in this checkout.
+  return { token: null, signInRequired: Boolean(user), accountEmail: user ? (txn.billingDetails?.buyerEmail || null) : null, user: null };
+}
+
+// ---- Coupon limits -------------------------------------------------------------------------
+// usedCount only counts VERIFIED payments. So a limited coupon isn't oversold while orders are
+// open, recent unpaid orders by OTHER buyers reserve a use for a short time.
+const COUPON_RESERVATION_TTL_MS = 30 * 60 * 1000;
+
+async function couponReservations(code, excludeEmail) {
+  const filter = {
+    couponCode: code,
+    status: 'pending',
+    couponCountOnSuccess: true,
+    createdAt: { $gte: new Date(Date.now() - COUPON_RESERVATION_TTL_MS) },
+  };
+  if (excludeEmail) filter['billingDetails.buyerEmail'] = { $ne: excludeEmail };
+  const emails = await Transaction.distinct('billingDetails.buyerEmail', filter);
+  return emails.length; // one reservation per buyer, so retries don't eat the limit
+}
+
+async function couponTotalLimitReached(coupon, buyerEmail) {
+  if (coupon.usageLimit === null || coupon.usageLimit === undefined) return false;
+  if (coupon.usedCount >= coupon.usageLimit) return true;
+  return coupon.usedCount + (await couponReservations(coupon.code, buyerEmail || null)) >= coupon.usageLimit;
+}
+
+/** Successful (verified) uses of this coupon by this account or email. */
+async function couponUsesBy(coupon, { userId, email }) {
+  const or = [];
+  if (userId) or.push({ userId });
+  if (email) or.push({ 'billingDetails.buyerEmail': email });
+  if (!or.length) return 0;
+  return Transaction.countDocuments({ couponCode: coupon.code, status: 'success', $or: or });
+}
+
+async function couponPerUserLimitReached(coupon, buyer) {
+  const max = coupon.maxUsesPerUser || 1;
+  return (await couponUsesBy(coupon, buyer)) >= max;
+}
+
+/** Counts a verified coupon use exactly once per transaction (safe under repeat verify + webhook). */
+async function countCouponUse(txn) {
+  if (!txn.couponCode || !txn.couponCountOnSuccess || txn.couponCounted) return;
+  const claimed = await Transaction.updateOne({ _id: txn._id, couponCounted: { $ne: true } }, { $set: { couponCounted: true } });
+  if (claimed.modifiedCount === 1) {
+    txn.couponCounted = true;
+    await Coupon.updateOne({ code: txn.couponCode }, { $inc: { usedCount: 1 } });
+  }
+}
+
 
 // Helper to fulfill purchase, enroll user, credit affiliate, and send email safely
 async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
@@ -82,12 +162,19 @@ async function fulfillPurchase(txn, paymentDetails = {}, gateway = 'razorpay') {
   if (user) {
     txn.userId = user._id;
   }
+  if (newlyCreated) {
+    txn.accountCreatedByCheckout = true;
+    txn.accountCreatedAt = new Date();
+  }
   // Sequential invoice series (INVOICE_SERIES=sequential): numbers are given out only for
   // successful payments, so the series has no gaps. Legacy mode numbers at order creation.
   if (!txn.invoiceNo && isSequentialSeries()) {
     txn.invoiceNo = await nextInvoiceNo();
   }
   await txn.save();
+
+  // Payment is verified at this point (signature / webhook / gateway hash): count the coupon once.
+  try { await countCouponUse(txn); } catch (cErr) { console.error('Failed to count coupon use:', cErr); }
 
   if (!user) return { success: true };
 
@@ -207,7 +294,7 @@ const verifyResponseHash = (key, txnid, amount, productinfo, firstname, email, s
  * Used by create-order (what is charged) and by POST /quote (what checkout shows), so both
  * always agree. Logic is unchanged from the original inline code in create-order.
  */
-async function priceCourseItem(item, itemId, couponCode) {
+async function priceCourseItem(item, itemId, couponCode, buyerEmail = null) {
   let price = (item.discountedPrice !== undefined && item.discountedPrice !== null && item.discountedPrice >= 0 && item.discountedPrice < item.price)
     ? item.discountedPrice
     : item.price;
@@ -219,7 +306,7 @@ async function priceCourseItem(item, itemId, couponCode) {
     const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
     if (coupon) {
       const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
-      const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
+      const isLimitReached = await couponTotalLimitReached(coupon, buyerEmail);
       const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
 
       if (!isExpired && !isLimitReached && isApplicable) {
@@ -274,7 +361,13 @@ router.post('/quote', optionalAuth, async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     const code = typeof couponCode === 'string' && couponCode.trim() ? couponCode.slice(0, 40) : null;
-    const { price, salePrice, appliedCoupon } = await priceCourseItem(item, itemId, code);
+    const buyerEmail = req.user ? String(req.user.email || '').toLowerCase().trim() : null;
+    let { price, salePrice, appliedCoupon } = await priceCourseItem(item, itemId, code, buyerEmail);
+    let couponMessage;
+    if (appliedCoupon && req.user && await couponPerUserLimitReached(appliedCoupon, { userId: req.user._id, email: buyerEmail })) {
+      // Same rule create-order enforces: show the price without the coupon.
+      appliedCoupon = null; price = salePrice; couponMessage = 'You have already used this coupon.';
+    }
     // Same place-of-supply and tax settings as create-order
     const tax = taxSettingsFor([item], gstConfig);
     const posState = state || gstConfig.sellerState || 'Kerala';
@@ -285,7 +378,7 @@ router.post('/quote', optionalAuth, async (req, res) => {
       listPrice: Math.max(listPrice, salePrice),
       itemDiscount: listPrice > salePrice ? r2(listPrice - salePrice) : 0,
       couponDiscount: appliedCoupon ? r2(salePrice - price) : 0,
-      coupon: code ? { code: code.toUpperCase().trim(), applied: Boolean(appliedCoupon) } : null,
+      coupon: code ? { code: code.toUpperCase().trim(), applied: Boolean(appliedCoupon), ...(couponMessage ? { message: couponMessage } : {}) } : null,
       price, gst: breakdown(gst), total: price > 0 ? gst.total : 0,
       isFree: !(price > 0),
     });
@@ -314,14 +407,13 @@ router.post('/validate-coupon', optionalAuth, async (req, res) => {
     }
 
     // Check usage limit
-    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+    const signedInEmail = req.user ? String(req.user.email || '').toLowerCase().trim() : null;
+    if (await couponTotalLimitReached(coupon, signedInEmail)) {
       return res.status(400).json({ message: 'This coupon has reached its usage limit.' });
     }
 
-    // Check single-use per user tracking (C2)
-    const userUsageCount = req.user ? (coupon.usedByUsers || []).filter(u => u.toString() === req.user._id.toString()).length : 0;
-    const maxPerUser = coupon.maxUsesPerUser || 1;
-    if (userUsageCount >= maxPerUser) {
+    // Per-user limit: verified uses by this account
+    if (req.user && await couponPerUserLimitReached(coupon, { userId: req.user._id, email: signedInEmail })) {
       return res.status(400).json({ message: `You have already redeemed this coupon code.` });
     }
 
@@ -411,7 +503,7 @@ router.post('/pay', optionalAuth, async (req, res) => {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
       if (coupon) {
         const isExpired = coupon.expiryDate && new Date() > new Date(coupon.expiryDate);
-        const isLimitReached = coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit;
+        const isLimitReached = await couponTotalLimitReached(coupon, resolvedEmail);
         const isApplicable = coupon.applicableCourses.length === 0 || coupon.applicableCourses.some(c => c.toString() === itemId);
 
         if (!isExpired && !isLimitReached && isApplicable) {
@@ -423,6 +515,10 @@ router.post('/pay', optionalAuth, async (req, res) => {
           appliedCoupon = coupon;
         }
       }
+    }
+
+    if (appliedCoupon && await couponPerUserLimitReached(appliedCoupon, { userId: resolvedUserId, email: resolvedEmail })) {
+      return res.status(400).json({ message: 'This coupon has already been used with this account or email.' });
     }
 
     if (price === 0) {
@@ -463,6 +559,7 @@ router.post('/pay', optionalAuth, async (req, res) => {
       amount: price,
       status: 'pending',
       couponCode: appliedCoupon ? appliedCoupon.code : null,
+      ...(appliedCoupon ? { couponCountOnSuccess: true } : {}),
       billingDetails: {
         buyerName: resolvedName,
         buyerEmail: resolvedEmail,
@@ -486,10 +583,7 @@ router.post('/pay', optionalAuth, async (req, res) => {
       }
     });
 
-    // Increment coupon usage count
-    if (appliedCoupon) {
-      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usedCount: 1 } });
-    }
+    // Coupon usage is counted only once the payment is verified (see countCouponUse).
 
     const key = process.env.PAYU_MERCHANT_KEY || 'mock_key';
     const salt = process.env.PAYU_MERCHANT_SALT || 'mock_salt';
@@ -536,7 +630,7 @@ router.post('/pay', optionalAuth, async (req, res) => {
 // @desc    PayU redirection callback (surl/furl)
 // @route   POST /api/payment/response
 // @access  Public
-router.post('/response', async (req, res) => {
+router.post('/response', optionalAuth, async (req, res) => {
   // PayU sends URL-encoded form data in POST body
   const { status, txnid, amount, productinfo, firstname, email, hash } = req.body;
 
@@ -567,11 +661,8 @@ router.post('/response', async (req, res) => {
     if (isHashValid && status === 'success') {
       const fulfillment = await fulfillPurchase(txn, req.body, 'payu');
       const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
-      if (user) {
-        const token = generateToken(user._id, user.tokenVersion || 0);
-        setAuthCookie(res, token);
-      }
-      res.redirect(`${frontendUrl}/course/${txn.itemId}?payment=success&txnid=${txnid}`);
+      const session = sessionFields(res, txn, user, req);
+      res.redirect(`${frontendUrl}/course/${txn.itemId}?payment=success&txnid=${txnid}${session.signInRequired ? '&signin=1' : ''}`);
     } else {
       txn.status = 'failed';
       txn.payuResponse = req.body;
@@ -587,7 +678,7 @@ router.post('/response', async (req, res) => {
 // @desc    Simulate response callback (For Mock Mode in Frontend)
 // @route   POST /api/payment/mock-callback
 // @access  Public (Simulates the PayU gateway returning post request)
-router.post('/mock-callback', async (req, res) => {
+router.post('/mock-callback', optionalAuth, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ message: 'Mock payment callbacks are forbidden in production environment.' });
   }
@@ -606,15 +697,13 @@ router.post('/mock-callback', async (req, res) => {
     if (status === 'success') {
       const fulfillment = await fulfillPurchase(txn, { mock: true, status }, 'payu');
       const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
-      let token = null;
-      if (user) {
-        token = generateToken(user._id, user.tokenVersion || 0);
-        setAuthCookie(res, token);
-      }
+      const { token, signInRequired, accountEmail } = sessionFields(res, txn, user, req);
       return res.json({
         success: true,
-        message: 'Mock payment completed successfully',
+        message: signInRequired ? SIGN_IN_REQUIRED_MESSAGE : 'Mock payment completed successfully',
         token,
+        signInRequired,
+        ...(signInRequired ? { accountEmail } : {}),
         newlyCreated: Boolean(fulfillment.newlyCreated),
         redirectUrl: `/course/${txn.itemId}`
       });
@@ -822,7 +911,10 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
     }
 
     // Determine price (server-side only; shared with POST /quote so the preview always matches)
-    let { price, appliedCoupon } = await priceCourseItem(item, itemId, couponCode);
+    let { price, appliedCoupon } = await priceCourseItem(item, itemId, couponCode, resolvedEmail);
+    if (appliedCoupon && await couponPerUserLimitReached(appliedCoupon, { userId: resolvedUserId, email: resolvedEmail })) {
+      return res.status(400).json({ message: 'This coupon has already been used with this account or email.' });
+    }
 
     if (price <= 0) {
       return res.status(400).json({ message: 'Item is free. No payment required.' });
@@ -888,6 +980,7 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       gateway: 'razorpay',
       razorpayOrderId,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
+      ...(appliedCoupon ? { couponCountOnSuccess: true } : {}),
       billingDetails: {
         buyerName: resolvedName,
         buyerEmail: resolvedEmail,
@@ -911,9 +1004,7 @@ router.post('/razorpay/create-order', optionalAuth, async (req, res) => {
       }
     });
 
-    if (appliedCoupon) {
-      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usedCount: 1 } });
-    }
+    // Coupon usage is counted only once the payment is verified (see countCouponUse).
 
     res.json({
       success: true,
@@ -994,19 +1085,15 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Payment verification failed: Signature mismatch.' });
       }
       const user = txn.userId ? await User.findById(txn.userId) : null;
-      let token = null;
-      if (user) {
-        token = generateToken(user._id, user.tokenVersion || 0);
-        setAuthCookie(res, token);
-      }
+      const session = sessionFields(res, txn, user, req);
       return res.json({
         success: true,
-        message: 'Payment already completed',
+        message: session.signInRequired ? SIGN_IN_REQUIRED_MESSAGE : 'Payment already completed',
         txnid: txn.txnid,
         invoiceNo: txn.invoiceNo,
-        token,
-        ...((txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {}),
-        user: user ? { _id: user._id, name: user.name, email: user.email, role: user.role } : null
+        ...session,
+        // Licence key / service order details only go to a signed-in owner or a brand-new account
+        ...(!session.signInRequired && (txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {}),
       });
     }
 
@@ -1040,15 +1127,13 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
     }, 'razorpay');
 
     const user = fulfillment.user || (txn.userId ? await User.findById(txn.userId) : null);
-    let token = null;
-    if (user) {
-      token = generateToken(user._id, user.tokenVersion || 0);
-      setAuthCookie(res, token);
-    }
+    const session = sessionFields(res, txn, user, req);
 
     res.json({
       success: true,
-      message: txn.itemType === 'software'
+      message: session.signInRequired
+        ? SIGN_IN_REQUIRED_MESSAGE
+        : txn.itemType === 'software'
         ? 'Payment verified! Your licence key is ready.'
         : txn.itemType === 'service'
         ? "Payment verified! Your order is confirmed and we'll contact you to schedule it."
@@ -1057,15 +1142,10 @@ router.post('/razorpay/verify', optionalAuth, async (req, res) => {
         : 'Payment verified and enrollment confirmed!',
       txnid: txn.txnid,
       invoiceNo: txn.invoiceNo,
-      token,
+      ...session,
       newlyCreated: Boolean(fulfillment.newlyCreated),
-      ...(fulfillment.product ? productResult(fulfillment.product) : (fulfillment.alreadyFulfilled && (txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {})),
-      user: user ? {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      } : null
+      // Licence key / service order details only go to a signed-in owner or a brand-new account
+      ...(session.signInRequired ? {} : (fulfillment.product ? productResult(fulfillment.product) : (fulfillment.alreadyFulfilled && (txn.itemType === 'software' || txn.itemType === 'service') ? productResult(await existingFulfilment(txn)) : {}))),
     });
   } catch (error) {
     console.error('Razorpay verification error:', error);
