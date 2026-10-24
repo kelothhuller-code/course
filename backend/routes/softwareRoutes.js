@@ -9,6 +9,7 @@ import Lead from '../models/Lead.js';
 import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
 import { authenticateToken, isUserAdmin } from '../middleware/auth.js';
 import { publicSoftware, CATALOG_SORT } from '../utils/catalog.js';
+import { publicCache } from '../middleware/cache.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -22,7 +23,7 @@ const softwareUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'softw
 
 // GET all publicly visible software (status "active"), in admin order.
 // ?featured=true → only featured; ?limit=N; ?category=Name
-router.get('/', async (req, res) => {
+router.get('/', publicCache(), async (req, res) => {
   try {
     const { category, featured } = req.query;
     const filter = { status: 'active' };

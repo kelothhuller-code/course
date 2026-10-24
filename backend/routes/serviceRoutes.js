@@ -6,12 +6,13 @@ import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
 import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
 import { publicService, CATALOG_SORT } from '../utils/catalog.js';
+import { publicCache } from '../middleware/cache.js';
 
 const router = express.Router();
 
 // GET all publicly visible services (status "active"), in admin order.
 // ?featured=true → only featured; ?limit=N; ?category=Name
-router.get('/', async (req, res) => {
+router.get('/', publicCache(), async (req, res) => {
   try {
     const { category, featured } = req.query;
     const filter = { status: 'active' };
