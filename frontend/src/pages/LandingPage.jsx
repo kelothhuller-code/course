@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
-// Import sub-components
-import Navbar from './Landing/Navbar';
+import SiteHeader from '../components/SiteHeader';
+import Seo from '../components/Seo';
 import Hero from './Landing/Hero';
+import { ProblemSolution, Offerings } from './Landing/StorySections';
 import FeaturedCourse from './Landing/FeaturedCourse';
 import CourseCurriculum from './Landing/CourseCurriculum';
 import TrialTutorials from './Landing/TrialTutorials';
 import EventsSection from './Landing/EventsSection';
 import HowItWorks from './Landing/HowItWorks';
-import FounderSection from './Landing/FounderSection';
-import Testimonials from './Landing/Testimonials';
+import ProofSection from './Landing/ProofSection';
 import FAQ from './Landing/FAQ';
 import FinalCTA from './Landing/FinalCTA';
 import Footer from './Landing/Footer';
@@ -19,10 +19,10 @@ import VideoModal from './Landing/VideoModal';
 import CourseCarousel from './Landing/CourseCarousel';
 import { buildBuyingFaqs } from '../config/faqs';
 import LeadMagnet from './Landing/LeadMagnet';
-import SoftwareShowcase from './Landing/SoftwareShowcase';
-import ServicesShowcase from './Landing/ServicesShowcase';
+import FeaturedCatalog from './Landing/FeaturedCatalog';
 import EnquirySection from './Landing/EnquirySection';
 import StickyBuyBar from './Landing/StickyBuyBar';
+import './Landing/premium.css';
 
 export default function LandingPage({ user }) {
   const [courses, setCourses] = useState([]); // Initialize as empty array
@@ -32,7 +32,8 @@ export default function LandingPage({ user }) {
   const [activeVideo, setActiveVideo] = useState(null);
   const [courseTotal, setCourseTotal] = useState(0);
   const [featuredCourse, setFeaturedCourse] = useState(null);
-  const [hasServices, setHasServices] = useState(false);
+  const [software, setSoftware] = useState([]);
+  const [services, setServices] = useState([]);
   const navigate = useNavigate();
 
   // Fetch all data. Uses allSettled so one failing endpoint (e.g. events) no longer
@@ -46,13 +47,15 @@ export default function LandingPage({ user }) {
         api.getEvents(),
         api.getTrials(),
         api.getFeaturedCourse(),
-        api.getAllServices(),
+        api.getServicesList(),
+        api.getSoftwareList(),
       ]);
       const coursesData = value(results[0], {});
       const eventsData = value(results[1], []);
       const trialsData = value(results[2], []);
       const featuredData = value(results[3], { featuredCourse: null });
       const svcData = value(results[4], { services: [] });
+      const swData = value(results[5], { softwares: [] });
 
       const courseList = Array.isArray(coursesData.courses) ? coursesData.courses : [];
       setCourses(courseList);
@@ -60,7 +63,8 @@ export default function LandingPage({ user }) {
 
       // Determine highlighted course: explicit backend featured course, or one marked isFeatured
       setFeaturedCourse(featuredData?.featuredCourse || courseList.find(c => c.isFeatured) || null);
-      setHasServices(Array.isArray(svcData?.services) && svcData.services.length > 0);
+      setServices(Array.isArray(svcData?.services) ? svcData.services : []);
+      setSoftware(Array.isArray(swData?.softwares) ? swData.softwares : []);
 
       setEvents(Array.isArray(eventsData) ? eventsData : []);
       setTrials(Array.isArray(trialsData) ? trialsData : []);
@@ -121,58 +125,51 @@ export default function LandingPage({ user }) {
 
   const faqs = buildBuyingFaqs(featuredCourse, { hasFreeLesson: trials.length > 0 });
 
+  // FAQ structured data built from the FAQ list shown on the page (Organization JSON-LD lives in index.html)
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.slice(0, 10).map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+
   return (
-    <div className="landing-page">
+    <div className="landing-page lp">
+      <Seo path="/" description="Practical online courses, ready-to-use business software and done-for-you services: automation, custom software and business administration." jsonLd={jsonLd} />
       <a href="#main-content" className="skip-link">Skip to content</a>
-      <Navbar
-        user={user}
-        featuredCourse={featuredCourse}
-        hasServices={hasServices}
-        hasEvents={events.length > 0}
-        onLogout={async () => {
-          try {
-            await api.logout();
-          } catch {
-            localStorage.removeItem('token');
-          }
-          navigate('/');
-        }}
-      />
+      <SiteHeader user={user} />
 
       <main id="main-content">
-        {/* 1. Clear promise + price + buy button above the fold */}
-        <Hero user={user} featuredCourse={featuredCourse} loading={loading} />
+        {/* Story: problem → solution → what you get → proof → offer → FAQ → CTA */}
+        <Hero user={user} featuredCourse={featuredCourse} software={software} services={services} loading={loading} />
+        <ProblemSolution />
+        <Offerings courseTotal={courseTotal} softwareCount={software.length} serviceCount={services.length} />
 
-        {/* 1b. Top courses carousel (up to 3, featured first) + "View all courses" */}
+        {/* What you get: courses (top-courses grid/mobile scroll unchanged), featured course + curriculum */}
         <CourseCarousel courses={courses} total={courseTotal} user={user} loading={loading} />
-
-        {/* 2. The offer: what you get, price, curriculum */}
         {featuredCourse && (
-          <FeaturedCourse course={featuredCourse} user={user} handleEnroll={handleEnroll} />
+          <FeaturedCourse course={featuredCourse} user={user} />
         )}
         {featuredCourse && <CourseCurriculum course={featuredCourse} />}
-
-        {/* 3. Try before buying, how buying works, who is behind it.
-            BuildJourney / WhyAI / AudienceSection / LearningPaths were removed from the page:
-            they pitched an AI-website course for kids (age 10+) that is not in the live
-            catalogue, which confused visitors arriving for the actual course. The components
-            are kept in ./Landing if a matching course is launched again. */}
+        <LeadMagnet trials={trials} courses={courses} />
         <TrialTutorials trials={trials} onPlayVideo={setActiveVideo} />
+
+        {/* What you get: software & services (each hidden when empty) */}
+        <FeaturedCatalog kind="software" items={software} loading={loading} />
+        <FeaturedCatalog kind="service" items={services} loading={loading} />
         <HowItWorks />
-        <FounderSection />
-        <Testimonials />
 
-        {/* 5. Software & services for businesses */}
-        <SoftwareShowcase />
-        <ServicesShowcase />
-
+        {/* Proof (no invented numbers) */}
+        <ProofSection />
         <EventsSection events={events} user={user} handleEnroll={handleEnroll} />
 
-        {/* 6. Objection handling, final CTA, enquiries */}
-        <FAQ faqs={faqs} />
+        {/* Offer → FAQ → CTA */}
         <FinalCTA user={user} featuredCourse={featuredCourse} />
+        <FAQ faqs={faqs} />
         <EnquirySection user={user} featuredCourse={featuredCourse} />
-        <LeadMagnet />
       </main>
 
       <Footer />

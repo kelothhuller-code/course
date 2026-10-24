@@ -6,6 +6,7 @@ import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
 import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
 import { authenticateToken, isUserAdmin } from '../middleware/auth.js';
+import { publicSoftware, CATALOG_SORT } from '../utils/catalog.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -17,15 +18,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const softwareUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'software');
 
-// GET all active softwares (only real added software, no hardcoded fallbacks)
+// GET all publicly visible software (status "active"), in admin order.
+// ?featured=true → only featured; ?limit=N; ?category=Name
 router.get('/', async (req, res) => {
   try {
     const { category, featured } = req.query;
     const filter = { status: 'active' };
-    if (category) filter.category = category;
+    if (typeof category === 'string' && category) filter.category = category.slice(0, 60);
     if (featured === 'true') filter.isFeatured = true;
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 0, 0), 100);
 
-    const softwares = await Software.find(filter).sort({ isFeatured: -1, createdAt: -1 });
+    let query = Software.find(filter).sort(CATALOG_SORT);
+    if (limit) query = query.limit(limit);
+    const softwares = (await query).map(publicSoftware);
     res.json({ success: true, count: softwares.length, softwares });
   } catch (err) {
     console.error('Error fetching softwares:', err);
@@ -33,14 +38,16 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single software
-router.get('/:id', async (req, res) => {
+// GET single software by slug or id (public view — never includes the paid download location)
+router.get('/:slugOrId', async (req, res) => {
   try {
-    const software = await Software.findById(req.params.id);
+    const key = String(req.params.slugOrId).slice(0, 100);
+    const filter = isValidObjectId(key) ? { _id: key } : { slug: key };
+    const software = await Software.findOne({ ...filter, status: 'active' });
     if (!software) {
       return res.status(404).json({ success: false, message: 'Software product not found' });
     }
-    res.json({ success: true, software });
+    res.json({ success: true, software: publicSoftware(software) });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving software details' });
   }
@@ -62,11 +69,7 @@ router.post('/enquire', async (req, res) => {
     let softwareTitle = 'WideTech Software Tool';
     if (softwareId) {
       const sw = await Software.findById(softwareId);
-      if (sw) {
-        softwareTitle = sw.title;
-        sw.enquiryCount = (sw.enquiryCount || 0) + 1;
-        await sw.save();
-      }
+      if (sw) softwareTitle = sw.title;
     }
 
     // Save as ContactMessage in DB

@@ -128,7 +128,7 @@ export default function Dashboard({ user, onRefreshUser }) {
         <head>
           <title>Certificate - WIDETECH Academy</title>
           <style>
-            body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+            body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
             * { box-sizing: border-box; }
             @media print {
               @page { size: landscape; margin: 10mm; }

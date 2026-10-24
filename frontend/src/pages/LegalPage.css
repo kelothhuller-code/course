@@ -3,7 +3,7 @@
   min-height: 100vh;
   background: var(--background, #f8fafc);
   color: var(--text-primary, #0f172a);
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: var(--font-text);
   display: flex;
   flex-direction: column;
 }
@@ -19,7 +19,7 @@
   display: inline-block;
   padding: 0.35rem 0.85rem;
   background: rgba(79, 70, 229, 0.1);
-  color: var(--primary, #4f46e5);
+  color: var(--primary, var(--color-primary));
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -33,7 +33,7 @@
   font-weight: 800;
   color: var(--text-primary, #0f172a);
   margin-bottom: 0.5rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-display);
 }
 
 .legal-header p {
@@ -67,7 +67,7 @@
   margin: 2rem 0 0.75rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid #f1f5f9;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-display);
 }
 
 .legal-card h2:first-of-type {
@@ -100,7 +100,7 @@
 
 .legal-highlight-box {
   background: #f8fafc;
-  border-left: 4px solid var(--primary, #4f46e5);
+  border-left: 4px solid var(--primary, var(--color-primary));
   padding: 1rem 1.25rem;
   border-radius: 0 10px 10px 0;
   margin: 1.25rem 0;
@@ -140,7 +140,7 @@
 
 .legal-nav-link:hover,
 .legal-nav-link.active {
-  background: var(--primary, #4f46e5);
+  background: var(--primary, var(--color-primary));
   color: #ffffff;
 }
 

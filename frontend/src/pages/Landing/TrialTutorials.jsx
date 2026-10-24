@@ -50,7 +50,7 @@ export default function TrialTutorials({ trials, onPlayVideo }) {
                   <p className="trial-desc">{trial.description}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.75rem' }}>
                     <span className="trial-duration">⏱️ {trial.duration || 'Free'}</span>
-                    <span style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.82rem', color: '#b91c1c', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       ▶ Watch on YouTube ↗
                     </span>
                   </div>

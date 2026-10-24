@@ -86,7 +86,7 @@ export default function TrustBadges({ compact = false }) {
               fontSize: '1.8rem',
               marginBottom: '0.6rem',
               padding: '0.4rem 0.6rem',
-              background: 'rgba(99, 102, 241, 0.1)',
+              background: 'rgba(67, 56, 202, 0.1)',
               borderRadius: '10px'
             }}>
               {b.icon}

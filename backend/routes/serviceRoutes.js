@@ -4,18 +4,23 @@ import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
 import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
+import { publicService, CATALOG_SORT } from '../utils/catalog.js';
 
 const router = express.Router();
 
-// GET all active services (only added services from database)
+// GET all publicly visible services (status "active"), in admin order.
+// ?featured=true → only featured; ?limit=N; ?category=Name
 router.get('/', async (req, res) => {
   try {
     const { category, featured } = req.query;
     const filter = { status: 'active' };
-    if (category) filter.category = category;
+    if (typeof category === 'string' && category) filter.category = category.slice(0, 60);
     if (featured === 'true') filter.isFeatured = true;
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 0, 0), 100);
 
-    const services = await Service.find(filter).sort({ isFeatured: -1, createdAt: -1 });
+    let query = Service.find(filter).sort(CATALOG_SORT);
+    if (limit) query = query.limit(limit);
+    const services = (await query).map(publicService);
     res.json({ success: true, count: services.length, services });
   } catch (err) {
     console.error('Error fetching services:', err);
@@ -23,14 +28,16 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single service
-router.get('/:id', async (req, res) => {
+// GET single service by slug or id
+router.get('/:slugOrId', async (req, res) => {
   try {
-    const service = await Service.findById(req.params.id);
+    const key = String(req.params.slugOrId).slice(0, 100);
+    const filter = isValidObjectId(key) ? { _id: key } : { slug: key };
+    const service = await Service.findOne({ ...filter, status: 'active' });
     if (!service) {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
-    res.json({ success: true, service });
+    res.json({ success: true, service: publicService(service) });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving service details' });
   }

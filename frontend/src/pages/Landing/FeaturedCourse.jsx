@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { countChapters } from '../../config/site';
 
-export default function FeaturedCourse({ course, user, handleEnroll }) {
+export default function FeaturedCourse({ course, user }) {
   const isEnrolled = course && user && user.enrolledCourses?.some(c => 
     c.courseId?._id === course._id || c.courseId === course._id
   );

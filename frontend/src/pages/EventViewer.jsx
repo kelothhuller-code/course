@@ -86,7 +86,7 @@ export default function EventViewer({ user }) {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626', marginBottom: '0.8rem' }}>Access Restricted</h2>
           <p style={{ color: '#475569', lineHeight: 1.6, marginBottom: '1.5rem' }}>{error}</p>
-          <Link to="/all-courses" style={{ padding: '0.75rem 1.5rem', background: '#4f46e5', color: '#fff', borderRadius: '8px', fontWeight: 700, textDecoration: 'none' }}>
+          <Link to="/all-courses" style={{ padding: '0.75rem 1.5rem', background: 'var(--color-primary)', color: '#fff', borderRadius: '8px', fontWeight: 700, textDecoration: 'none' }}>
             Explore Events & Workshops
           </Link>
         </div>
@@ -161,14 +161,14 @@ export default function EventViewer({ user }) {
               </p>
               {accessData.meetingPasscode && (
                 <div style={{ marginBottom: '1.5rem', padding: '0.6rem 1.2rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}>
-                  Passcode: <span style={{ color: '#4f46e5' }}>{accessData.meetingPasscode}</span>
+                  Passcode: <span style={{ color: 'var(--color-primary)' }}>{accessData.meetingPasscode}</span>
                 </div>
               )}
               <a
                 href={accessData.meetingLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ padding: '0.8rem 2rem', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', color: '#ffffff', borderRadius: '8px', fontWeight: 800, textDecoration: 'none', fontSize: '1rem' }}
+                style={{ padding: '0.8rem 2rem', background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary))', color: '#ffffff', borderRadius: '8px', fontWeight: 800, textDecoration: 'none', fontSize: '1rem' }}
               >
                 🚀 Launch Live Workshop Room
               </a>
@@ -188,7 +188,7 @@ export default function EventViewer({ user }) {
               {chatMessages.map((msg, i) => (
                 <div key={i} style={{ background: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginBottom: '0.2rem' }}>
-                    <span style={{ fontWeight: 700, color: msg.user === 'System' ? '#6366f1' : '#0f172a' }}>{msg.user}</span>
+                    <span style={{ fontWeight: 700, color: msg.user === 'System' ? 'var(--color-primary)' : '#0f172a' }}>{msg.user}</span>
                     <span>{msg.time || ''}</span>
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#334155', lineHeight: 1.4 }}>{msg.text}</div>
@@ -206,7 +206,7 @@ export default function EventViewer({ user }) {
               />
               <button
                 type="submit"
-                style={{ padding: '0.55rem 1rem', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                style={{ padding: '0.55rem 1rem', background: 'var(--color-primary)', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
               >
                 Send
               </button>

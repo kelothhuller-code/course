@@ -111,8 +111,8 @@ export default function NavHeader({ user, onLogout }) {
                         textDecoration: 'none',
                         padding: '0.3rem 0.75rem',
                         borderRadius: '20px',
-                        background: 'rgba(99, 102, 241, 0.08)',
-                        border: '1px solid rgba(99, 102, 241, 0.2)'
+                        background: 'rgba(67, 56, 202, 0.08)',
+                        border: '1px solid rgba(67, 56, 202, 0.2)'
                       }}
                     >
                       <div style={{

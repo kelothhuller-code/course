@@ -833,7 +833,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                               ) : (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 100%)' }}>
                                   <div style={{ textAlign: 'center', maxWidth: '480px' }}>
-                                    <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 0.75rem auto' }}>
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(67, 56, 202, 0.15)', border: '1px solid rgba(67, 56, 202, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 0.75rem auto' }}>
                                       📑
                                     </div>
                                     <span className="badge" style={{ background: 'var(--primary)', color: '#fff', fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: '700' }}>
@@ -1158,7 +1158,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                                     borderRadius: '12px',
                                     border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-color)',
                                     background: isActive 
-                                      ? 'rgba(99, 102, 241, 0.08)' 
+                                      ? 'rgba(67, 56, 202, 0.08)' 
                                       : (isLocked ? 'rgba(15, 23, 42, 0.02)' : 'var(--bg-card)'),
                                     cursor: isLocked ? 'not-allowed' : 'pointer',
                                     opacity: isLocked ? 0.6 : 1,
@@ -1218,7 +1218,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                                         fontSize: '0.75rem',
                                         fontWeight: '600',
                                         color: 'var(--primary)',
-                                        background: 'rgba(99, 102, 241, 0.12)',
+                                        background: 'rgba(67, 56, 202, 0.12)',
                                         padding: '0.25rem 0.65rem',
                                         borderRadius: '20px'
                                       }}>
@@ -1248,12 +1248,12 @@ export default function CourseViewer({ user, onRefreshUser }) {
                       <div className="viewer-tab-pane" style={{ animation: 'fadeIn 0.2s ease', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {/* Section A: Course Resource Bundles (Full Project ZIP, Templates & Data Sheets) */}
                         {course?.resourceBundles && course.resourceBundles.length > 0 && (
-                          <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.03) 0%, var(--card-bg, #fff) 100%)' }}>
+                          <div className="glass-card" style={{ padding: '1.75rem', borderRadius: '16px', border: '1px solid rgba(67, 56, 202, 0.25)', background: 'linear-gradient(180deg, rgba(67, 56, 202, 0.03) 0%, var(--card-bg, #fff) 100%)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                               <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
                                 <span>📦</span> Course Resource Bundles (.ZIP, Sheets & Guides)
                               </h3>
-                              <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '20px', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', fontWeight: '700' }}>
+                              <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '20px', background: 'rgba(67, 56, 202, 0.1)', color: 'var(--color-primary)', fontWeight: '700' }}>
                                 {course.resourceBundles.length} Bundle{course.resourceBundles.length > 1 ? 's' : ''} Included
                               </span>
                             </div>
@@ -1428,7 +1428,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                               onClick={() => setCommentTab('public')}
                               style={{
                                 padding: '0.4rem 0.85rem',
-                                background: commentTab === 'public' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                                background: commentTab === 'public' ? 'rgba(67, 56, 202, 0.12)' : 'transparent',
                                 border: '1px solid',
                                 borderColor: commentTab === 'public' ? 'var(--primary)' : 'var(--border-color)',
                                 borderRadius: '20px',
@@ -1445,7 +1445,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                               onClick={() => setCommentTab('my')}
                               style={{
                                 padding: '0.4rem 0.85rem',
-                                background: commentTab === 'my' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                                background: commentTab === 'my' ? 'rgba(67, 56, 202, 0.12)' : 'transparent',
                                 border: '1px solid',
                                 borderColor: commentTab === 'my' ? 'var(--primary)' : 'var(--border-color)',
                                 borderRadius: '20px',
@@ -1602,7 +1602,7 @@ export default function CourseViewer({ user, onRefreshUser }) {
                                 style={{
                                   borderRadius: '16px',
                                   border: '1px solid rgba(168, 85, 247, 0.35)',
-                                  background: 'linear-gradient(135deg, rgba(99,102,241,0.06), rgba(168,85,247,0.08))',
+                                  background: 'linear-gradient(135deg, rgba(67, 56, 202,0.06), rgba(168,85,247,0.08))',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   justifyContent: 'space-between',

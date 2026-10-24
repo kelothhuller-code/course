@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import { api } from './api';
 import tracker from './utils/tracker';
 import LoadingSpinner from './components/LoadingSpinner';
+import ScrollReveal from './components/Reveal';
 
 // The landing page is loaded eagerly (first thing most visitors see);
 // every other route is code-split so the landing bundle stays small.
@@ -19,6 +20,31 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const RefundPage = lazy(() => import('./pages/RefundPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
+const SoftwareListPage = lazy(() => import('./pages/SoftwareListPage'));
+const SoftwareDetailPage = lazy(() => import('./pages/SoftwareDetailPage'));
+const ServicesListPage = lazy(() => import('./pages/ServicesListPage'));
+const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+
+/** Scroll to the top on page change, or to #anchor when the URL has one. */
+function ScrollManager() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      const id = decodeURIComponent(hash.slice(1));
+      let tries = 0;
+      const tryScroll = () => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ block: 'start' });
+        else if (tries++ < 20) setTimeout(tryScroll, 100);
+      };
+      tryScroll();
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash]);
+  return null;
+}
 
 
 function AppContent() {
@@ -92,16 +118,13 @@ function AppContent() {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
-        <div className="logo-text" style={{ fontSize: '2rem', animation: 'pulse 1.5s infinite' }}>WIDETECH ACADEMY...</div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
     <div className="app-container">
-      
+      <ScrollManager />
+      <ScrollReveal watch={location.pathname} />
 
       <main style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <Suspense fallback={<LoadingSpinner fullScreen />}>
@@ -126,6 +149,11 @@ function AppContent() {
           <Route path="/privacy" element={<PrivacyPage user={user} />} />
           <Route path="/refund" element={<RefundPage user={user} />} />
           <Route path="/contact" element={<ContactPage user={user} />} />
+          <Route path="/software" element={<SoftwareListPage user={user} />} />
+          <Route path="/software/:slug" element={<SoftwareDetailPage user={user} />} />
+          <Route path="/services" element={<ServicesListPage user={user} />} />
+          <Route path="/services/:slug" element={<ServiceDetailPage user={user} />} />
+          <Route path="*" element={<NotFoundPage user={user} />} />
 
         </Routes>
         </Suspense>

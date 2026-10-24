@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
-import NavHeader from './NavHeader';
+import SiteHeader from '../components/SiteHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { usePageMeta } from '../components/Seo';
+import { SITE_NAME, SITE_URL } from '../config/site';
 import TrustBadges from '../components/TrustBadges';
 import CourseReviews from '../components/CourseReviews';
 import { getMediaUrl, FALLBACK_COURSE_THUMBNAIL } from '../utils/media';
@@ -89,6 +91,38 @@ export default function CourseSalesPage({ user }) {
     alert('🔗 Dedicated Sale Page link copied to clipboard!');
   };
 
+  // Per-course title/description/share image + Course structured data built from the real course record
+  const mc = data?.course;
+  const metaPrice = mc ? (mc.discountedPrice && mc.discountedPrice < mc.price ? mc.discountedPrice : mc.price) : 0;
+  const metaImage = mc?.thumbnail ? getMediaUrl(mc.thumbnail) : undefined;
+  const metaDesc = String(mc?.description || '').replace(/[#*_`>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  usePageMeta({
+    title: mc?.title,
+    description: metaDesc || undefined,
+    image: metaImage,
+    path: mc ? `/sale/${mc._id}` : undefined,
+    type: 'product',
+    jsonLd: mc ? {
+      '@context': 'https://schema.org',
+      '@type': 'Course',
+      name: mc.title,
+      description: metaDesc || mc.title,
+      url: `${SITE_URL}/sale/${mc._id}`,
+      ...(metaImage && /^https?:/i.test(metaImage) ? { image: metaImage } : {}),
+      provider: { '@type': 'Organization', name: SITE_NAME, sameAs: SITE_URL },
+      ...(mc.category ? { about: mc.category } : {}),
+      offers: {
+        '@type': 'Offer',
+        category: mc.isFree || !metaPrice ? 'Free' : 'Paid',
+        price: mc.isFree ? 0 : Number(metaPrice) || 0,
+        priceCurrency: 'INR',
+        url: `${SITE_URL}/sale/${mc._id}`,
+        availability: 'https://schema.org/InStock',
+      },
+      hasCourseInstance: { '@type': 'CourseInstance', courseMode: 'Online' },
+    } : undefined,
+  });
+
   if (loading) {
     return <LoadingSpinner fullScreen />;
   }
@@ -117,7 +151,7 @@ export default function CourseSalesPage({ user }) {
     : (config.ctaText ? `${config.ctaText} - ₹${basePrice}` : `Buy Course - ₹${basePrice}`);
   return (
     <div className="sales-page-wrapper">
-      <NavHeader user={user} />
+      <SiteHeader user={user} />
 
       {/* Admin Quick Share Bar */}
       {user?.role === 'admin' && (
@@ -336,7 +370,7 @@ export default function CourseSalesPage({ user }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <span style={{ fontSize: '1.75rem' }}>{getIcon(bundle.fileType)}</span>
                         <div style={{ display: 'flex', gap: '0.35rem' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(67, 56, 202, 0.1)', color: 'var(--color-primary)' }}>
                             {(bundle.fileType || 'BUNDLE').toUpperCase()}
                           </span>
                           {bundle.fileSize && (
@@ -405,7 +439,7 @@ export default function CourseSalesPage({ user }) {
         )}
 
         {/* Bottom CTA Block */}
-        <section className="glass-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderRadius: '20px', background: 'radial-gradient(circle at center, rgba(99,102,241,0.2), transparent 70%)' }}>
+        <section className="glass-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderRadius: '20px', background: 'radial-gradient(circle at center, rgba(67, 56, 202,0.2), transparent 70%)' }}>
           <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2.1rem)', marginBottom: '0.75rem' }}>Ready to Start Learning?</h2>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem', lineHeight: 1.6 }}>
             Enroll today to get immediate access to all video lessons, study materials, project code, and official certification.

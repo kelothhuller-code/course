@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api';
-import NavHeader from './NavHeader';
+import SiteHeader from '../components/SiteHeader';
 import Footer from './Landing/Footer';
 import './authpage.css';
 
@@ -113,7 +113,7 @@ export default function AuthPage({ user, onLogout, onLoginSuccess }) {
   return (
     <div className="auth-page-wrapper">
       {/* Standard Header with Logo, Brand Name & Navigation */}
-      <NavHeader user={user} onLogout={onLogout} />
+      <SiteHeader user={user} onLogout={onLogout} />
 
       <main className="auth-main-section">
         <div className="auth-ambient-glow" aria-hidden="true" />

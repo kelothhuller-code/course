@@ -150,7 +150,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
               <button 
                 onClick={() => setSelectedTimeframe('week')}
                 style={{ 
-                  background: selectedTimeframe === 'week' ? '#6366f1' : 'transparent', 
+                  background: selectedTimeframe === 'week' ? 'var(--color-primary)' : 'transparent', 
                   border: 'none', 
                   color: selectedTimeframe === 'week' ? '#fff' : '#64748b', 
                   padding: '0.25rem 0.6rem', 
@@ -165,7 +165,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
               <button 
                 onClick={() => setSelectedTimeframe('month')}
                 style={{ 
-                  background: selectedTimeframe === 'month' ? '#6366f1' : 'transparent', 
+                  background: selectedTimeframe === 'month' ? 'var(--color-primary)' : 'transparent', 
                   border: 'none', 
                   color: selectedTimeframe === 'month' ? '#fff' : '#64748b', 
                   padding: '0.25rem 0.6rem', 
@@ -187,7 +187,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
               const isToday = i === 5;
               return (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: isToday ? '#6366f1' : '#64748b', fontWeight: 700 }}>
+                  <div style={{ fontSize: '0.75rem', color: isToday ? 'var(--color-primary)' : '#64748b', fontWeight: 700 }}>
                     {d.chapters}
                   </div>
                   <div 
@@ -197,10 +197,10 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
                       maxWidth: '28px',
                       height: `${heightPct}%`, 
                       background: isToday 
-                        ? 'linear-gradient(180deg, #6366f1 0%, #4338ca 100%)' 
+                        ? 'linear-gradient(180deg, var(--color-primary) 0%, #4338ca 100%)' 
                         : (d.active ? 'linear-gradient(180deg, #93c5fd 0%, #3b82f6 100%)' : '#e2e8f0'),
                       borderRadius: '6px 6px 2px 2px',
-                      boxShadow: isToday ? '0 4px 12px rgba(99, 102, 241, 0.35)' : 'none',
+                      boxShadow: isToday ? '0 4px 12px rgba(67, 56, 202, 0.35)' : 'none',
                       transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                     }} 
                   />
@@ -214,7 +214,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.85rem', fontSize: '0.8rem', color: '#475569', flexWrap: 'wrap', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }} />
               <span>Active Streak: <strong style={{ color: '#0f172a' }}>5 Days in a Row</strong> 🔥</span>
             </div>
             <span style={{ color: '#10b981', fontWeight: 600 }}>+28% study time vs last week</span>
@@ -271,7 +271,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
                   cy="50"
                   r="40"
                   fill="transparent"
-                  stroke="#6366f1"
+                  style={{ stroke: "var(--color-primary)" }}
                   strokeWidth="12"
                   strokeDasharray={`${inProgressStroke} ${circumference}`}
                   strokeDashoffset={`-${completedStroke}`}
@@ -310,7 +310,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#6366f1' }} />
+                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'var(--color-primary)' }} />
                   <span style={{ color: '#475569' }}>In Progress</span>
                 </div>
                 <strong style={{ color: '#0f172a' }}>{inProgressCourses.length} ({inProgressPct.toFixed(0)}%)</strong>
@@ -324,7 +324,7 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
                 <strong style={{ color: '#0f172a' }}>{notStartedCourses.length} ({notStartedPct.toFixed(0)}%)</strong>
               </div>
 
-              <div style={{ marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed #e2e8f0', fontSize: '0.78rem', color: '#6366f1', fontWeight: 600 }}>
+              <div style={{ marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed #e2e8f0', fontSize: '0.78rem', color: 'var(--color-primary)', fontWeight: 600 }}>
                 ✨ {certificates.length > 0 ? `${certificates.length} Certificate(s) Available` : 'Complete a course to unlock your certificate!'}
               </div>
             </div>
@@ -371,17 +371,17 @@ export default function DashboardSummary({ enrolledCourses = [], inProgressCours
                     <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
                       {c.title || 'Course In Progress'}
                     </div>
-                    <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 800 }}>{progressVal}%</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-primary)', fontWeight: 800 }}>{progressVal}%</span>
                   </div>
                   
                   {/* Progress Bar */}
                   <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.4rem' }}>
-                    <div style={{ width: `${progressVal}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #0284c7)', borderRadius: '4px' }} />
+                    <div style={{ width: `${progressVal}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary), #0284c7)', borderRadius: '4px' }} />
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b' }}>
                     <span>{item.completedChapters?.length || 0} chapters done</span>
-                    <span style={{ color: '#6366f1', fontWeight: 600 }}>Resume Lesson →</span>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Resume Lesson →</span>
                   </div>
                 </div>
               );

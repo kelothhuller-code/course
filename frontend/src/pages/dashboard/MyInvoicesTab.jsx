@@ -55,7 +55,7 @@ export default function MyInvoicesTab() {
           width: '44px',
           height: '44px',
           borderRadius: '12px',
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(2,132,199,0.15))',
+          background: 'linear-gradient(135deg, rgba(67, 56, 202,0.15), rgba(2,132,199,0.15))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -182,7 +182,7 @@ export default function MyInvoicesTab() {
                     width: '40px',
                     height: '40px',
                     borderRadius: '10px',
-                    background: isRefund ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                    background: isRefund ? 'rgba(239, 68, 68, 0.1)' : 'rgba(67, 56, 202, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -203,7 +203,7 @@ export default function MyInvoicesTab() {
                         {invoiceNumber}
                       </span>
                       <span style={{
-                        background: 'rgba(99, 102, 241, 0.12)',
+                        background: 'rgba(67, 56, 202, 0.12)',
                         color: 'var(--primary)',
                         padding: '1px 7px',
                         borderRadius: '4px',

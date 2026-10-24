@@ -11,6 +11,7 @@ import Razorpay from 'razorpay';
 import Coupon from '../models/Coupon.js';
 import Software from '../models/Software.js';
 import Service from '../models/Service.js';
+import { validateSoftwareInput, validateServiceInput, uniqueSlug, isValidId } from '../utils/catalog.js';
 import ContactMessage from '../models/ContactMessage.js';
 
 import {
@@ -931,7 +932,7 @@ router.put('/coupons/:id', async (req, res) => {
 // @route   GET /api/admin/software
 router.get('/software', async (req, res) => {
   try {
-    const softwares = await Software.find().sort({ createdAt: -1 });
+    const softwares = await Software.find().sort({ order: 1, createdAt: -1 });
     res.json({ success: true, count: softwares.length, softwares });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch software products', error: err.message });
@@ -940,62 +941,17 @@ router.get('/software', async (req, res) => {
 
 // @desc    Create new software product (Admin)
 // @route   POST /api/admin/software
+// Body is validated against a whitelist (utils/catalog.js) — see validateSoftwareInput.
 router.post('/software', async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      category,
-      thumbnail,
-      performance,
-      usefulness,
-      features,
-      price,
-      discountedPrice,
-      couponEligible,
-      highlightBadge,
-      isFeatured,
-      downloadUrl,
-      fileName,
-      filePath,
-      fileSize,
-      version,
-      demoUrl,
-      documentationUrl,
-      status
-    } = req.body;
-
-    if (!title || price === undefined) {
-      return res.status(400).json({ message: 'Title and price are required' });
-    }
-
-    const software = await Software.create({
-      title,
-      description: description || '',
-      category: category || 'AI Bot & Automation',
-      thumbnail: thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-      performance: performance || 'Sub-100ms LLM Response • 99.9% Uptime',
-      usefulness: usefulness || 'Automates customer workflows and saves 20+ hours weekly',
-      features: Array.isArray(features) ? features : (typeof features === 'string' ? features.split('\n').filter(Boolean) : []),
-      price: Number(price),
-      discountedPrice: discountedPrice ? Number(discountedPrice) : undefined,
-      couponEligible: couponEligible !== undefined ? Boolean(couponEligible) : true,
-      highlightBadge: highlightBadge || '',
-      isFeatured: Boolean(isFeatured),
-      downloadUrl: downloadUrl || '',
-      fileName: fileName || '',
-      filePath: filePath || '',
-      fileSize: fileSize || '',
-      version: version || '1.0.0',
-      demoUrl: demoUrl || '',
-      documentationUrl: documentationUrl || '',
-      status: status || 'active'
-    });
-
+    const { data, error } = validateSoftwareInput(req.body);
+    if (error) return res.status(400).json({ message: error });
+    data.slug = await uniqueSlug(Software, data.slug || data.title);
+    const software = await Software.create(data);
     res.status(201).json({ success: true, message: 'Software product created successfully', software });
   } catch (err) {
     console.error('Create software error:', err);
-    res.status(500).json({ message: 'Failed to create software', error: err.message });
+    res.status(500).json({ message: 'Failed to create software' });
   }
 });
 
@@ -1067,22 +1023,29 @@ router.get('/software/buyers', async (req, res) => {
   }
 });
 
-// @desc    Update software product (Admin)
+// @desc    Update software product (Admin) — partial updates allowed
 // @route   PUT /api/admin/software/:id
 router.put('/software/:id', async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
     const software = await Software.findById(req.params.id);
     if (!software) return res.status(404).json({ message: 'Software not found' });
-
-    Object.assign(software, req.body);
-    if (req.body.features && typeof req.body.features === 'string') {
-      software.features = req.body.features.split('\n').filter(Boolean);
+    const { data, error } = validateSoftwareInput(req.body, { partial: true });
+    if (error) return res.status(400).json({ message: error });
+    if (data.slug !== undefined || !software.slug) {
+      data.slug = await uniqueSlug(Software, data.slug || data.title || software.title, software._id);
     }
+    const price = data.price ?? software.price;
+    const pricingType = data.pricingType ?? software.pricingType;
+    if (pricingType !== 'quote' && !(price > 0)) {
+      return res.status(400).json({ message: 'Please enter a price, or choose "Contact for quote".' });
+    }
+    Object.assign(software, data);
     await software.save();
-
     res.json({ success: true, message: 'Software updated successfully', software });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update software', error: err.message });
+    console.error('Update software error:', err);
+    res.status(500).json({ message: 'Failed to update software' });
   }
 });
 
@@ -1105,76 +1068,52 @@ router.delete('/software/:id', async (req, res) => {
 // @route   GET /api/admin/services
 router.get('/services', async (req, res) => {
   try {
-    const services = await Service.find().sort({ createdAt: -1 });
+    const services = await Service.find().sort({ order: 1, createdAt: -1 });
     res.json({ success: true, count: services.length, services });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch services', error: err.message });
   }
 });
 
-// @desc    Create new service package (Admin)
+// @desc    Create new service (Admin)
 // @route   POST /api/admin/services
+// Body is validated against a whitelist (utils/catalog.js) — see validateServiceInput.
 router.post('/services', async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      category,
-      thumbnail,
-      performance,
-      usefulness,
-      deliverables,
-      startingPrice,
-      discountedPrice,
-      couponEligible,
-      highlightBadge,
-      isFeatured,
-      status
-    } = req.body;
-
-    if (!title) {
-      return res.status(400).json({ message: 'Service title is required' });
-    }
-
-    const service = await Service.create({
-      title,
-      description: description || '',
-      category: category || 'AI Bot Automation',
-      thumbnail: thumbnail || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-      performance: performance || 'Turnaround: 7-14 Days • 24/7 SLA',
-      usefulness: usefulness || 'Bespoke end-to-end automation tailored for your company',
-      deliverables: Array.isArray(deliverables) ? deliverables : (typeof deliverables === 'string' ? deliverables.split('\n').filter(Boolean) : []),
-      startingPrice: startingPrice ? Number(startingPrice) : 0,
-      discountedPrice: discountedPrice ? Number(discountedPrice) : undefined,
-      couponEligible: Boolean(couponEligible),
-      highlightBadge: highlightBadge || '',
-      isFeatured: Boolean(isFeatured),
-      status: status || 'active'
-    });
-
-    res.status(201).json({ success: true, message: 'Service package created successfully', service });
+    const { data, error } = validateServiceInput(req.body);
+    if (error) return res.status(400).json({ message: error });
+    data.slug = await uniqueSlug(Service, data.slug || data.title);
+    const service = await Service.create(data);
+    res.status(201).json({ success: true, message: 'Service created successfully', service });
   } catch (err) {
     console.error('Create service error:', err);
-    res.status(500).json({ message: 'Failed to create service', error: err.message });
+    res.status(500).json({ message: 'Failed to create service' });
   }
 });
 
-// @desc    Update service package (Admin)
+// @desc    Update service (Admin) — partial updates allowed
 // @route   PUT /api/admin/services/:id
 router.put('/services/:id', async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
     const service = await Service.findById(req.params.id);
     if (!service) return res.status(404).json({ message: 'Service not found' });
-
-    Object.assign(service, req.body);
-    if (req.body.deliverables && typeof req.body.deliverables === 'string') {
-      service.deliverables = req.body.deliverables.split('\n').filter(Boolean);
+    const { data, error } = validateServiceInput(req.body, { partial: true });
+    if (error) return res.status(400).json({ message: error });
+    if (data.slug !== undefined || !service.slug) {
+      data.slug = await uniqueSlug(Service, data.slug || data.title || service.title, service._id);
     }
+    const price = data.startingPrice ?? service.startingPrice;
+    const pricingType = data.pricingType ?? service.pricingType;
+    if (pricingType !== 'quote' && !(price > 0)) {
+      return res.status(400).json({ message: 'Please enter a price, or choose "Quote on request".' });
+    }
+    Object.assign(service, data);
     await service.save();
-
     res.json({ success: true, message: 'Service updated successfully', service });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update service', error: err.message });
+    console.error('Update service error:', err);
+    res.status(500).json({ message: 'Failed to update service' });
   }
 });
 

@@ -533,6 +533,49 @@ export const api = {
     return handleResponse(res);
   },
 
+  // ---- Catalog (admin-managed categories, software, services) ----
+  getCategories: async (kind) => {
+    const res = await fetch(`${BASE_URL}/categories${kind ? `?kind=${encodeURIComponent(kind)}` : ''}`);
+    return handleResponse(res);
+  },
+
+  getSoftwareList: async (params = {}) => {
+    const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null)).toString();
+    const res = await fetch(`${BASE_URL}/software${q ? `?${q}` : ''}`);
+    return handleResponse(res);
+  },
+
+  getSoftware: async (slugOrId) => {
+    const res = await fetch(`${BASE_URL}/software/${encodeURIComponent(slugOrId)}`);
+    return handleResponse(res);
+  },
+
+  getServicesList: async (params = {}) => {
+    const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null)).toString();
+    const res = await fetch(`${BASE_URL}/services${q ? `?${q}` : ''}`);
+    return handleResponse(res);
+  },
+
+  getService: async (slugOrId) => {
+    const res = await fetch(`${BASE_URL}/services/${encodeURIComponent(slugOrId)}`);
+    return handleResponse(res);
+  },
+
+  // ---- Smart business enquiry (questions are managed in admin → Enquiry Form) ----
+  getEnquiryForm: async () => {
+    const res = await fetch(`${BASE_URL}/leads/enquiry-form`);
+    return handleResponse(res);
+  },
+
+  submitSmartEnquiry: async (data) => {
+    const res = await fetch(`${BASE_URL}/leads/enquiry`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   // Submit Contact Us inquiry
   submitContactForm: async (data) => {
     const res = await fetch(`${BASE_URL}/leads/contact`, {

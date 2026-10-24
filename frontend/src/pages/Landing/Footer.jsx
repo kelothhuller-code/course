@@ -1,98 +1,73 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
+import Icon from '../../components/Icon';
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SUPPORT_EMAIL, SITE_TAGLINE, whatsappUrl } from '../../config/site';
+import './Footer.css';
 
+/** Site footer: what we offer, company, policies, and the three ways to reach us. */
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
+  const year = new Date().getFullYear();
+  const wa = whatsappUrl();
 
   return (
-    <footer className="footer">
-      <div className="container">
-        {/* Desktop 4-Column Grid */}
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <h3>WIDETECH</h3>
-            <p>
-              Making AI education accessible to everyone — from beginners to professionals.
-            </p>
-            <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.5rem' }}>
-              Directed by @widetechai
-            </p>
-          </div>
-
-          <div className="footer-links">
-            <h4>Learn</h4>
-            <ul>
-              <li><Link to="/all-courses">All Courses</Link></li>
-              <li><a href="/#events">Live Workshops</a></li>
-              <li><Link to="/auth">Free Tutorials</Link></li>
+    <footer className="ft" aria-labelledby="ft-title">
+      <h2 id="ft-title" className="sr-only">Site footer</h2>
+      <div className="wt-container">
+        <div className="ft-grid">
+          <div className="ft-brand">
+            <Link to="/" className="ft-logo" aria-label="WideTech home">
+              <img src="/logo.svg" alt="" width="32" height="32" loading="lazy" />
+              <span>WideTech</span>
+            </Link>
+            <p>{SITE_TAGLINE}</p>
+            <ul className="ft-contact">
+              <li>
+                <a href={`mailto:${SUPPORT_EMAIL}`}><Icon name="mail" size={18} /> {SUPPORT_EMAIL}</a>
+              </li>
+              {wa && (
+                <li>
+                  <a href={wa} target="_blank" rel="noopener noreferrer"><Icon name="whatsapp" size={18} /> Chat on WhatsApp</a>
+                </li>
+              )}
+              {INSTAGRAM_URL && (
+                <li>
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer"><Icon name="instagram" size={18} /> @{INSTAGRAM_HANDLE}</a>
+                </li>
+              )}
             </ul>
           </div>
 
-          <div className="footer-links">
-            <h4>Company</h4>
+          <nav className="ft-col" aria-label="Offerings">
+            <h3>Explore</h3>
             <ul>
-              <li><a href="/#about">About Us</a></li>
-              <li><Link to="/contact">Contact Us</Link></li>
-              <li><a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a></li>
-              <li><Link to="/auth">Student Login</Link></li>
+              <li><Link to="/all-courses">Courses</Link></li>
+              <li><Link to="/software">Software</Link></li>
+              <li><Link to="/services">Services</Link></li>
+              <li><Link to="/contact#business-enquiry">Business enquiry</Link></li>
             </ul>
-          </div>
+          </nav>
 
-          <div className="footer-links">
-            <h4>Legal & Policies</h4>
+          <nav className="ft-col" aria-label="Account">
+            <h3>Students</h3>
             <ul>
-              <li><Link to="/terms">Terms & Conditions</Link></li>
-              <li><Link to="/privacy">Privacy Policy</Link></li>
-              <li><Link to="/refund">Refund Policy</Link></li>
-              <li><Link to="/contact">Support & Help</Link></li>
+              <li><Link to="/auth">Log in</Link></li>
+              <li><Link to="/dashboard">My dashboard</Link></li>
+              <li><Link to="/contact">Help &amp; support</Link></li>
             </ul>
-          </div>
+          </nav>
+
+          <nav className="ft-col" aria-label="Policies">
+            <h3>Policies</h3>
+            <ul>
+              <li><Link to="/terms">Terms &amp; conditions</Link></li>
+              <li><Link to="/privacy">Privacy policy</Link></li>
+              <li><Link to="/refund">Refund policy</Link></li>
+            </ul>
+          </nav>
         </div>
 
-        {/* Mobile Compact Footer - Clean, small characters, non-lengthy */}
-        <div className="footer-mobile-compact">
-          <div className="footer-mobile-brand">
-            <span className="footer-mobile-logo">WIDETECH</span>
-            <span className="footer-mobile-dot">•</span>
-            <span className="footer-mobile-tagline">AI & Tech Education</span>
-          </div>
-
-          <div className="footer-mobile-links">
-            <Link to="/all-courses">Courses</Link>
-            <a href="/#events">Workshops</a>
-            <Link to="/contact">Contact</Link>
-            <a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer">Instagram</a>
-            <Link to="/auth">Login</Link>
-          </div>
-
-          <div className="footer-mobile-legal">
-            <Link to="/terms">Terms</Link>
-            <span>•</span>
-            <Link to="/privacy">Privacy</Link>
-            <span>•</span>
-            <Link to="/refund">Refunds</Link>
-            <span>•</span>
-            <Link to="/contact">Help</Link>
-          </div>
-
-          <div className="footer-mobile-copy">
-            © {currentYear} WIDETECH (WIDE VENTURES). All rights reserved.
-          </div>
-        </div>
-
-        {/* Desktop Bottom Strip */}
-        <div className="footer-bottom">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <span>© {currentYear} WIDETECH Academy (WIDE VENTURES). All rights reserved.</span>
-            </div>
-            <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem' }}>
-              <Link to="/terms" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Terms</Link>
-              <Link to="/privacy" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Privacy</Link>
-              <Link to="/refund" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Refund Policy</Link>
-              <Link to="/contact" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Contact</Link>
-            </div>
-          </div>
+        <div className="ft-bottom">
+          <span>© {year} WideTech (Wide Ventures). All rights reserved.</span>
+          <span className="ft-secure"><Icon name="lock" size={16} /> Payments secured by Razorpay</span>
         </div>
       </div>
     </footer>

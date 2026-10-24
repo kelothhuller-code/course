@@ -21,7 +21,7 @@
   transform: translateX(-50%);
   width: 700px;
   height: 500px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(2, 132, 199, 0.05) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(67, 56, 202, 0.08) 0%, rgba(2, 132, 199, 0.05) 50%, transparent 70%);
   pointer-events: none;
   z-index: 0;
   filter: blur(40px);
@@ -57,7 +57,7 @@
   box-shadow: 
     0 4px 6px -1px rgba(0, 0, 0, 0.02),
     0 20px 40px -15px rgba(15, 23, 42, 0.08),
-    0 0 0 1px rgba(99, 102, 241, 0.03);
+    0 0 0 1px rgba(67, 56, 202, 0.03);
   transition: all var(--transition-normal, 0.3s ease);
 }
 
@@ -71,8 +71,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(99, 102, 241, 0.06);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(67, 56, 202, 0.06);
+  border: 1px solid rgba(67, 56, 202, 0.15);
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
   margin-bottom: 1rem;
@@ -89,7 +89,7 @@
   font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  background: linear-gradient(135deg, #6366f1, #0284c7);
+  background: linear-gradient(135deg, var(--color-primary), #0284c7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -143,7 +143,7 @@
 
 .auth-tab-btn.active {
   background: #ffffff;
-  color: var(--primary, #6366f1);
+  color: var(--primary, var(--color-primary));
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
@@ -215,7 +215,7 @@
   padding: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--primary, #6366f1);
+  color: var(--primary, var(--color-primary));
   cursor: pointer;
   transition: color 0.15s ease;
   font-family: inherit;
@@ -244,7 +244,7 @@
 }
 
 .input-field-wrapper:focus-within .input-field-icon {
-  color: var(--primary, #6366f1);
+  color: var(--primary, var(--color-primary));
 }
 
 .form-input {
@@ -262,8 +262,8 @@
 .form-input:focus {
   outline: none;
   background: #ffffff;
-  border-color: var(--primary, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--primary, var(--color-primary));
+  box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.15);
 }
 
 .form-input::placeholder {
@@ -295,7 +295,7 @@
 .auth-primary-btn {
   width: 100%;
   padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary));
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -304,7 +304,7 @@
   font-family: var(--font-header, 'Outfit', sans-serif);
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 14px rgba(67, 56, 202, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -312,9 +312,9 @@
 }
 
 .auth-primary-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  background: linear-gradient(135deg, var(--color-primary), #4338ca);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 20px rgba(67, 56, 202, 0.4);
 }
 
 .auth-primary-btn:active:not(:disabled) {
@@ -388,7 +388,7 @@
   border: none;
   padding: 0;
   font-weight: 700;
-  color: var(--primary, #6366f1);
+  color: var(--primary, var(--color-primary));
   cursor: pointer;
   font-family: inherit;
   font-size: 0.88rem;

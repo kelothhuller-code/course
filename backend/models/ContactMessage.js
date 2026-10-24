@@ -40,11 +40,29 @@ const ContactMessageSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  // Pipeline status. Legacy values "unread"/"replied" are treated as new/contacted in the admin.
   status: {
     type: String,
-    enum: ['unread', 'replied', 'closed'],
-    default: 'unread',
+    enum: ['unread', 'replied', 'closed', 'new', 'contacted', 'qualified'],
+    default: 'new',
   },
+  // ---- Smart business enquiry (multi-step form) ----
+  category: { type: String, trim: true, default: '' },       // EnquiryCategory.key, e.g. "coffee"
+  categoryLabel: { type: String, trim: true, default: '' },
+  answers: [{
+    key: { type: String },
+    label: { type: String },
+    value: { type: String },
+    _id: false,
+  }],
+  score: { type: Number, default: 0 },
+  priority: { type: String, enum: ['high', 'medium', 'low', ''], default: '' },
+  company: { type: String, trim: true, default: '' },
+  country: { type: String, trim: true, default: '' },
+  // Product the enquiry is about (software/service/course detail pages)
+  relatedType: { type: String, enum: ['course', 'software', 'service', ''], default: '' },
+  relatedId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  relatedTitle: { type: String, trim: true, default: '' },
   replyMessage: {
     type: String,
     default: '',

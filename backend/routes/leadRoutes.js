@@ -4,7 +4,32 @@ import ContactMessage from '../models/ContactMessage.js';
 import NewsletterConfig from '../models/NewsletterConfig.js';
 import { protect, admin } from '../middleware/auth.js';
 import { sendCustomEmail, getEmailBrandHeader, getEmailBrandFooter } from '../utils/mailer.js';
-import { validateEnquiry, isLikelySpam, notifyNewEnquiry, escapeHtml } from '../utils/enquiry.js';
+import { validateEnquiry, isLikelySpam, notifyNewEnquiry, escapeHtml, isValidObjectId } from '../utils/enquiry.js';
+import EnquiryCategory from '../models/EnquiryCategory.js';
+import Software from '../models/Software.js';
+import Service from '../models/Service.js';
+import Course from '../models/Course.js';
+import { getPublicEnquiryForm, validateAnswers } from '../utils/enquiryForm.js';
+
+/** Look up the product an enquiry is about (only publicly visible items). */
+const resolveRelated = async (type, id) => {
+  if (!isValidObjectId(id)) return null;
+  if (type === 'software') {
+    const d = await Software.findOne({ _id: id, status: 'active' }).select('title').lean();
+    return d ? { type, id, title: d.title } : null;
+  }
+  if (type === 'service') {
+    const d = await Service.findOne({ _id: id, status: 'active' }).select('title').lean();
+    return d ? { type, id, title: d.title } : null;
+  }
+  if (type === 'course') {
+    const d = await Course.findById(id).select('title').lean();
+    return d ? { type, id, title: d.title } : null;
+  }
+  return null;
+};
+
+const cleanStr = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 const router = express.Router();
 
@@ -219,19 +244,23 @@ router.post('/contact', async (req, res) => {
   const source = typeof req.body.source === 'string' ? req.body.source.trim().slice(0, 50) : '';
 
   try {
+    // Optional: the specific course/software/service the visitor asked about
+    const related = await resolveRelated(req.body.relatedType, req.body.relatedId);
+    const finalSubject = related && !legacySubject ? `${data.interest} enquiry: ${related.title}`.slice(0, 150) : subject;
     const newQuery = await ContactMessage.create({
       name: data.name,
       email: data.email,
       phone: data.phone,
       interest: data.interest,
       source,
-      subject,
+      subject: finalSubject,
       message: data.message,
-      status: 'unread',
+      status: 'new',
+      ...(related ? { relatedType: related.type, relatedId: related.id, relatedTitle: related.title } : {}),
     });
 
     // Fire-and-forget owner notification (never blocks or fails the request)
-    notifyNewEnquiry({ ...data, subject, source });
+    notifyNewEnquiry({ ...data, subject: finalSubject, source, relatedTitle: related?.title });
 
     res.status(201).json({
       success: true,
@@ -244,12 +273,157 @@ router.post('/contact', async (req, res) => {
   }
 });
 
+// @desc    Smart business enquiry form definition (categories + follow-up questions)
+// @route   GET /api/leads/enquiry-form
+// @access  Public
+router.get('/enquiry-form', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(await getPublicEnquiryForm());
+  } catch (error) {
+    console.error('Enquiry form load error:', error);
+    res.status(500).json({ message: 'Could not load the enquiry form.' });
+  }
+});
+
+// @desc    Submit the multi-step business enquiry
+// @route   POST /api/leads/enquiry
+// @access  Public (rate limited in server.js)
+router.post('/enquiry', async (req, res) => {
+  if (isLikelySpam(req.body)) {
+    return res.status(201).json({ success: true, message: 'Your enquiry has been received.' });
+  }
+  const categoryKey = cleanStr(req.body.category, 40);
+  const category = categoryKey ? await EnquiryCategory.findOne({ key: categoryKey, isActive: true }).lean() : null;
+  if (!category) return res.status(400).json({ message: 'Please choose what you are looking for.' });
+
+  const interest = categoryKey === 'software' ? 'Software' : categoryKey === 'services' ? 'Service' : 'Other';
+  const { data, error } = validateEnquiry({ ...req.body, interest, message: cleanStr(req.body.message, 5000) }, { requireMessage: false });
+  if (error) return res.status(400).json({ message: error });
+
+  try {
+    const result = await validateAnswers(category, req.body.answers);
+    if (result.error) return res.status(400).json({ message: result.error });
+
+    // A product preselected on a software/service page wins over nothing; an explicit catalog answer wins over both
+    const related = result.related || await resolveRelated(req.body.relatedType, req.body.relatedId);
+    const company = cleanStr(req.body.company, 120) || (result.answers.find((a) => a.key === 'company')?.value || '');
+    const country = cleanStr(req.body.country, 80);
+    const source = cleanStr(req.body.source, 50) || 'enquiry_form';
+    const subject = `${category.label} enquiry${related ? `: ${related.title}` : ''}`.slice(0, 150);
+    const summary = result.answers.map((a) => `${a.label}: ${a.value}`).join('\n');
+    const message = [data.message, summary].filter(Boolean).join('\n\n') || `${category.label} enquiry`;
+
+    const record = await ContactMessage.create({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      interest,
+      source,
+      subject,
+      message,
+      status: 'new',
+      category: category.key,
+      categoryLabel: category.label,
+      answers: result.answers,
+      score: result.score,
+      priority: result.priority,
+      company,
+      country,
+      ...(related ? { relatedType: related.type, relatedId: related.id, relatedTitle: related.title } : {}),
+    });
+
+    notifyNewEnquiry({
+      ...data, interest, subject, source, message: data.message || '(see answers above)',
+      categoryLabel: category.label, priority: result.priority, score: result.score,
+      company, country, relatedTitle: related?.title, answers: result.answers,
+    });
+
+    res.status(201).json({ success: true, id: record._id, category: category.key, message: 'Thanks! Your enquiry has been received. We will reply by email shortly.' });
+  } catch (err) {
+    console.error('Smart enquiry error:', err);
+    res.status(500).json({ message: 'Failed to submit enquiry. Please try again later.' });
+  }
+});
+
+const STATUS_GROUPS = {
+  new: ['new', 'unread'],
+  contacted: ['contacted', 'replied'],
+  qualified: ['qualified'],
+  closed: ['closed'],
+};
+
+const buildInquiryFilter = (q = {}) => {
+  const filter = {};
+  if (typeof q.category === 'string' && q.category && q.category !== 'all') {
+    filter.category = q.category === 'general' ? { $in: ['', null] } : q.category.slice(0, 40);
+  }
+  if (['high', 'medium', 'low'].includes(q.priority)) filter.priority = q.priority;
+  if (STATUS_GROUPS[q.status]) filter.status = { $in: STATUS_GROUPS[q.status] };
+  const from = q.from ? new Date(q.from) : null;
+  const to = q.to ? new Date(q.to) : null;
+  if ((from && !Number.isNaN(from.getTime())) || (to && !Number.isNaN(to.getTime()))) {
+    filter.createdAt = {};
+    if (from && !Number.isNaN(from.getTime())) filter.createdAt.$gte = from;
+    if (to && !Number.isNaN(to.getTime())) { to.setHours(23, 59, 59, 999); filter.createdAt.$lte = to; }
+  }
+  return filter;
+};
+
+// @desc    Update an enquiry's pipeline status (new/contacted/qualified/closed)
+// @route   PATCH /api/leads/messages/:id/status
+// @access  Private/Admin
+router.patch('/messages/:id/status', protect, admin, async (req, res) => {
+  const status = req.body?.status;
+  if (!['new', 'contacted', 'qualified', 'closed'].includes(status)) {
+    return res.status(400).json({ message: 'Status must be new, contacted, qualified or closed.' });
+  }
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid id.' });
+  const msg = await ContactMessage.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  if (!msg) return res.status(404).json({ message: 'Enquiry not found.' });
+  res.json({ success: true, messageRecord: msg });
+});
+
+// @desc    Export enquiries (same filters as the list) as CSV, answers included
+// @route   GET /api/leads/messages/export
+// @access  Private/Admin
+router.get('/messages/export', protect, admin, async (req, res) => {
+  try {
+    const rows = await ContactMessage.find(buildInquiryFilter(req.query)).sort({ createdAt: -1 }).lean();
+    const answerKeys = [];
+    rows.forEach((r) => (r.answers || []).forEach((a) => { if (!answerKeys.includes(a.label)) answerKeys.push(a.label); }));
+    // Neutralise spreadsheet formulas and quote every cell
+    const cell = (v) => {
+      let s = String(v ?? '');
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const header = ['Date', 'Status', 'Category', 'Priority', 'Score', 'Name', 'Email', 'Phone', 'Company', 'Country', 'Product', 'Source', 'Subject', 'Message', ...answerKeys];
+    const lines = [header.map(cell).join(',')];
+    for (const r of rows) {
+      const ans = Object.fromEntries((r.answers || []).map((a) => [a.label, a.value]));
+      lines.push([
+        new Date(r.createdAt).toISOString(), r.status, r.categoryLabel || r.interest, r.priority, r.score,
+        r.name, r.email, r.phone, r.company, r.country, r.relatedTitle, r.source, r.subject, r.message,
+        ...answerKeys.map((k) => ans[k] || ''),
+      ].map(cell).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="enquiries-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send('\uFEFF' + lines.join('\r\n'));
+  } catch (error) {
+    console.error('Export enquiries error:', error);
+    res.status(500).json({ message: 'Failed to export enquiries' });
+  }
+});
+
 // @desc    Get all contact messages (Admin Inbox)
 // @route   GET /api/leads/messages
 // @access  Private/Admin
 router.get('/messages', protect, admin, async (req, res) => {
   try {
-    const messages = await ContactMessage.find({}).sort({ createdAt: -1 });
+    // Optional filters: ?category=coffee&priority=high&status=new&from=YYYY-MM-DD&to=YYYY-MM-DD
+    const messages = await ContactMessage.find(buildInquiryFilter(req.query)).sort({ createdAt: -1 });
     res.json(messages);
   } catch (error) {
     console.error('Fetch contact messages error:', error);
@@ -300,7 +474,7 @@ router.post('/messages/:id/reply', protect, admin, async (req, res) => {
       console.warn('Could not dispatch live email, but saving reply to database:', mailErr.message);
     }
 
-    msg.status = 'replied';
+    msg.status = 'contacted';
     msg.replyMessage = replyText.trim();
     msg.repliedAt = new Date();
     await msg.save();

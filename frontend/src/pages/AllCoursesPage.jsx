@@ -1,11 +1,15 @@
 // src/pages/AllCoursesPage.jsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { SkeletonGrid } from '../components/Skeleton';
+import SiteHeader from '../components/SiteHeader';
+import Icon from '../components/Icon';
+import { usePageMeta } from '../components/Seo';
 import CourseSalesCard from '../components/CourseSalesCard';
 import Footer from './Landing/Footer';
 import './AllCoursesPage.css';
+import './Catalog/catalog.css';
 
 export default function AllCoursesPage({ user, onLogout }) {
   const PAGE_SIZE = 12;
@@ -14,7 +18,24 @@ export default function AllCoursesPage({ user, onLogout }) {
   const [loadError, setLoadError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [params, setParams] = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState(() => params.get('category') || 'All');
+  const [adminCategories, setAdminCategories] = useState([]);
+
+  usePageMeta({
+    title: selectedCategory !== 'All' ? `${selectedCategory} courses` : 'All courses',
+    description: 'Browse practical, self-paced online courses with instant access, lifetime validity and secure checkout. Prices include GST.',
+    path: '/all-courses',
+  });
+
+  // Category order and names are managed in the admin panel (Categories → Courses)
+  useEffect(() => {
+    let alive = true;
+    api.getCategories('course')
+      .then((d) => alive && setAdminCategories(Array.isArray(d?.categories) ? d.categories.map((c) => c.name) : []))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [page, setPage] = useState(1);
 
   // One request for the whole catalogue, in the same order as the landing carousel
@@ -47,8 +68,12 @@ export default function AllCoursesPage({ user, onLogout }) {
   // Categories come from the full catalogue (previously from the filtered page, so picking a
   // category made every other category tab disappear)
   const categories = useMemo(
-    () => ['All', ...new Set(allCourses.map(c => c.category).filter(Boolean))],
-    [allCourses]
+    () => {
+      const used = new Set(allCourses.map(c => c.category).filter(Boolean));
+      const ordered = adminCategories.filter(n => used.has(n));
+      return ['All', ...ordered, ...[...used].filter(n => !ordered.includes(n))];
+    },
+    [allCourses, adminCategories]
   );
 
   const filtered = useMemo(() => {
@@ -78,6 +103,9 @@ export default function AllCoursesPage({ user, onLogout }) {
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
+    const next = new URLSearchParams(params);
+    if (category && category !== 'All') next.set('category', category); else next.delete('category');
+    setParams(next, { replace: true });
     setPage(1);
   };
 
@@ -95,42 +123,25 @@ export default function AllCoursesPage({ user, onLogout }) {
 
   return (
     <div className="all-courses-page">
-      {/* Navbar */}
-      <header className="navbar navbar-scrolled">
-        <div className="container nav-container">
-          <Link to="/" className="navbar-brand">
-            <img src="/logo.svg" alt="WideTech Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
-            <span className="brand-name">WIDETECH</span>
-          </Link>
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <SiteHeader user={user} onLogout={onLogout} />
 
-          <nav className="nav-links">
-            <Link to="/" className="nav-link nav-home-link">Home</Link>
-            {user && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
-            <a href="https://instagram.com/widetechai" target="_blank" rel="noopener noreferrer" className="nav-link instagram-link">
-              Instagram
-            </a>
-            {user ? (
-              <button onClick={onLogout} className="btn btn-secondary btn-sm">👋 Sign Out</button>
-            ) : (
-              <Link to="/auth" className="btn btn-primary btn-sm">🚀 Join Free</Link>
-            )}
-          </nav>
-        </div>
-      </header>
-
-      <main className="all-courses-main">
+      <section className="cat-hero all-courses-hero">
         <div className="container">
-          {/* Page Header */}
-          <div className="all-courses-header">
-            <h1>All Courses</h1>
-            <p>Instant access after a secure Razorpay checkout · Prices include GST · Lifetime access</p>
-          </div>
+          <nav aria-label="Breadcrumb" className="cat-crumbs"><Link to="/">Home</Link> <span aria-hidden="true">/</span> <span aria-current="page">Courses</span></nav>
+          <p className="wt-eyebrow">Courses</p>
+          <h1 className="wt-h1">Learn something practical</h1>
+          <p className="wt-lead">Self-paced courses with instant access after a secure Razorpay checkout. Prices include GST, lifetime access.</p>
+        </div>
+      </section>
 
+      <main className="all-courses-main" id="main-content" tabIndex={-1}>
+        <div className="container">
           {/* Search & Filter Section */}
           <div className="all-courses-toolbar">
             <form onSubmit={handleSearch} className="search-form">
               <div className="search-wrapper">
-                <span className="search-icon">🔍</span>
+                <span className="search-icon"><Icon name="search" size={18} /></span>
                 <input
                   type="text"
                   className="search-input"
@@ -140,8 +151,8 @@ export default function AllCoursesPage({ user, onLogout }) {
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
                 {searchInput && (
-                  <button type="button" className="clear-search" onClick={clearSearch}>
-                    ✕
+                  <button type="button" className="clear-search" onClick={clearSearch} aria-label="Clear search">
+                    <Icon name="close" size={16} />
                   </button>
                 )}
                 <button type="submit" className="btn btn-primary btn-sm">
@@ -178,17 +189,17 @@ export default function AllCoursesPage({ user, onLogout }) {
 
           {/* Course Grid */}
           {loading ? (
-            <LoadingSpinner />
+            <SkeletonGrid count={6} label="Loading courses…" />
           ) : loadError ? (
             <div className="no-results" role="alert">
-              <span className="no-results-icon">⚠️</span>
+              <span className="wt-icon-tile no-results-icon"><Icon name="info" size={24} /></span>
               <h3>Courses unavailable</h3>
               <p>{loadError}</p>
               <button onClick={() => window.location.reload()} className="btn btn-primary">Try again</button>
             </div>
           ) : courses.length === 0 ? (
             <div className="no-results">
-              <span className="no-results-icon">📚</span>
+              <span className="wt-icon-tile no-results-icon"><Icon name="book" size={24} /></span>
               <h3>No courses found</h3>
               <p>Try adjusting your search or filter criteria</p>
               <button onClick={clearSearch} className="btn btn-secondary">
@@ -213,7 +224,7 @@ export default function AllCoursesPage({ user, onLogout }) {
                     disabled={!pagination.hasPrevPage}
                     className="pagination-btn"
                   >
-                    ← Previous
+                    <Icon name="arrow-left" size={16} /> Previous
                   </button>
 
                   <div className="pagination-pages">
@@ -249,7 +260,7 @@ export default function AllCoursesPage({ user, onLogout }) {
                     disabled={!pagination.hasNextPage}
                     className="pagination-btn"
                   >
-                    Next →
+                    Next <Icon name="arrow-right" size={16} />
                   </button>
                 </div>
               )}

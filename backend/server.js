@@ -22,6 +22,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import softwareRoutes from './routes/softwareRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
+import { publicCategoryRouter, adminCatalogRouter } from './routes/catalogRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 
 import helmet from 'helmet';
@@ -142,7 +143,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/payment', paymentLimiter);
-app.use(['/api/leads/contact', '/api/software/enquire', '/api/services/enquire'], enquiryLimiter);
+app.use(['/api/leads/contact', '/api/leads/enquiry', '/api/software/enquire', '/api/services/enquire'], enquiryLimiter);
 
 
 
@@ -245,6 +246,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/software', softwareRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/categories', publicCategoryRouter);
+app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/analytics', analyticsRoutes);
 
 // Base Route

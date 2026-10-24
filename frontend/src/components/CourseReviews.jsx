@@ -207,7 +207,7 @@ export default function CourseReviews({ courseId, user }) {
                     width: '36px',
                     height: '36px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary))',
                     color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',

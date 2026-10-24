@@ -1,0 +1,35 @@
+.sh { position: sticky; top: 0; z-index: var(--z-header); background: rgba(255, 255, 255, 0.86); backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px); border-bottom: 1px solid transparent; transition: border-color var(--duration), box-shadow var(--duration); }
+.sh--compact { border-bottom-color: var(--color-border); box-shadow: var(--shadow-xs); }
+.sh-inner { display: flex; align-items: center; gap: var(--space-6); height: var(--header-h); transition: height var(--duration) var(--ease-out); }
+.sh--compact .sh-inner { height: var(--header-h-compact); }
+.sh-brand { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; color: var(--color-ink); letter-spacing: -0.01em; }
+.sh-brand img { width: 34px; height: 34px; object-fit: contain; transition: width var(--duration), height var(--duration); }
+.sh--compact .sh-brand img { width: 28px; height: 28px; }
+.sh-nav { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+.sh-link { position: relative; display: inline-flex; align-items: center; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-pill); font-weight: 600; font-size: var(--text-sm); color: var(--color-text); text-decoration: none; transition: color var(--duration-fast), background-color var(--duration-fast); }
+.sh-link:hover { color: var(--color-primary); background: var(--color-primary-soft); }
+.sh-link.is-active { color: var(--color-primary); }
+.sh-link.is-active::after { content: ''; position: absolute; left: var(--space-3); right: var(--space-3); bottom: 4px; height: 2px; border-radius: 2px; background: currentColor; }
+.sh-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.sh-icon-link { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--color-text); transition: color var(--duration-fast), background-color var(--duration-fast); }
+.sh-icon-link:hover { color: var(--color-primary); background: var(--color-primary-soft); }
+.sh-toggle { display: none; width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-ink); cursor: pointer; place-items: center; }
+.sh-backdrop { position: fixed; inset: 0; background: rgba(11, 18, 32, 0.45); z-index: calc(var(--z-header) - 1); }
+.sh-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(86vw, 360px); background: var(--color-surface); z-index: var(--z-modal); box-shadow: var(--shadow-lg); padding: var(--space-16) var(--space-6) var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); transform: translateX(100%); visibility: hidden; transition: transform var(--duration) var(--ease-out), visibility 0s linear var(--duration); }
+.sh-drawer[hidden] { display: none; }
+.sh-drawer.is-open { transform: none; visibility: visible; transition: transform var(--duration) var(--ease-out), visibility 0s; }
+.sh-drawer nav { display: flex; flex-direction: column; }
+.sh-drawer-link { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--color-ink); text-decoration: none; }
+.sh-drawer-link.is-active { color: var(--color-primary); }
+.sh-drawer-foot { margin-top: auto; display: grid; gap: var(--space-3); }
+.sh-drawer-row { display: flex; gap: var(--space-2); }
+.sh-drawer-social { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); color: var(--color-text-muted); font-weight: 600; text-decoration: none; padding: var(--space-2); }
+@media (max-width: 960px) {
+  .sh-nav, .sh-link--account { display: none; }
+  .sh-toggle { display: grid; }
+}
+@media (max-width: 520px) {
+  .sh-cta, .sh-actions > .sh-icon-link { display: none; }
+  .sh-inner { gap: var(--space-3); }
+}
+.sh-drawer-close { position: absolute; top: var(--space-4); right: var(--space-4); width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-ink); display: grid; place-items: center; cursor: pointer; }
