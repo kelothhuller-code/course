@@ -34,7 +34,10 @@ export default function TrialTutorials({ trials, onPlayVideo }) {
                   <img 
                     src={getMediaUrl(trial.thumbnail) || FALLBACK_COURSE_THUMBNAIL} 
                     alt={trial.title}
+                    width="640"
+                    height="360"
                     loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = FALLBACK_COURSE_THUMBNAIL;

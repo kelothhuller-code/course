@@ -51,7 +51,8 @@ function ScrollManager() {
 
 function AppContent() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Only wait (spinner) when there is a session to validate; visitors see the page immediately
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token'));
   const [mockPaymentData, setMockPaymentData] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const navigate = useNavigate();

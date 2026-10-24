@@ -124,6 +124,12 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Everything the homepage needs in one request (see backend/routes/homeRoutes.js)
+  getHome: async () => {
+    const res = await fetch(`${BASE_URL}/home`);
+    return handleResponse(res);
+  },
+
   getFeaturedCourse: async () => {
     const res = await fetch(`${BASE_URL}/courses/featured`, {
       method: 'GET',

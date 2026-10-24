@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { protect, admin, isUserAdmin, optionalAuth } from '../middleware/auth.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import { optimizeImageFile } from '../utils/imageOptimizer.js';
 
 const router = express.Router();
 
@@ -139,10 +140,22 @@ const upload = multer({
 // @desc    Upload course thumbnail or banner image
 // @route   POST /api/upload/thumbnail
 // @access  Private/Admin
-router.post('/thumbnail', protect, admin, upload.single('thumbnail'), (req, res) => {
+router.post('/thumbnail', protect, admin, upload.single('thumbnail'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No image file uploaded' });
+    }
+
+    // Resize (max 1600px wide) and convert to WebP. This is a brand-new file nothing refers to
+    // yet, so the original is removed once the WebP exists. If sharp is missing or the image
+    // can't be improved (GIF, already small), the original is kept and used as before.
+    const optimized = await optimizeImageFile(req.file.path);
+    if (optimized.ok && !optimized.dryRun) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+      req.file.filename = path.basename(optimized.output);
+      req.file.path = optimized.output;
+      req.file.size = optimized.outputBytes;
+      req.file.mimetype = 'image/webp';
     }
 
     const publicUrl = `/api/uploads/thumbnails/${req.file.filename}`;

@@ -1,0 +1,50 @@
+/*
+  Performance overrides (loaded last).
+
+  Phones and low-end laptops spend most of their time on "Style & Layout" and painting for the
+  landing page (Lighthouse mobile: ~2.9 s). The biggest costs are backdrop-filter blurs (each one
+  re-renders everything behind it on every scroll frame), large multi-layer box-shadows and
+  infinite decorative animations. Desktop keeps the full premium look; small screens and people
+  who ask for reduced motion get a flatter, much cheaper version that looks almost the same.
+*/
+
+/* Skip rendering work for landing sections that are off-screen until they are scrolled near.
+   contain-intrinsic-size keeps the scrollbar stable (the browser remembers the real size). */
+.lp #main-content > section:not(.lp-hero),
+.lp > footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+}
+
+@media (max-width: 768px), (prefers-reduced-motion: reduce) {
+  /* No live blurs: use (almost) solid backgrounds instead */
+  *, *::before, *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .sh,
+  .navbar-scrolled { background: rgba(255, 255, 255, 0.98) !important; }
+}
+
+@media (max-width: 768px) {
+  /* Lighter shadows: one small layer instead of large blurred multi-layer shadows */
+  :root {
+    --shadow-md: 0 4px 10px -4px rgba(15, 23, 42, 0.14);
+    --shadow-lg: 0 6px 14px -6px rgba(15, 23, 42, 0.18);
+    --shadow-primary: 0 4px 10px -6px rgba(67, 56, 202, 0.5);
+  }
+  /* Decorative, never-ending animations */
+  .lp-hero-chip { animation: none !important; }
+  /* Hover lift effects don't apply to touch and cost a layer each */
+  .wt-card--interactive:hover,
+  .lp-hero-chip:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
