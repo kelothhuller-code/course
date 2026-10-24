@@ -3,23 +3,23 @@ import mongoose from 'mongoose';
 const NewsletterConfigSchema = new mongoose.Schema({
   welcomeSubject: {
     type: String,
-    default: '🎁 Your Free AI Starter Toolkit & Free Courses Access - WIDETECHNOS Academy',
+    default: 'Welcome to WideTech',
   },
   welcomeHeadline: {
     type: String,
-    default: 'Welcome to WIDETECHNOS Academy! Here is your Free AI Toolkit & Resources',
+    default: 'Thanks for subscribing to WideTech updates',
   },
   welcomeMessage: {
     type: String,
-    default: 'Thank you for joining our community! We are thrilled to share our curated AI tools cheat sheet, prompt templates, and structured learning roadmap with you.',
+    default: 'Thank you for subscribing. We will occasionally email you about new courses, software and services from WideTech. You can unsubscribe at any time.',
   },
   freeCourseUrl: {
     type: String,
-    default: 'https://widetech.in/#courses',
+    default: 'https://widetech.in/all-courses',
   },
   toolkitPdfUrl: {
     type: String,
-    default: 'https://widetech.in/resources/ai-starter-toolkit.pdf',
+    default: '',
   },
   additionalResources: [{
     title: String,

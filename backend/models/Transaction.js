@@ -62,7 +62,8 @@ const TransactionSchema = new mongoose.Schema({
 });
 
 // Indexes for fast payment lookups and verification
-TransactionSchema.index({ txnid: 1 });
+// txnid already has a unique index from the field definition above (unique: true). A second,
+// plain { txnid: 1 } index used to be declared here, which made Mongoose warn about a duplicate.
 TransactionSchema.index({ razorpayOrderId: 1 }, { sparse: true });
 
 export default mongoose.model('Transaction', TransactionSchema);

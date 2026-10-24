@@ -256,6 +256,7 @@ export const fulfilProduct = async (txn, user, { tempPassword = null } = {}) => 
     try {
       order = await ServiceOrder.create({
         orderNo: newOrderNo(),
+        statusHistory: [{ status: 'paid', at: new Date() }],
         service: txn.itemId,
         serviceTitle: svc?.title || txn.itemTitle || '',
         packageId: txn.variantId,

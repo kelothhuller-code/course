@@ -20,6 +20,8 @@ const ServiceOrderSchema = new mongoose.Schema({
   buyerPhone: { type: String, default: '' },
   status: { type: String, enum: SERVICE_ORDER_STATUSES, default: 'paid', index: true },
   adminNotes: { type: String, default: '' },
+  // When each status was reached (shown to the buyer as a timeline). Older orders may not have it.
+  statusHistory: [{ status: { type: String, enum: SERVICE_ORDER_STATUSES }, at: { type: Date, default: Date.now }, _id: false }],
 }, { timestamps: true });
 
 export default mongoose.model('ServiceOrder', ServiceOrderSchema);

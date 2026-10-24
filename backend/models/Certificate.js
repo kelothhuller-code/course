@@ -28,6 +28,8 @@ const certificateSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Previous, guessable ID (kept so certificates already shared still verify).
+  legacyCertificateId: { type: String, index: true, sparse: true },
   issuedAt: {
     type: Date,
     default: Date.now

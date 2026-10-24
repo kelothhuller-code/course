@@ -243,7 +243,11 @@ router.patch('/service-orders/:id', async (req, res) => {
     update.status = req.body.status;
   }
   if (typeof req.body?.adminNotes === 'string') update.adminNotes = req.body.adminNotes.slice(0, 2000);
-  const o = await ServiceOrder.findByIdAndUpdate(req.params.id, { $set: update }, { new: true }).lean();
+  const current = await ServiceOrder.findById(req.params.id).select('status').lean();
+  if (!current) return res.status(404).json({ message: 'Order not found' });
+  const ops = { $set: update };
+  if (update.status && update.status !== current.status) ops.$push = { statusHistory: { status: update.status, at: new Date() } };
+  const o = await ServiceOrder.findByIdAndUpdate(req.params.id, ops, { new: true }).lean();
   if (!o) return res.status(404).json({ message: 'Order not found' });
   res.json({ success: true, order: o });
 });

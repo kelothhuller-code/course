@@ -2,7 +2,7 @@ import Progress from '../models/Progress.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Certificate from '../models/Certificate.js';
-import { createCertificateForUser } from './certificateController.js';
+import { createCertificateForUser, courseFacts } from './certificateController.js';
 
 // Helper function to find a lesson by ID in course content
 const findLessonById = (course, lessonId) => {
@@ -344,7 +344,8 @@ export const getMyLearning = async (req, res) => {
     const user = await User.findById(userId)
       .populate({
         path: 'enrolledCourses.courseId',
-        select: 'title thumbnail description category price discountedPrice instructor duration languages content type isFree'
+        // The full lesson content (video/file URLs) is not needed for the dashboard list.
+        select: 'title thumbnail description category price discountedPrice instructor duration languages type isFree'
       })
       .populate({
         path: 'enrolledEvents.eventId',
@@ -378,13 +379,21 @@ export const getMyLearning = async (req, res) => {
       }
 
       const totalLessons = getTotalLessons(course);
+      // Two progress systems exist (lesson progress in Progress, chapter progress on the
+      // enrolment). Show whichever is further along so the dashboard matches the player.
+      const lessonPct = progress?.progress || 0;
+      const chapterPct = enrollment.progress || 0;
+      const completed = Boolean(progress?.completed || enrollment.completed);
+      const facts = course ? courseFacts(course) : null;
 
       return {
         course: enrollment.courseId,
         enrolledAt: enrollment.enrolledAt,
-        progress: progress?.progress || 0,
-        completed: progress?.completed || false,
-        completedAt: progress?.completedAt,
+        progress: completed ? 100 : Math.max(lessonPct, chapterPct),
+        completed,
+        completedAt: progress?.completedAt || enrollment.completedAt,
+        modules: facts?.modules || 0,
+        durationLabel: facts?.durationLabel || '',
         completedLessons: progress?.completedLessons?.length || 0,
         totalLessons,
         lastWatchedLesson,
@@ -412,38 +421,3 @@ export const getMyLearning = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch learning data' });
   }
 };
-
-// Helper function to generate certificate
-async function generateCertificate(userId, courseId, courseTitle) {
-  try {
-    const user = await User.findById(userId);
-    const certificateId = `WTA-${new Date().getFullYear()}-AI-${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`;
-
-    const certificate = new Certificate({
-      userId,
-      courseId,
-      certificateId,
-      courseTitle,
-      userName: user.name,
-      userEmail: user.email,
-      issuedAt: new Date()
-    });
-
-    await certificate.save();
-
-    // Add to user's certificates
-    user.certificates = user.certificates || [];
-    user.certificates.push({
-      courseId,
-      certificateId,
-      issuedAt: new Date(),
-      courseTitle
-    });
-    await user.save();
-
-    return certificate;
-  } catch (error) {
-    console.error('Certificate generation error:', error);
-    throw error;
-  }
-}
