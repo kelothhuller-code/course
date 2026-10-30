@@ -209,6 +209,7 @@ window.CatalogAdmin = {
                 <button type="submit" class="btn btn-primary" id="cat-save-btn">${item ? 'Save changes' : 'Create'}</button>
             </div>`;
         form.onsubmit = (e) => { e.preventDefault(); this.save(kind, id); };
+        if (cfg.afterOpen) cfg.afterOpen(item);
         document.getElementById('cat-modal').style.display = 'flex';
         document.getElementById('cat-f-title')?.focus();
     },
@@ -289,7 +290,9 @@ CatalogAdmin.register({
     addLabel: '+ Add software',
     // Paid download package (kept private; only buyers/admin can download it)
     formExtra: (item) => `
-        <fieldset class="cat-fieldset"><legend>Download package (optional, private)</legend>
+        ${SoftwareVersions.section(item)}
+        <fieldset class="cat-fieldset"><legend>Single download package (older method, optional, private)</legend>
+            <small class="cat-help" style="margin:0 0 6px">Used only while no versions are uploaded above. Buyers download it from their dashboard.</small>
             <input type="file" id="sw-package-file" onchange="SoftwareModule.handleFileUpload(event)">
             <div id="sw-upload-status" class="cat-help">${item && item.fileName ? `Current package: <strong>${CatalogAdmin.esc(item.fileName)}</strong> (${CatalogAdmin.esc(item.fileSize || 'on server')})` : ''}</div>
             <input type="hidden" id="sw-download-url" value="${CatalogAdmin.esc(item?.downloadUrl || '')}">
@@ -302,7 +305,9 @@ CatalogAdmin.register({
         fileName: document.getElementById('sw-file-name')?.value || '',
         fileSize: document.getElementById('sw-file-size')?.value || '',
         ...LicAdmin.softwareRead(),
+        ...SoftwareVersions.read(),
     }),
+    afterOpen: (item) => SoftwareVersions.mount(item),
     fields: [
         { name: 'title', label: 'Name', required: true, maxlength: 120 },
         { name: 'slug', label: 'URL slug', placeholder: 'auto from name', help: 'Page address: /software/<slug>. Leave empty to generate.' },

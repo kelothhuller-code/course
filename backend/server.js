@@ -27,6 +27,7 @@ import adminLicensingRoutes from './routes/adminLicensingRoutes.js';
 import { publicCategoryRouter, adminCatalogRouter } from './routes/catalogRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import homeRoutes, { invalidateHomeOnWrite } from './routes/homeRoutes.js';
+import softwareVersionAdminRoutes from './routes/softwareVersionAdminRoutes.js';
 
 import helmet from 'helmet';
 import compression from 'compression';
@@ -262,6 +263,7 @@ app.use('/api/trials', trialRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin/gst', gstRoutes);
 app.use('/api/admin/licensing', adminLicensingRoutes);
+app.use('/api/admin/software', softwareVersionAdminRoutes); // /:id/versions (uploads); rest falls through
 app.use('/api/admin', adminRoutes);
 app.use('/api/enroll', enrollRoutes);
 app.use('/api/progress', progressRoutes);
@@ -378,12 +380,16 @@ mongoose
     }
 
     await seedDatabase();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Express server running on port ${PORT}`);
       console.log(`📍 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
       const isRzpLive = process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.includes('placeholder');
       console.log(`💳 Gateway: ${isRzpLive ? `Razorpay Active (${process.env.RAZORPAY_KEY_ID})` : 'Mock Test Mode'}`);
     });
+    // Large software uploads (up to SOFTWARE_MAX_UPLOAD_MB) on slow connections take longer than
+    // Node's default 5-minute request timeout. Allow up to UPLOAD_REQUEST_TIMEOUT_MIN (default 60).
+    const uploadMinutes = Number.parseInt(process.env.UPLOAD_REQUEST_TIMEOUT_MIN || '60', 10);
+    server.requestTimeout = (Number.isFinite(uploadMinutes) && uploadMinutes > 0 ? uploadMinutes : 60) * 60 * 1000;
   })
   .catch((err) => {
     console.error(`❌ Database connection error: ${err.message}`);

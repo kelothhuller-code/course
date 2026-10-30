@@ -6,6 +6,7 @@ import { useToast } from '../../components/Toast';
 import { ConfirmDialog, EmptyState, ErrorState, PageHeader, Pill, SkeletonList } from './ui';
 import { daysUntil, fmtDate, inr, useAsync } from './format';
 import { licenceStatus, maskKey } from './MySoftware.helpers';
+import { formatBytes } from '../../utils/bytes';
 
 const billingLabel = (p) => ({ monthly: 'per month', yearly: 'per year', lifetime: 'one-time', custom: p.customDays ? `for ${p.customDays} days` : '' }[p.billing] || '');
 
@@ -72,7 +73,8 @@ function LicenceCard({ licence, onChanged }) {
   const download = async () => {
     setDownloading(true);
     try {
-      await api.downloadSoftware(sw._id, `${sw.slug || 'software'}`);
+      const lv = sw.latestVersion;
+      await api.downloadSoftware(sw._id, lv?.fileName || `${sw.slug || 'software'}`, lv ? { version: lv.version, platform: lv.platform } : {});
       toast.success('Your download has started.');
     } catch (e) {
       toast.error(e.message || 'Download is not available right now.');
@@ -130,8 +132,14 @@ function LicenceCard({ licence, onChanged }) {
       <div className="acc-licence__actions">
         {sw.hasDownload && !licence.revoked && (
           <button type="button" className="wt-btn wt-btn--primary wt-btn--sm" onClick={download} disabled={downloading}>
-            <Icon name="download" size={16} />{downloading ? 'Preparing…' : 'Download'}
+            <Icon name="download" size={16} />{downloading ? 'Preparing…' : sw.latestVersion ? `Download v${sw.latestVersion.version}` : 'Download'}
           </button>
+        )}
+        {sw.hasDownload && !licence.revoked && sw.latestVersion && (
+          <span className="acc-dl-meta" title={`SHA-256 ${sw.latestVersion.sha256}`}>
+            {sw.latestVersion.platformLabel} · {formatBytes(sw.latestVersion.size)}{sw.latestVersion.releaseDate ? ` · ${fmtDate(sw.latestVersion.releaseDate)}` : ''}
+            {sw.slug && <> · <Link to={`/software/${encodeURIComponent(sw.slug)}#versions`}>All versions</Link></>}
+          </span>
         )}
         {licence.renewPlans?.length > 0 && sw.slug && !licence.revoked && (
           <div className="acc-plan-links">

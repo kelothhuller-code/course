@@ -4,11 +4,12 @@ import { api } from '../../api';
 import PublicLayout from '../../components/PublicLayout';
 import Icon from '../../components/Icon';
 import Markdown from '../../components/Markdown';
+import { DownloadPanel, VersionHistory } from '../../components/SoftwareDownload';
 import EnquiryForm from '../../components/EnquiryForm';
 import { SkeletonPage } from '../../components/Skeleton';
 import { usePageMeta } from '../../components/Seo';
 import { getMediaUrl } from '../../utils/media';
-import { priceLabel, SOFTWARE_CTA_LABEL, SITE_NAME, SITE_URL } from '../../config/site';
+import { priceLabel, softwareCheckoutHref, SITE_NAME, SITE_URL } from '../../config/site';
 import { money, billingLabel } from '../../utils/gst';
 import NotFoundPage from '../NotFoundPage';
 import './catalog.css';
@@ -80,7 +81,7 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
 
   const ctaLabel = isService
     ? (mode === 'fixed' ? 'Questions before you buy?' : mode === 'both' ? 'Get a quote' : (item.ctaType === 'book_call' ? 'Book a call' : 'Get a quote'))
-    : sellsLicences ? 'Questions? Ask us' : (SOFTWARE_CTA_LABEL[item.ctaType] || 'Enquire');
+    : (softwareCheckoutHref(item) ? 'Questions? Ask us' : 'Request a quote');
   const slugOrId = item.slug || item._id;
   const buyHref = (variant) => (isService
     ? `/checkout/service/${encodeURIComponent(slugOrId)}${variant && variant !== 'main' ? `?package=${encodeURIComponent(variant)}` : ''}`
@@ -96,6 +97,10 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
     el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     setTimeout(() => el.querySelector('input, select, textarea')?.focus({ preventScroll: true }), 450);
   };
+  const hasVersions = !isService && (item.versions?.length || 0) > 0;
+  // Software: "Buy now" always opens the one-page checkout; only quote-only software (no price) uses the form.
+  const checkoutHref = isService ? null : softwareCheckoutHref(item);
+  const trialFile = !isService && item.licensingEnabled && item.trialEnabled && item.hasTrialDownload;
   const steps = (item.processSteps || []).filter((s) => s?.title);
   const bullets = (isService ? item.deliverables : item.features) || [];
 
@@ -121,21 +126,41 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
                 {price.original && <s>{price.original}</s>}
                 <small>{price.sub}</small>
               </p>
-              <div className="wt-actions">
-                {sellsLicences ? (
-                  <>
-                    {item.trialEnabled && (item.hasTrialDownload ? (
-                      <a className="wt-btn wt-btn--primary wt-btn--lg" href={api.trialDownloadUrl(item._id)} rel="nofollow">
-                        Start free {trialDays}-day trial <Icon name="arrow-right" size={18} />
-                      </a>
-                    ) : (
-                      <button type="button" className="wt-btn wt-btn--primary wt-btn--lg" onClick={goToForm}>
-                        Start free {trialDays}-day trial <Icon name="arrow-right" size={18} />
-                      </button>
-                    ))}
-                    <button type="button" className={`wt-btn wt-btn--${item.trialEnabled ? 'secondary' : 'primary'} wt-btn--lg`} onClick={() => goTo('plans')}>
-                      See plans &amp; prices
+              {hasVersions ? (
+                <>
+                  <DownloadPanel item={item} user={user} buyHref={checkoutHref} onQuote={checkoutHref ? null : goToForm} />
+                  {isHttp(item.demoUrl) && (
+                    <a href={item.demoUrl} target="_blank" rel="noopener noreferrer" className="wt-btn wt-btn--ghost wt-btn--sm" style={{ width: 'fit-content' }}>
+                      Try the online demo <Icon name="external" size={16} />
+                    </a>
+                  )}
+                  {item.versions.length > 1 && (
+                    <button type="button" className="wt-btn wt-btn--ghost wt-btn--sm" style={{ width: 'fit-content' }} onClick={() => goTo('versions')}>
+                      What's new &amp; older versions <Icon name="chevron-down" size={16} />
                     </button>
+                  )}
+                </>
+              ) : (<>
+              <div className="wt-actions">
+                {!isService ? (
+                  <>
+                    {trialFile && (
+                      <a className="wt-btn wt-btn--primary wt-btn--lg sd-primary" href={api.trialDownloadUrl(item._id)} rel="nofollow">
+                        <Icon name="download" size={20} />Download free trial
+                      </a>
+                    )}
+                    {checkoutHref ? (
+                      <Link className={`wt-btn wt-btn--lg ${trialFile ? 'sd-buy' : 'wt-btn--primary'}`} to={checkoutHref}>
+                        Buy now <Icon name="arrow-right" size={18} />
+                      </Link>
+                    ) : (
+                      <button type="button" className={`wt-btn wt-btn--${trialFile ? 'secondary' : 'primary'} wt-btn--lg`} onClick={goToForm}>
+                        Request a quote <Icon name="arrow-right" size={18} />
+                      </button>
+                    )}
+                    {sellsLicences && item.plans.length > 1 && (
+                      <button type="button" className="wt-btn wt-btn--ghost wt-btn--lg" onClick={() => goTo('plans')}>Compare plans</button>
+                    )}
                   </>
                 ) : canBuyService && offers.length === 1 && mode === 'fixed' ? (
                   <Link className="wt-btn wt-btn--primary wt-btn--lg" to={buyHref(String(offers[0]._id))}>
@@ -162,13 +187,17 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
               {sellsLicences && item.trialEnabled && (
                 <p className="cd-note"><Icon name="info" size={16} /> {item.hasTrialDownload
                   ? `Download, install and open the app: your ${trialDays}-day trial starts automatically. No card needed, one trial per computer.`
-                  : `Ask us for the download using the form below. The ${trialDays}-day trial starts when you first open the app.`}</p>
+                  : `The ${trialDays}-day free trial starts when you first open the app. Ask us for the download using the form below.`}</p>
               )}
               {canBuyService && mode === 'fixed' && (
                 <p className="cd-note"><Icon name="info" size={16} /> Pay securely online. We'll contact you to schedule the work.</p>
               )}
-              {!isService && !sellsLicences && item.ctaType === 'buy' && (
-                <p className="cd-note"><Icon name="info" size={16} /> Send your details below and we will reply by email to complete your purchase.</p>
+              </>)}
+              {!isService && checkoutHref && (
+                <p className="cd-note"><Icon name="lock" size={16} /> Pay securely online. Your licence key appears right after payment and is emailed to you.</p>
+              )}
+              {!isService && !checkoutHref && (
+                <p className="cd-note"><Icon name="info" size={16} /> Priced per business. Request a quote and we will reply by email.</p>
               )}
             </div>
           </div>
@@ -197,6 +226,8 @@ export default function CatalogDetailPage({ user, kind = 'software' }) {
           </div>
         </div>
       </section>
+
+      {hasVersions && <VersionHistory item={item} user={user} />}
 
       {sellsLicences && (
         <section className="wt-section cd-offers-section" id="plans" aria-labelledby="plans-title">

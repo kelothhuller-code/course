@@ -38,6 +38,23 @@ export const serviceMainPrice = (svc) => {
   return (d > 0 && d < p) ? d : p;
 };
 
+/** Price for software sold without plans (discount only when it is lower than the price). */
+export const softwareMainPrice = (sw) => {
+  if (sw.pricingType === 'quote') return 0;
+  const p = Number(sw.price) || 0;
+  const d = Number(sw.discountedPrice);
+  return (d > 0 && d < p) ? d : p;
+};
+
+/** What a single-price software purchase issues. Add plans in admin for other terms. */
+export const MAIN_SOFTWARE_LICENCE = Object.freeze({ name: 'Standard licence', billing: 'lifetime', maxDevices: 1 });
+
+/** Licence term for a single-price purchase follows the product's pricing type. */
+export const mainSoftwareLicence = (sw) => {
+  const billing = sw.pricingType === 'subscription_monthly' ? 'monthly' : sw.pricingType === 'subscription_yearly' ? 'yearly' : 'lifetime';
+  return { ...MAIN_SOFTWARE_LICENCE, billing };
+};
+
 const hsnFor = (layers) => layers.filter(Boolean).map((l) => String(l.hsnSacCode || '').trim()).find(Boolean) || '';
 
 /**
@@ -48,10 +65,25 @@ export const resolveProductOrder = async ({ itemType, itemId, variantId, renewLi
   if (itemType === 'software') {
     const sw = await findBySlugOrId(Software, String(itemId || ''));
     if (!sw) throw new OrderError(404, 'Software not found');
-    if (!sw.licensingEnabled) throw new OrderError(400, 'This software is not sold online yet. Please send an enquiry.');
-    const plan = mongoose.isValidObjectId(String(variantId || '')) ? sw.plans.id(String(variantId)) : null;
-    if (!plan || !plan.isActive) throw new OrderError(400, 'Please choose a valid plan.');
-    if (!(plan.price > 0)) throw new OrderError(400, 'This plan has no price set.');
+    const activePlans = (sw.plans || []).filter((p) => p.isActive);
+    // Single-price software (no active plans): "Buy now" sells one standard licence at the
+    // product's own price (discounted price when it is lower). See softwareMainPrice.
+    const single = !activePlans.length && (!variantId || variantId === 'main');
+    let plan = null;
+    let terms;
+    let price;
+    if (single) {
+      price = softwareMainPrice(sw);
+      if (!(price > 0)) throw new OrderError(400, 'This software is quoted individually. Please request a quote.');
+      terms = mainSoftwareLicence(sw);
+    } else {
+      if (!sw.licensingEnabled) throw new OrderError(400, 'This software is not sold online yet. Please send an enquiry.');
+      plan = mongoose.isValidObjectId(String(variantId || '')) ? sw.plans.id(String(variantId)) : null;
+      if (!plan || !plan.isActive) throw new OrderError(400, 'Please choose a valid plan.');
+      if (!(plan.price > 0)) throw new OrderError(400, 'This plan has no price set.');
+      price = plan.price;
+      terms = { name: plan.name, billing: plan.billing, customDays: plan.customDays, maxDevices: plan.maxDevices };
+    }
 
     let renewLicense = null;
     if (renewLicenseId) {
@@ -64,18 +96,22 @@ export const resolveProductOrder = async ({ itemType, itemId, variantId, renewLi
       if (!owns || renewLicense.software.toString() !== sw._id.toString()) throw new OrderError(404, 'Licence not found.');
       if (renewLicense.revoked) throw new OrderError(400, 'This licence has been revoked. Please contact support.');
       if (renewLicense.expiresAt === null) throw new OrderError(400, 'This is a lifetime licence; it does not need renewing.');
-      if (plan.billing === 'lifetime') throw new OrderError(400, 'Choose a time-based plan to renew, or buy a new lifetime licence.');
+      if (terms.billing === 'lifetime') throw new OrderError(400, 'Choose a time-based plan to renew, or buy a new lifetime licence.');
+      // Renewing keeps the licence's device limit when it is bought at the single price.
+      if (single) terms = { ...terms, maxDevices: renewLicense.maxDevices || terms.maxDevices };
     }
 
     return {
       item: sw,
       variant: plan,
-      listPrice: plan.price,
-      tax: taxSettingsFor([plan, sw], gstConfig),
-      hsn: hsnFor([plan, sw]),
-      itemTitle: `${sw.title} — ${plan.name}${renewLicense ? ' (renewal)' : ''}`,
-      description: `${plan.name} licence, ${billingLabel(plan)}, up to ${plan.maxDevices} device(s)`,
-      snapshot: { name: plan.name, billing: plan.billing, customDays: plan.customDays, maxDevices: plan.maxDevices },
+      listPrice: price,
+      tax: taxSettingsFor(plan ? [plan, sw] : [sw], gstConfig),
+      hsn: hsnFor(plan ? [plan, sw] : [sw]),
+      itemTitle: `${sw.title}${plan ? ` — ${plan.name}` : ''}${renewLicense ? ' (renewal)' : ''}`,
+      description: plan
+        ? `${plan.name} licence, ${billingLabel(plan)}, up to ${plan.maxDevices} device(s)`
+        : `${sw.title}: ${terms.name.toLowerCase()}, ${billingLabel(terms)}, up to ${terms.maxDevices} device(s)`,
+      snapshot: terms,
       renewLicense,
     };
   }

@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
  * submissions). Recorded through the same first-party tracker as PageView/AbandonedCheckout
  * (POST /api/analytics/track-event) and summarised in admin → Traffic & Drop-offs.
  */
-export const FUNNEL_EVENT_NAMES = ['buy_click', 'enquiry_submit', 'checkout_view', 'checkout_start', 'payment_success', 'payment_failed'];
+export const FUNNEL_EVENT_NAMES = ['buy_click', 'enquiry_submit', 'checkout_view', 'checkout_start', 'payment_success', 'payment_failed', 'software_download'];
 
 const FunnelEventSchema = new mongoose.Schema({
   name: { type: String, enum: FUNNEL_EVENT_NAMES, required: true, index: true },

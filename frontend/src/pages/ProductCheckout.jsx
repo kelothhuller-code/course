@@ -41,6 +41,13 @@ export default function ProductCheckout({ user, onRefreshUser, kind = 'software'
       if (item.mainOffer) return [{ id: 'main', name: item.title, price: item.mainOffer.price, original: item.mainOffer.originalPrice, gstInclusive: item.mainOffer.gstInclusive, sub: 'Fixed price', bullets: item.deliverables || [] }];
       return [];
     }
+    if (!item.plans?.length) {
+      // Single-price software: one standard lifetime licence at the product price (server: softwareMainPrice).
+      const offer = item.mainOffer;
+      const price = Number(offer?.price) || 0;
+      if (!(price > 0) || (renewId && (offer.billing || 'lifetime') === 'lifetime')) return [];
+      return [{ id: 'main', name: 'Standard licence', price, original: offer?.originalPrice || undefined, gstInclusive: offer?.gstInclusive, sub: `${billingLabel({ billing: offer.billing || 'lifetime' })} · 1 device`, bullets: item.features || [] }];
+    }
     return (item.plans || [])
       .filter((p) => !renewId || p.billing !== 'lifetime')
       .map((p) => ({ id: String(p._id), name: p.name, price: p.price, gstInclusive: p.gstInclusive, sub: `${billingLabel(p)} · ${p.maxDevices || 1} device${(p.maxDevices || 1) === 1 ? '' : 's'}`, bullets: p.features || [] }));
@@ -59,7 +66,7 @@ export default function ProductCheckout({ user, onRefreshUser, kind = 'software'
         backTo={backTo}
         actions={<><BackLink to={backTo} primary>{item ? `Back to ${item.title}` : `Browse ${isService ? 'services' : 'software'}`}</BackLink></>}
       >
-        {state.error || (isService ? 'Tell us what you need on the service page and we will send you a quote.' : 'Send us an enquiry from the product page and we will help you get started.')}
+        {state.error || (isService ? 'Tell us what you need on the service page and we will send you a quote.' : 'This software is priced by quote. Request a quote from the product page and we will help you get started.')}
       </CheckoutMessage>
     );
   }

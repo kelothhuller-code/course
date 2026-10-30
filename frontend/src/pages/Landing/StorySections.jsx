@@ -50,7 +50,7 @@ export function ProblemSolution() {
 export function Offerings({ courseTotal = 0, softwareCount = 0, serviceCount = 0 }) {
   const items = [
     { icon: 'book', tone: '', title: 'Online courses', text: 'Self-paced courses on practical topics with instant, lifetime access and a GST invoice.', to: '/all-courses', cta: 'Browse courses', count: courseTotal },
-    { icon: 'grid', tone: 'accent', title: 'Business software', text: 'Ready-to-use tools for business administration and everyday operations. Try a demo or ask for a quote.', to: '/software', cta: 'See software', count: softwareCount },
+    { icon: 'grid', tone: 'accent', title: 'Business software', text: 'Ready-to-use tools for business administration and everyday operations. See prices, download and buy online.', to: '/software', cta: 'See software', count: softwareCount },
     { icon: 'automation', tone: 'warm', title: 'Services', text: 'Automation, custom software and business administration, done for you from first call to hand-over.', to: '/services', cta: 'See services', count: serviceCount },
   ];
   return (

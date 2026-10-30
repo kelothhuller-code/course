@@ -136,6 +136,20 @@ export const priceLabel = (item, kind = 'software') => {
 };
 
 export const SOFTWARE_CTA_LABEL = { buy: 'Buy now', demo: 'Request a demo', enquire: 'Enquire' };
+
+/**
+ * One-page checkout link for a software product, or null when it is quote-only (no price).
+ * Licence plans: one plan opens it preselected, several show the plan picker in checkout.
+ * No plans: the server's mainOffer (product price) sells one standard licence.
+ */
+export const softwareCheckoutHref = (item) => {
+  if (!item) return null;
+  const slug = encodeURIComponent(item.slug || item._id);
+  const plans = item.licensingEnabled ? (item.plans || []) : [];
+  if (plans.length) return `/checkout/software/${slug}${plans.length === 1 ? `?plan=${encodeURIComponent(plans[0]._id)}` : ''}`;
+  if (item.mainOffer && Number(item.mainOffer.price) > 0) return `/checkout/software/${slug}`;
+  return null;
+};
 export const SERVICE_CTA_LABEL = { book_call: 'Book a call', quote: 'Get a quote', enquire: 'Enquire' };
 
 /**

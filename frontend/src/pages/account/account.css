@@ -216,6 +216,8 @@
 .acc-devices__list li { display: flex; align-items: center; gap: var(--space-3); padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .acc-devices__list li > .wt-icon, .acc-devices__list li > svg { color: var(--color-text-muted); flex: none; }
 .acc-licence__actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.acc-dl-meta { font-size: var(--text-xs); color: var(--color-text-subtle); }
+.acc-dl-meta a { color: var(--color-primary); font-weight: 600; }
 .acc-plan-links { display: contents; }
 
 /* ---- Service orders timeline ---- */
