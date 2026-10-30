@@ -113,6 +113,12 @@ export const signResponse = (data) => {
   return { payload, signature, alg: 'Ed25519', kid: publicKeyBase64().slice(0, 8) };
 };
 
+/**
+ * Signs raw bytes with the same licence private key (same loading rules: base64 PKCS#8 DER or PEM).
+ * Returns the raw 64-byte Ed25519 signature. Used by the POS PIN-reset codes (utils/pinReset.js).
+ */
+export const signBytes = (bytes) => crypto.sign(null, Buffer.from(bytes), loadPrivateKey());
+
 /** Expiry for a plan, starting from `from` (renewals start from the later of now / current expiry). */
 export const planExpiry = (plan, from = new Date()) => {
   const d = new Date(from);

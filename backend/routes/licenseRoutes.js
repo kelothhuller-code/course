@@ -6,6 +6,7 @@
  *   POST /validate    { softwareSlug, licenseKey, deviceId, appVersion?, nonce }
  *   POST /deactivate  { softwareSlug, licenseKey, deviceId, nonce }
  *   GET  /public-key  (convenience only — apps must EMBED the public key, not download it)
+ *   POST /admin/pin-reset, GET /admin/pin-reset/history  (admin only, see pinResetRoutes.js)
  *
  * Every answer is { payload: "<JSON string>", signature: "<base64 Ed25519>" }. Apps verify the
  * signature with the embedded public key, then check payload.nonce == the nonce they sent and
@@ -23,6 +24,7 @@ import { protect } from '../middleware/auth.js';
 import { normalizeLicenseKey, hashLicenseKey, hashDeviceId, signResponse, publicKeyBase64, decryptKey } from '../utils/licensing.js';
 import ServiceOrder from '../models/ServiceOrder.js';
 import ContactMessage from '../models/ContactMessage.js';
+import pinResetRoutes from './pinResetRoutes.js';
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -228,6 +230,9 @@ router.post('/deactivate', licenseLimiter, failLimiter, handle('deactivate', asy
     devicesUsed: Math.max(0, lic.devices.length - (r.modifiedCount ? 1 : 0)),
   });
 }));
+
+// Support tools (admin login required): POS admin-PIN reset codes
+router.use('/admin', pinResetRoutes);
 
 router.get('/public-key', licenseLimiter, (req, res) => {
   res.json({ alg: 'Ed25519', publicKey: publicKeyBase64(), note: 'Embed this key in your app at build time. Do not download it at runtime.' });

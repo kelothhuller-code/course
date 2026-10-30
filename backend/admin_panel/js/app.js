@@ -104,6 +104,11 @@ const App = {
                     content = await LicensesModule.render();
                     break;
 
+                case 'pin-reset':
+                    this.setBreadcrumb('POS PIN reset');
+                    content = await PinResetModule.render();
+                    break;
+
                 case 'service-orders':
                     this.setBreadcrumb('Service orders');
                     content = await ServiceOrdersModule.render();
