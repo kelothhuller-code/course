@@ -294,6 +294,107 @@ Results like expired or device limit are HTTP 200 with a signed payload. Errors 
 - Too many requests: HTTP 429. The default limit is 60 per minute per IP.
 - Wrong keys: blocked after 20 failures in 15 minutes per IP.
 
+### POS admin PIN reset (support)
+
+When a shop owner forgets the POS admin PIN, support generates a one-time reset code in
+Admin → **POS PIN reset** (`/wide-hq-portal/`, or whatever `ADMIN_SECRET_PATH` is set to).
+No PIN is ever sent to the server and nothing is stored on the POS side by the server.
+
+**1. Request code** (shown by the POS):
+
+```
+WTR1-<base64url(JSON)>          base64url = RFC 4648 §5 alphabet, no "=" padding
+JSON = {"a":"<appId>","d":"<deviceId>","n":"<nonce>","t":<unix seconds>}
+```
+
+- `a`: the product's App ID (Admin → Software → App ID), same value the app sends as `softwareSlug`.
+- `d`: the 64-hex SHA-256 device id the app sends to `/activate`.
+- `n`: 16 random bytes, base64url (22 characters).
+- `t`: integer unix time (seconds) when the code was shown.
+
+**2. Reset code** (typed into the POS):
+
+```
+WTP1-<base64url(64-byte Ed25519 signature)>
+signed message (UTF-8, exact): wt-pin-reset-v1|<appId>|<deviceId>|<nonce>
+```
+
+It is signed with the **same** `LICENSE_SIGNING_PRIVATE_KEY` as licence responses, so the POS
+verifies it with the public key it already embeds. `appId`, `deviceId` and `nonce` are used exactly
+as they appear in the request code (no case changes).
+
+**3. POS checks:** valid signature with the embedded key, nonce equals the one it showed, the code
+is used once, it is less than 7 days old, and it is for this device. The server additionally rejects
+request codes whose `t` is more than 7 days old or more than 10 minutes in the future (HTTP 400 with
+a message telling support to ask for a new code / fix the POS clock).
+
+**API** (admin login required, rate-limited to 20 codes per 15 minutes per admin, `PIN_RESET_LIMIT`):
+
+| Endpoint | Body / result |
+| --- | --- |
+| `POST /api/license/v1/admin/pin-reset` | `{ "requestCode": "WTR1-…" }` → `{ resetCode, appId, deviceId, nonce, requestedAt, activationFound, licence?, customer? }` |
+| `GET /api/license/v1/admin/pin-reset/history` | last 50 audit entries |
+
+- Malformed code → 400, unknown App ID → 404, not admin → 401/403.
+- If the device has an activation for that product, the licence (key, plan, status) and customer
+  (name, email) are returned so support can confirm who is asking. If not, the code is still
+  generated but `activationFound` is `false` and the page shows a warning.
+- Every generated code is logged in the `pin_reset_audits` collection (admin id/email, appId,
+  deviceId, nonce, licence id + last 5 characters, activationFound, IP, time). The full licence key
+  and the private key are never logged or returned.
+
+**C# verification on the POS** (BouncyCastle, same as `clients/csharp`; `PublicKey` is the same
+base64 raw 32-byte Ed25519 key passed to `LicenseOptions.PublicKey`):
+
+```csharp
+using System;
+using System.Text;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
+
+public static class PinReset
+{
+    static string B64UrlEncode(byte[] b) => Convert.ToBase64String(b).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    static byte[] B64UrlDecode(string s)
+    {
+        s = s.Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; case 1: throw new FormatException(); }
+        return Convert.FromBase64String(s);
+    }
+
+    /// <summary>Builds the request code to show. Keep `nonce` and `t` (and mark the nonce unused) until a reset code is accepted.</summary>
+    public static string MakeRequestCode(string appId, string deviceId, string nonce, long t) =>
+        "WTR1-" + B64UrlEncode(Encoding.UTF8.GetBytes(
+            System.Text.Json.JsonSerializer.Serialize(new { a = appId, d = deviceId, n = nonce, t })));
+
+    public static string NewNonce()
+    {
+        var b = new byte[16];
+        using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create()) rng.GetBytes(b);
+        return B64UrlEncode(b);
+    }
+
+    /// <summary>True when `resetCode` was signed by WideTech for this app, device and nonce.</summary>
+    public static bool Verify(string resetCode, string publicKeyBase64, string appId, string deviceId, string nonce)
+    {
+        resetCode = (resetCode ?? "").Trim();
+        if (!resetCode.StartsWith("WTP1-", StringComparison.Ordinal)) return false;
+        byte[] sig;
+        try { sig = B64UrlDecode(resetCode.Substring(5)); } catch { return false; }
+        if (sig.Length != 64) return false;
+        var pub = new Ed25519PublicKeyParameters(Convert.FromBase64String(publicKeyBase64), 0);
+        var msg = Encoding.UTF8.GetBytes($"wt-pin-reset-v1|{appId}|{deviceId}|{nonce}");
+        var v = new Ed25519Signer();
+        v.Init(false, pub);
+        v.BlockUpdate(msg, 0, msg.Length);
+        return v.VerifySignature(sig);
+    }
+}
+// After Verify(...) is true: check the stored request time is < 7 days old, then delete the stored
+// nonce (single use) and let the owner set a new admin PIN.
+```
+
 ---
 
 ## 9. Day-to-day admin tasks
@@ -312,6 +413,9 @@ Admin → **Licences**:
 - **Trial usage**: see which computers used a trial. Use "Allow new trial" for a goodwill exception.
 - **Issue a key**: give a key manually (for example for a bank transfer or a replacement). The key is
   shown once and can be emailed to the customer.
+
+Admin → **POS PIN reset**: paste the customer's `WTR1-` request code, check the app, device and
+time, click **Generate reset code** and send the `WTP1-` code (see “POS admin PIN reset” in section 8).
 
 Refunds: revoke the key in Licences, then process the refund as you do today. Revoked keys lock the
 app at its next check (immediately in strict-online mode, or after the grace period).

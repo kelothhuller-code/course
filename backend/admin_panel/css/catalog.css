@@ -103,3 +103,19 @@
 .lic-issue-grid input:not([type=checkbox]), .lic-issue-grid select { background: var(--bg-subtle); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .7rem; }
 .lic-issued { margin-top: 1rem; padding: .9rem 1rem; border-radius: 10px; background: var(--success-soft); color: var(--success); display: flex; flex-direction: column; gap: 6px; }
 @media (max-width: 720px) { .lic-detail, .lic-issue-grid, .lic-course-gst { grid-template-columns: 1fr; } }
+
+/* ---- POS PIN reset (js/modules/pin-reset.js) ---- */
+.pin-card { margin-bottom: 1.25rem; max-width: 960px; }
+.pin-h3 { margin: 0 0 .75rem; font-size: 1rem; color: var(--text-main); }
+.pin-input, .pin-code { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; background: var(--input-bg, var(--bg-subtle)); color: var(--text-main); border: 1px solid var(--border-strong); border-radius: 10px; padding: .6rem .75rem; word-break: break-all; }
+.pin-input { resize: vertical; min-height: 72px; }
+.pin-input:focus, .pin-code:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+.pin-preview:empty { display: none; }
+.pin-dl { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin: .9rem 0 0; }
+.pin-dl dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.pin-dl dd { margin: 2px 0 0; color: var(--text-main); font-size: .88rem; }
+.pin-actions { margin-top: 1rem; }
+.pin-result { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.pin-code-row { display: flex; gap: .6rem; align-items: center; }
+.pin-code-row .pin-code { flex: 1; }
+.pin-warn { margin-top: .9rem; padding: .75rem .9rem; border-left: 3px solid var(--warning); background: var(--warning-soft); color: var(--warning); border-radius: 6px; font-size: .86rem; }
