@@ -7,6 +7,7 @@ import { protect, admin, isUserAdmin, optionalAuth } from '../middleware/auth.js
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import { optimizeImageFile } from '../utils/imageOptimizer.js';
+import { softwareMulter, runUpload, VERSION_EXTENSIONS } from '../utils/softwareDownloads.js';
 
 const router = express.Router();
 
@@ -180,7 +181,12 @@ router.post('/thumbnail', protect, admin, upload.single('thumbnail'), async (req
 // @desc    Upload software file package to dedicated server folder
 // @route   POST /api/upload/software
 // @access  Private/Admin
-router.post('/software', protect, admin, upload.single('softwareFile'), (req, res) => {
+// Software packages can be big (installers ≥ 100 MB): this route uses the same streamed disk upload
+// and size limit (SOFTWARE_MAX_UPLOAD_MB, default 2048) as Admin → Software → Versions.
+const LEGACY_SOFTWARE_EXTS = [...new Set([...VERSION_EXTENSIONS, '.tar', '.gz', '.tgz', '.json'])];
+const softwarePackageUpload = softwareMulter({ dest: softwareDir, allowed: LEGACY_SOFTWARE_EXTS, field: ['softwareFile', 'software'] });
+
+router.post('/software', protect, admin, runUpload(softwarePackageUpload.single('softwareFile')), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No software package file uploaded' });
@@ -326,7 +332,12 @@ router.get('/material/download/:filename', optionalAuth, async (req, res) => {
 // @desc    Generic multi-file upload for course assets
 // @route   POST /api/upload/multiple
 // @access  Private/Admin
-router.post('/multiple', protect, admin, upload.array('files', 10), (req, res) => {
+const multipleSoftwareUpload = softwareMulter({ dest: softwareDir, allowed: LEGACY_SOFTWARE_EXTS, field: 'files' });
+const pickMultiple = (req, res, next) => (req.query.type === 'software'
+  ? runUpload(multipleSoftwareUpload.array('files', 10))(req, res, next) // big installers: same limit as versions
+  : upload.array('files', 10)(req, res, next));
+
+router.post('/multiple', protect, admin, pickMultiple, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });

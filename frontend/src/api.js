@@ -607,17 +607,30 @@ export const api = {
   },
 
   /**
-   * Download a purchased/licensed software package. The file is fetched with my login token
-   * (so the protected URL never works for anyone else) and saved through a temporary link.
+   * Download a software file I may access (bought / licensed, or free-trial download).
+   * Uploaded versions: the server answers with a short-lived link and the browser downloads it
+   * natively (streamed to disk, never held in memory). Older single packages are still fetched
+   * with my login token, and external package links open in a new tab.
    */
-  downloadSoftware: async (softwareId, fallbackName = 'download') => {
-    const res = await fetch(`${BASE_URL}/software/${encodeURIComponent(softwareId)}/download?format=json`, { headers: getHeaders() });
+  downloadSoftware: async (softwareIdOrSlug, fallbackName = 'download', { version, platform } = {}) => {
+    const q = new URLSearchParams({ format: 'json' });
+    if (version) q.set('version', version);
+    if (platform) q.set('platform', platform);
+    const res = await fetch(`${BASE_URL}/software/${encodeURIComponent(softwareIdOrSlug)}/download?${q}`, { headers: getHeaders() });
     if (!res.ok) await handleResponse(res);
     const type = res.headers.get('content-type') || '';
     if (type.includes('application/json')) {
       const data = await res.json();
-      if (data.url) { window.open(data.url, '_blank', 'noopener'); return; }
-      throw new Error(data.message || 'Download is not available yet.');
+      if (!data.url) throw new Error(data.message || 'Download is not available yet.');
+      if (data.url.startsWith('/')) {
+        // Our own download route: let the browser handle it (Content-Disposition: attachment).
+        const abs = new URL(data.url, /^https?:/i.test(BASE_URL) ? BASE_URL : window.location.origin).href;
+        const a = document.createElement('a');
+        a.href = abs; a.rel = 'nofollow'; document.body.appendChild(a); a.click(); a.remove();
+        return data.version || null;
+      }
+      window.open(data.url, '_blank', 'noopener');
+      return null;
     }
     const blob = await res.blob();
     const cd = res.headers.get('content-disposition') || '';
@@ -627,6 +640,20 @@ export const api = {
     const a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return null;
+  },
+
+  /**
+   * Direct link to an uploaded version (public when the product allows free trial downloads).
+   * `sid` links the download to this visit in the site's own analytics (no third-party tracking).
+   */
+  softwareDownloadUrl: (slugOrId, { version, platform, sid } = {}) => {
+    const q = new URLSearchParams();
+    if (version) q.set('version', version);
+    if (platform) q.set('platform', platform);
+    if (sid) q.set('sid', sid);
+    const qs = q.toString();
+    return `${BASE_URL}/software/${encodeURIComponent(slugOrId)}/download${qs ? `?${qs}` : ''}`;
   },
 
   /** Public trial download link for software with a free trial. */

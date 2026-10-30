@@ -7,7 +7,15 @@ import User from '../models/User.js';
 import ContactMessage from '../models/ContactMessage.js';
 import Lead from '../models/Lead.js';
 import { validateEnquiry, isValidObjectId, notifyNewEnquiry } from '../utils/enquiry.js';
-import { authenticateToken, isUserAdmin } from '../middleware/auth.js';
+import { authenticateToken, isUserAdmin, optionalAuth } from '../middleware/auth.js';
+import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+import SoftwareVersion from '../models/SoftwareVersion.js';
+import FunnelEvent from '../models/FunnelEvent.js';
+import { getJwtSecret } from '../utils/jwtSecret.js';
+import {
+  pickVersion, publicVersion, allowsFreeDownload, sortVersions, storedPath,
+} from '../utils/softwareDownloads.js';
 import { publicSoftware, CATALOG_SORT } from '../utils/catalog.js';
 import { publicCache } from '../middleware/cache.js';
 
@@ -52,8 +60,15 @@ router.get('/:slugOrId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Software product not found' });
     }
     const gstConfig = await getOrInitGstConfig();
+    const pub = publicSoftware(software, gstConfig);
+    // Published uploaded versions (newest first). Never includes the file location on disk.
+    const versions = sortVersions(await SoftwareVersion.find({ software: software._id, published: true }).lean()).map(publicVersion);
+    pub.versions = versions;
+    pub.allowFreeDownload = allowsFreeDownload(software);
+    pub.latestVersion = pickVersion(versions) || null;
+    if (versions.length && pub.allowFreeDownload && software.licensingEnabled && software.trialEnabled) pub.hasTrialDownload = true;
     // sellerState lets checkout preview CGST+SGST vs IGST (the server recalculates when ordering)
-    res.json({ success: true, software: publicSoftware(software, gstConfig), sellerState: gstConfig.sellerState || '' });
+    res.json({ success: true, software: pub, sellerState: gstConfig.sellerState || '' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error retrieving software details' });
   }
@@ -226,6 +241,9 @@ router.get('/:id/trial-download', async (req, res) => {
     if (!isValidObjectId(String(req.params.id))) return res.status(400).json({ success: false, message: 'Invalid id' });
     const software = await Software.findOne({ _id: req.params.id, status: 'active', licensingEnabled: true });
     if (!software || !software.trialEnabled) return res.status(404).json({ success: false, message: 'No free trial for this product' });
+    if (allowsFreeDownload(software) && await SoftwareVersion.exists({ software: software._id, published: true })) {
+      return res.redirect(302, `${req.baseUrl}/${encodeURIComponent(software.slug || software._id)}/download`);
+    }
     if (software.trialDownloadUrl) return res.redirect(software.trialDownloadUrl);
     if (software.trialUsesPackage && sendPackage(res, software)) return undefined;
     return res.status(404).json({ success: false, message: 'Trial download is not configured yet' });
@@ -235,47 +253,149 @@ router.get('/:id/trial-download', async (req, res) => {
   }
 });
 
-// GET download software package file from server folder (Protected: Requires Purchase, Admin, or Free)
-router.get('/:id/download', authenticateToken, async (req, res) => {
+// ---- Downloads ------------------------------------------------------------------------------
+const isDevEnv = process.env.NODE_ENV !== 'production';
+// Gentle: a person downloading a few builds never notices; a script hammering the route does.
+const downloadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDevEnv ? 1000 : 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many downloads from this address. Please try again in a few minutes.' },
+});
+
+const TICKET_PURPOSE = 'software_download';
+/** Short-lived signed link so a logged-in buyer's browser can download natively (no blob in memory). */
+const makeTicket = (userId, softwareId) => jwt.sign({ p: TICKET_PURPOSE, u: String(userId), s: String(softwareId) }, getJwtSecret(), { expiresIn: '10m' });
+const readTicket = (t, softwareId) => {
   try {
-    if (!isValidObjectId(String(req.params.id))) return res.status(400).json({ success: false, message: 'Invalid id' });
-    const software = await Software.findById(req.params.id);
-    if (!software) {
-      return res.status(404).json({ success: false, message: 'Software product not found' });
-    }
+    const d = jwt.verify(String(t), getJwtSecret());
+    return d && d.p === TICKET_PURPOSE && d.s === String(softwareId) ? d.u : null;
+  } catch {
+    return null;
+  }
+};
 
-    const user = req.user;
+/** Buyer / licence owner / admin / free product? (same rules the old download route used) */
+const userMayDownload = async (user, software) => {
+  if (!user) return false;
+  if (isUserAdmin(user)) return true;
+  if (software.price === 0 || software.isFree) return true;
+  // Enquiries are stored in the same list with status "enquired" — they must not unlock downloads
+  const isPurchased = user.purchasedSoftware?.some(
+    (p) => p.softwareId?.toString() === software._id.toString() && p.status !== 'enquired',
+  );
+  if (isPurchased) return true;
+  return Boolean(await License.exists({
+    software: software._id,
+    revoked: false,
+    // Same rule as the dashboard: email-only licences count if issued after the account existed.
+    $or: [
+      { userId: user._id },
+      { email: String(user.email || '').toLowerCase(), createdAt: { $gte: user.createdAt ? new Date(user.createdAt) : new Date() } },
+    ],
+  }));
+};
+
+const countDownload = (req, software, version) => {
+  // Resumed / ranged requests (download managers) are not new downloads.
+  const range = String(req.headers.range || '');
+  if (req.method === 'HEAD' || (range && !/^bytes=0-/.test(range))) return;
+  SoftwareVersion.updateOne({ _id: version._id }, { $inc: { downloadCount: 1 } }).catch(() => {});
+  // First-party tracker (admin → Traffic & Drop-offs). No third-party analytics.
+  const sid = typeof req.query.sid === 'string' && /^[\w-]{4,100}$/.test(req.query.sid) ? req.query.sid : 'direct';
+  Promise.resolve()
+    .then(() => FunnelEvent.create({
+      name: 'software_download',
+      path: `/software/${software.slug || software._id}`,
+      source: `${version.version}/${version.platform}`.slice(0, 100),
+      sessionId: sid,
+      userId: req.user?._id || null,
+    }))
+    .catch(() => {});
+};
+
+/**
+ * GET /api/software/:slugOrId/download?version=&platform=
+ *
+ * Uploaded versions: streams the file from private storage (Content-Disposition attachment,
+ * Content-Length, Range / resume via res.download). Who may download:
+ *   - product toggle "Allow free trial download before purchase" ON (default) → anyone
+ *     (the app itself enforces the trial / licence through /api/license/v1)
+ *   - otherwise → logged-in buyers, licence owners and the admin
+ *   - unpublished versions → admin only
+ * Products without uploaded versions keep the old behaviour (buyers only; uploaded package or
+ * external link). ?format=json answers { url } instead of a file, for the dashboard.
+ */
+router.get('/:slugOrId/download', downloadLimiter, optionalAuth, async (req, res) => {
+  try {
+    const key = String(req.params.slugOrId).slice(0, 100);
+    const filter = isValidObjectId(key) ? { _id: key } : { slug: key };
+    let user = req.user || null;
     const isAdmin = isUserAdmin(user);
-    const isFree = software.price === 0 || software.isFree;
-    // Enquiries are stored in the same list with status "enquired" — they must not unlock downloads
-    const isPurchased = user.purchasedSoftware?.some(
-      p => p.softwareId?.toString() === software._id.toString() && p.status !== 'enquired'
-    );
+    const software = await Software.findOne(isAdmin ? filter : { ...filter, status: 'active' });
+    if (!software) return res.status(404).json({ success: false, message: 'Software product not found' });
 
-    // Licence holders may download too.
-    const hasLicense = !isAdmin && !isFree && !isPurchased && await License.exists({
-      software: software._id,
-      revoked: false,
-      // Same rule as the dashboard: email-only licences count if issued after the account existed.
-      $or: [
-        { userId: user._id },
-        { email: String(user.email || '').toLowerCase(), createdAt: { $gte: user.createdAt ? new Date(user.createdAt) : new Date() } },
-      ],
-    });
-
-    if (!isAdmin && !isFree && !isPurchased && !hasLicense) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied: You must purchase or unlock this software product before downloading.'
-      });
+    if (!user && req.query.ticket) {
+      const uid = readTicket(req.query.ticket, software._id);
+      if (uid) user = await User.findById(uid).select('-password');
+      if (user) req.user = user;
     }
 
-    if (sendPackage(res, software, { json: req.query.format === 'json' })) return undefined;
+    const versions = await SoftwareVersion.find(isAdmin ? { software: software._id } : { software: software._id, published: true }).lean();
+    const wantJson = req.query.format === 'json';
 
-    res.status(404).json({ success: false, message: 'Software download package not configured on server' });
+    if (!versions.length) {
+      // ---- Legacy: single package / external link, buyers only -------------------------------
+      if (!user) return res.status(401).json({ success: false, message: 'Please sign in to download this software.' });
+      if (!(await userMayDownload(user, software))) {
+        return res.status(403).json({ success: false, message: 'Access denied: You must purchase or unlock this software product before downloading.' });
+      }
+      if (sendPackage(res, software, { json: wantJson })) return undefined;
+      return res.status(404).json({ success: false, message: 'Software download package not configured on server' });
+    }
+
+    const v = pickVersion(versions, { version: req.query.version, platform: req.query.platform });
+    if (!v) return res.status(404).json({ success: false, message: 'That version is not available for download.' });
+
+    const free = allowsFreeDownload(software);
+    if (!free && !isAdmin) {
+      if (!user) return res.status(401).json({ success: false, message: 'Please sign in with the account you bought this software with to download it.' });
+      if (!(await userMayDownload(user, software))) {
+        return res.status(403).json({ success: false, message: 'Downloads for this product are available after purchase.' });
+      }
+    }
+
+    const slugOrId = encodeURIComponent(software.slug || software._id);
+    if (wantJson) {
+      // The dashboard asks for a link and lets the browser download it natively (no 2 GB blob in memory).
+      const q = new URLSearchParams({ version: v.version, platform: v.platform });
+      if (!free && user) q.set('ticket', makeTicket(user._id, software._id));
+      return res.json({ success: true, url: `${req.baseUrl}/${slugOrId}/download?${q}`, version: publicVersion(v) });
+    }
+
+    const file = storedPath(v.storedName);
+    if (!file || !fs.existsSync(file)) {
+      console.error(`Software version file missing on disk: ${v.storedName}`);
+      return res.status(404).json({ success: false, message: 'This file is temporarily unavailable. Please contact support.' });
+    }
+
+    countDownload(req, software, v);
+    // res.download streams from disk (never buffered in memory) with Content-Disposition: attachment,
+    // Content-Length, ETag/Last-Modified and Range (resume) support.
+    return res.download(file, v.originalName, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, no-store',
+        'X-Checksum-SHA256': v.sha256,
+      },
+    }, (err) => {
+      if (err && !res.headersSent) res.status(err.status || 500).json({ success: false, message: 'Download failed' });
+    });
   } catch (err) {
     console.error('Download software error:', err);
-    res.status(500).json({ success: false, message: 'Failed to download software' });
+    return res.status(500).json({ success: false, message: 'Failed to download software' });
   }
 });
 

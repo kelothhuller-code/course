@@ -21,6 +21,9 @@ backend/public/uploads/*
 !backend/public/uploads/*/.gitkeep
 backend/private_storage/**
 !backend/private_storage/**/.gitkeep
+# Software version files (served only by GET /api/software/:slugOrId/download)
+backend/private_downloads/**
+!backend/private_downloads/.gitkeep
 
 # Tooling caches
 coverage/

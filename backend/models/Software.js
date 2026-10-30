@@ -59,6 +59,10 @@ const SoftwareSchema = new mongoose.Schema({
   trialDownloadUrl: { type: String, default: '' },       // public https:// link to the installer
   trialInstructions: { type: String, default: '' },      // short Markdown shown on the page
   trialUsesPackage: { type: Boolean, default: false },   // let anyone download the uploaded package for the trial
+  // Uploaded versions (SoftwareVersion collection): "Allow free trial download before purchase".
+  // ON = anyone can download published versions (the app enforces trial / licence itself);
+  // OFF = only buyers, licence owners and the admin.
+  allowFreeDownload: { type: Boolean, default: true },
   // Product-level GST defaults for plans (store-wide settings when empty)
   gstRate: { type: Number, default: null, min: 0, max: 40 },
   gstInclusive: { type: Boolean, default: true },

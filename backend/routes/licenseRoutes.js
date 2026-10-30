@@ -25,6 +25,20 @@ import { normalizeLicenseKey, hashLicenseKey, hashDeviceId, signResponse, public
 import ServiceOrder from '../models/ServiceOrder.js';
 import ContactMessage from '../models/ContactMessage.js';
 import pinResetRoutes from './pinResetRoutes.js';
+import SoftwareVersion from '../models/SoftwareVersion.js';
+import { pickVersion, publicVersion } from '../utils/softwareDownloads.js';
+import { softwareMainPrice, mainSoftwareLicence } from '../utils/productOrders.js';
+
+/** Ways to renew a time-limited licence: active time-based plans, or the single price (no plans). */
+const renewOptions = (sw) => {
+  const plans = (sw.plans || []).filter((p) => p.isActive);
+  if (plans.length) {
+    return plans.filter((p) => p.billing !== 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing, customDays: p.customDays }));
+  }
+  const terms = mainSoftwareLicence(sw);
+  const price = softwareMainPrice(sw);
+  return price > 0 && terms.billing !== 'lifetime' ? [{ _id: 'main', name: terms.name, price, billing: terms.billing }] : [];
+};
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -275,7 +289,11 @@ const accountLicense = (l) => {
     _id: l._id,
     key: decryptKey(l.keyEnc),
     keyLast: l.keyLast,
-    software: sw ? { _id: sw._id, title: sw.title, slug: sw.slug, hasDownload: Boolean(sw.fileName || sw.downloadUrl) } : { title: l.softwareTitle },
+    software: sw ? {
+      _id: sw._id, title: sw.title, slug: sw.slug,
+      hasDownload: Boolean(sw.fileName || sw.downloadUrl || sw.latestVersion),
+      latestVersion: sw.latestVersion || null, // newest published uploaded version (see /licenses)
+    } : { title: l.softwareTitle },
     planName: l.planName,
     billing: l.billing,
     expiresAt: l.expiresAt,
@@ -286,7 +304,7 @@ const accountLicense = (l) => {
     devices: (l.devices || []).map((d) => ({ ref: deviceRef(d), deviceName: d.deviceName, appVersion: d.appVersion, activatedAt: d.activatedAt, lastSeenAt: d.lastSeenAt })),
     selfDeactivate: { limit, remaining: Math.max(0, limit - used) },
     renewPlans: sw && l.expiresAt !== null
-      ? (sw.plans || []).filter((p) => p.isActive && p.billing !== 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing, customDays: p.customDays }))
+      ? renewOptions(sw)
       : [],
     upgradePlans: sw && l.expiresAt !== null
       ? (sw.plans || []).filter((p) => p.isActive && p.billing === 'lifetime').map((p) => ({ _id: p._id, name: p.name, price: p.price, billing: p.billing }))
@@ -299,8 +317,18 @@ accountRouter.get('/licenses', protect, async (req, res) => {
   try {
     const list = await License.find(ownerFilter(req.user))
       .sort({ createdAt: -1 })
-      .populate('software', 'title slug appId plans fileName downloadUrl')
+      .populate('software', 'title slug appId plans fileName downloadUrl price discountedPrice pricingType')
       .lean();
+    // Latest published uploaded version per product, for the "Download" button.
+    const ids = [...new Set(list.map((l) => l.software?._id && String(l.software._id)).filter(Boolean))];
+    if (ids.length) {
+      const versions = await SoftwareVersion.find({ software: { $in: ids }, published: true }).lean();
+      for (const l of list) {
+        if (!l.software?._id) continue;
+        const v = pickVersion(versions.filter((x) => String(x.software) === String(l.software._id)));
+        if (v) l.software.latestVersion = publicVersion(v);
+      }
+    }
     res.json({ success: true, licenses: list.map(accountLicense) });
   } catch (e) {
     console.error('My licences error:', e.message);
@@ -328,7 +356,7 @@ accountRouter.post('/licenses/:id/devices/:ref/deactivate', protect, async (req,
     lic.devices.splice(idx, 1);
     lic.selfDeactivations = [...(lic.selfDeactivations || []).filter((d) => Date.now() - new Date(d).getTime() < 30 * 24 * 3600 * 1000), new Date()];
     await lic.save();
-    await lic.populate('software', 'title slug appId plans fileName downloadUrl');
+    await lic.populate('software', 'title slug appId plans fileName downloadUrl price discountedPrice pricingType');
     res.json({ success: true, message: 'Computer removed. You can now activate the key on another computer.', license: accountLicense(lic.toObject()) });
   } catch (e) {
     console.error('Self deactivate error:', e.message);

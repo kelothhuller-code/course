@@ -346,7 +346,7 @@ router.post('/quote', optionalAuth, async (req, res) => {
       const v = order.variant;
       const regular = itemType === 'service'
         ? (v ? Number(v.price) || 0 : Number(order.item.startingPrice) || 0)
-        : order.listPrice;
+        : (v ? order.listPrice : Math.max(Number(order.item.price) || 0, order.listPrice));
       const itemDiscount = regular > order.listPrice ? r2(regular - order.listPrice) : 0;
       return res.json({
         success: true, itemType, itemTitle: order.itemTitle, sellerState, posState,

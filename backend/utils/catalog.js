@@ -247,6 +247,7 @@ export const validateSoftwareInput = (body = {}, { partial = false } = {}) => {
     else data.trialDownloadUrl = u;
   }
   if (has(body, 'trialUsesPackage')) data.trialUsesPackage = bool(body.trialUsesPackage);
+  if (has(body, 'allowFreeDownload')) data.allowFreeDownload = bool(body.allowFreeDownload);
   if (has(body, 'trialInstructions')) data.trialInstructions = str(body.trialInstructions, 2000);
   if (has(body, 'appId')) {
     const a = str(body.appId, 80).toLowerCase();
@@ -364,6 +365,14 @@ export const publicSoftware = (doc, gstConfig = null) => {
   s.hasTrialDownload = Boolean(s.trialEnabled && (s.trialDownloadUrl || (s.trialUsesPackage && hasPackage)));
   if (!s.licensingEnabled) { s.plans = []; s.hasTrialDownload = false; }
   s.fromPrice = s.plans.length ? Math.min(...s.plans.map((p) => p.payable)) : null;
+  // Single-price software (no plans): "Buy now" opens the one-page checkout for one standard licence.
+  const list = Number(s.price) || 0;
+  const disc = Number(s.discountedPrice) || 0;
+  const main = s.pricingType === 'quote' ? 0 : (disc > 0 && disc < list ? disc : list);
+  s.mainOffer = !s.plans.length && main > 0
+    ? { price: main, originalPrice: main < list ? list : null, billing: s.pricingType === 'subscription_monthly' ? 'monthly' : s.pricingType === 'subscription_yearly' ? 'yearly' : 'lifetime', maxDevices: 1, ...withPayable(main, [s], gstConfig) }
+    : null;
+  s.buyable = Boolean(s.plans.length || s.mainOffer);
   return s;
 };
 

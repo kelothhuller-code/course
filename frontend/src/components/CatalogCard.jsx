@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import './CatalogCard.css';
 import Icon from './Icon';
 import { getMediaUrl } from '../utils/media';
-import { priceLabel } from '../config/site';
+import { priceLabel, softwareCheckoutHref } from '../config/site';
 
 /** Card for a software product or a service (listing pages + landing sections). */
 export default function CatalogCard({ item, kind = 'software', headingLevel = 3, eager = false }) {
@@ -12,6 +12,7 @@ export default function CatalogCard({ item, kind = 'software', headingLevel = 3,
   const img = getMediaUrl(item.thumbnail || item.images?.[0] || '');
   const text = kind === 'service' ? (item.summary || item.description) : (item.tagline || item.description);
   const H = `h${headingLevel}`;
+  const buyHref = kind === 'software' ? softwareCheckoutHref(item) : null;
   return (
     <article className="wt-card wt-card--flush wt-card--interactive cc">
       {img ? (
@@ -36,7 +37,11 @@ export default function CatalogCard({ item, kind = 'software', headingLevel = 3,
             {p.original && <s>{p.original}</s>}
             <small>{p.sub}</small>
           </span>
-          <span className="wt-link" aria-hidden="true">Details <Icon name="arrow-right" size={16} /></span>
+          {buyHref ? (
+            <Link className="wt-btn wt-btn--primary wt-btn--sm cc-buy" to={buyHref} aria-label={`Buy ${item.title} now`}>Buy now</Link>
+          ) : (
+            <span className="wt-link" aria-hidden="true">Details <Icon name="arrow-right" size={16} /></span>
+          )}
         </div>
       </div>
     </article>

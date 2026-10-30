@@ -94,22 +94,28 @@ window.SoftwareModule = {
         try {
             const formData = new FormData();
             formData.append('softwareFile', file);
-
             const token = localStorage.getItem('adminToken');
-            const res = await fetch('/api/upload/software', {
-                method: 'POST',
-                headers: {
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: formData
+            // XHR (not fetch) so large installers show progress; no client-side timeout.
+            const data = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/upload/software');
+                xhr.timeout = 0;
+                if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable && statusEl) {
+                        const pct = Math.round((ev.loaded / ev.total) * 100);
+                        statusEl.textContent = pct >= 100 ? '⏳ Processing…' : `⏳ Uploading… ${pct}% (${(ev.loaded / 1048576).toFixed(1)} of ${(ev.total / 1048576).toFixed(1)} MB)`;
+                    }
+                };
+                xhr.onload = () => {
+                    let body = {};
+                    try { body = JSON.parse(xhr.responseText || '{}'); } catch { /* non-JSON error page */ }
+                    if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+                    else reject(new Error(body.message || (xhr.status === 413 ? 'File is larger than the server allows' : `File upload failed (HTTP ${xhr.status})`)));
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.send(formData);
             });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || 'File upload failed');
-            }
-
-            const data = await res.json();
             document.getElementById('sw-download-url').value = data.downloadUrl || data.url;
             document.getElementById('sw-file-name').value = data.fileName;
             document.getElementById('sw-file-size').value = (file.size / (1024 * 1024)).toFixed(2) + ' MB';

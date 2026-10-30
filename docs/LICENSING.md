@@ -448,3 +448,6 @@ app at its next check (immediately in strict-online mode, or after the grace per
 6. How to handle refunds of licences and services: credit notes, GST reversal and timing.
 7. Whether renewals and multi-year or lifetime licences need different invoice wording or time-of-supply handling.
 8. Whether service orders paid in advance need a receipt voucher before the invoice.
+
+
+See also [SOFTWARE_DOWNLOADS.md](SOFTWARE_DOWNLOADS.md): uploading versions, free trial downloads and the single-price "Buy now" checkout.
