@@ -15,18 +15,18 @@ export const getOrInitGstConfig = async () => {
       gstin: '32FBEPK9712B1Z0',
       sellerState: 'Kerala',
       sellerStateCode: '32',
-      registeredAddress: '8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731',
+      registeredAddress: 'Thettamala, Wayanad, Kerala - 670731',
       hsnSacCode: '999249',
       gstRate: 18,
       isInclusive: true
     });
-  } else if (config.gstin === '33AAAAA0000A1Z5' || !config.gstin || config.legalName.includes('WIDETECHNOS ACADEMY PRIVATE LIMITED')) {
+  } else if (config.gstin === '33AAAAA0000A1Z5' || !config.gstin || config.legalName.includes('WIDETECHNOS ACADEMY PRIVATE LIMITED') || config.registeredAddress.startsWith('8/7/a, Thettamala,')) {
     config.legalName = 'WIDE VENTURES';
     config.tradeName = 'WIDE VENTURES (WIDE TECH / BROFFY)';
     config.gstin = '32FBEPK9712B1Z0';
     config.sellerState = 'Kerala';
     config.sellerStateCode = '32';
-    config.registeredAddress = '8/7/a, Thettamala, Mananthavady Road, Wayanad, Kerala - 670731';
+    config.registeredAddress = 'Thettamala, Wayanad, Kerala - 670731';
     await config.save();
   }
   return config;

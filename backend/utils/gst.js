@@ -102,7 +102,12 @@ export const financialYear = (d = new Date()) => {
  * One invoice series for every item type.
  * INVOICE_SERIES=legacy (default) keeps the format courses have always used.
  * INVOICE_SERIES=sequential gives gap-free consecutive numbers per financial year,
- * e.g. WT/26-27/00001 (max 16 characters, as GST rules require). Turn it on once your CA agrees.
+ * e.g. WT/26-27/009 (max 16 characters, as GST rules require).
+ *
+ * Configure via .env:
+ *   INVOICE_SERIES=sequential   — enable sequential numbering
+ *   INVOICE_PREFIX=WT           — prefix before the financial-year segment (alphanumeric only)
+ *   INVOICE_DIGITS=3            — zero-padded width of the sequential counter (default 3)
  */
 export const isSequentialSeries = () => String(process.env.INVOICE_SERIES || 'legacy').toLowerCase() === 'sequential';
 
@@ -112,6 +117,7 @@ export const nextInvoiceNo = async (date = new Date()) => {
   }
   const fy = financialYear(date);
   const prefix = String(process.env.INVOICE_PREFIX || 'WT').replace(/[^A-Z0-9]/gi, '').slice(0, 4) || 'WT';
+  const digits = Math.max(1, Math.min(9, parseInt(process.env.INVOICE_DIGITS || '3') || 3));
   const c = await Counter.findOneAndUpdate({ _id: `invoice:${fy}` }, { $inc: { seq: 1 } }, { new: true, upsert: true });
-  return `${prefix}/${fy}/${String(c.seq).padStart(5, '0')}`;
+  return `${prefix}/${fy}/${String(c.seq).padStart(digits, '0')}`;
 };
